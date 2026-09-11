@@ -1,0 +1,44 @@
+# Version control
+.git
+.github
+.gitignore
+.editorconfig
+.idea
+.vscode
+
+# Local environment and caches
+.env
+.env.*
+!.env.example
+.phpunit.result.cache
+phpunit.xml
+tests
+
+# Dependencies
+vendor
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Build files (rebuilt inside Docker)
+public/build
+public/storage
+
+# Storage and logs
+storage/*.key
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Local SQLite databases
+database/*.sqlite
+database/*.sqlite-journal
+
+# Project service placeholders
+product-service
+
+# Docker compose files
+docker-compose*.yml
+deploy.sh
+README.md
