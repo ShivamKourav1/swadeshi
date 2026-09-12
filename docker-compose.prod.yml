@@ -86,8 +86,7 @@ services:
       - "${HTTPS_PORT:-443}:443"
     volumes:
       - storage_uploads:/var/www/html/public/storage:ro
-      - certbot_conf:/etc/letsencrypt:ro
-      - certbot_www:/var/www/html/public/.well-known:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - app
     networks:
@@ -166,8 +165,4 @@ volumes:
   redis_data:
     driver: local
   storage_uploads:
-    driver: local
-  certbot_conf:
-    driver: local
-  certbot_www:
     driver: local
