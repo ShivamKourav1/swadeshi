@@ -74,7 +74,8 @@ You can switch the interface language at any time from anywhere on the platform:
 ### 4.1 Registration & Login
 1. Click **"Sign In"** or **"Register"** in the top navigation bar.
 2. Enter your Name, Email, Phone Number, and Password.
-3. Once logged in, your user role and name appear in the top-right header menu.
+3. Upon registration, you are immediately authenticated as a **Customer** with full shopping and order privileges.
+> **Note on Roles**: Public registration only allows the creation of Customer accounts. All specialized roles (*Dealers*, *Delivery Partners*, *Karyakartas*, and *Admins*) are assigned and managed directly by administrators via the Admin Panel (`/admin/users`).
 
 ### 4.2 Browsing & Searching Products
 - **Homepage Catalog (`/`)**: Displays all active items grouped or filterable by category:
