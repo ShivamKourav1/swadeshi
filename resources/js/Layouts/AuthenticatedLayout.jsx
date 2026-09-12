@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
-import { ShoppingCart, Package, Truck, Store, LogOut, User as UserIcon, MapPin, Shield, Globe, Award, Building2 } from 'lucide-react';
+import { ShoppingCart, Package, Truck, Store, LogOut, User as UserIcon, MapPin, Shield, Globe, Award, Building2, BookOpen } from 'lucide-react';
 import { useTranslation } from '@/i18n/translations';
 
 export default function AuthenticatedLayout({ children, title }) {
@@ -37,6 +37,13 @@ export default function AuthenticatedLayout({ children, title }) {
                                 className="text-gray-700 hover:text-amber-600 font-semibold text-sm transition"
                             >
                                 {t('storefront')}
+                            </Link>
+                            <Link
+                                href={route('manual')}
+                                className="text-gray-700 hover:text-amber-600 font-semibold text-sm transition flex items-center space-x-1"
+                            >
+                                <BookOpen className="w-4 h-4 text-amber-600" />
+                                <span>{t('user_manual')}</span>
                             </Link>
                             {user && user.role === 'customer' && (
                                 <Link

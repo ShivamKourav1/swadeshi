@@ -21,6 +21,9 @@ Route::post('/language/{locale}', [LanguageController::class, 'switchLanguage'])
 // Public Storefront & Product Routes
 Route::get('/', [ProductController::class, 'index'])->name('products.index');
 Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
+Route::get('/manual', function () {
+    return \Inertia\Inertia::render('Manual/Index');
+})->name('manual');
 
 // Guest Auth Routes
 Route::middleware('guest')->group(function () {
