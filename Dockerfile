@@ -105,3 +105,21 @@ EXPOSE 9000
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php-fpm"]
+
+# =========================================================================
+# Stage 3: Nginx Production Web Server
+# =========================================================================
+FROM nginx:alpine AS web
+
+# Remove default configuration
+RUN rm -f /etc/nginx/conf.d/default.conf
+
+# Copy custom Nginx configuration
+COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
+
+# Copy compiled public assets directly from production stage
+COPY --from=production /var/www/html/public /var/www/html/public
+
+EXPOSE 80 443
+
+CMD ["nginx", "-g", "daemon off;"]
