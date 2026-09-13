@@ -164,19 +164,24 @@ export default function Index({ users, roles = [], filters }) {
                             >
                                 All Roles
                             </button>
-                            {roles.slice(0, 6).map((r) => (
-                                <button
-                                    key={r.id}
-                                    onClick={() => handleFilter(r.name)}
-                                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                                        selectedRole === r.name
-                                            ? 'bg-indigo-700 text-white shadow-sm'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    {r.display_name.split('(')[0].trim()}
-                                </button>
-                            ))}
+                            {['dealer', 'customer', 'karyakarta', 'delivery_partner', 'admin'].map((roleKey) => {
+                                const matched = roles.find((r) => r.name === roleKey);
+                                const label = matched ? matched.display_name.split('(')[0].trim() : roleKey.replace('_', ' ');
+                                return (
+                                    <button
+                                        key={roleKey}
+                                        onClick={() => handleFilter(roleKey)}
+                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition cursor-pointer ${
+                                            selectedRole === roleKey
+                                                ? 'bg-indigo-700 text-white shadow-sm'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        {roleKey === 'dealer' ? '🏪 ' : roleKey === 'delivery_partner' ? '🚚 ' : ''}
+                                        {label}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {/* Search Input */}

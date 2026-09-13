@@ -172,4 +172,48 @@ class AdminUserManagementTest extends TestCase
         // Count must remain 23
         $this->assertEquals(23, Product::where('dealer_id', $user->id)->count());
     }
+
+    public function test_admin_can_edit_customer_and_assign_dealer_role(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        // Create customer (with mobile only, email null)
+        $customer = User::create([
+            'name' => 'Phone Customer',
+            'phone' => '9876543210',
+            'email' => null,
+            'password' => Hash::make('password123'),
+            'role' => 'customer',
+            'status' => 'active',
+        ]);
+        $customer->profile()->create([]);
+
+        // Admin opens edit screen
+        $response = $this->actingAs($admin)->get(route('admin.users.edit', $customer->id));
+        $response->assertStatus(200);
+
+        // Ensure dealer role exists
+        $dealerRole = Role::where('name', 'dealer')->first();
+        $this->assertNotNull($dealerRole);
+
+        // Admin assigns dealer role and adds store details
+        $updateResponse = $this->actingAs($admin)->put(route('admin.users.update', $customer->id), [
+            'name' => 'Phone Customer',
+            'phone' => '9876543210',
+            'email' => null,
+            'role' => 'dealer',
+            'role_ids' => [$dealerRole->id],
+            'status' => 'active',
+            'business_name' => 'Keshav Bhandar Store',
+            'business_address' => '12 Main Bazaar',
+        ]);
+
+        $updateResponse->assertRedirect(route('admin.users.index'));
+
+        $customer->refresh();
+        $this->assertEquals('dealer', $customer->role);
+        $this->assertTrue($customer->isDealer());
+        $this->assertEquals('Keshav Bhandar Store', $customer->profile->business_name);
+        $this->assertEquals('12 Main Bazaar', $customer->profile->business_address);
+    }
 }

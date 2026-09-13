@@ -230,8 +230,8 @@ class RoleAndPermissionSeeder extends Seeder
             ],
             'dealer' => [
                 'name' => 'dealer',
-                'display_name' => 'Verified Store Dealer (विक्रेता)',
-                'description' => 'Manages products, categories, orders, restocks, and returns.',
+                'display_name' => 'Dealer (विक्रेता / डीलर)',
+                'description' => 'Certified vendor managing products, inventory, orders, restocks, and returns.',
                 'is_system' => true,
                 'permissions' => [
                     'manage_products',
@@ -242,7 +242,7 @@ class RoleAndPermissionSeeder extends Seeder
             ],
             'delivery_partner' => [
                 'name' => 'delivery_partner',
-                'display_name' => 'Delivery Partner (वितरण सहयोगी)',
+                'display_name' => 'Delivery Partner (वितरण साथी)',
                 'description' => 'Picks up parcels, updates live tracking, and collects cash on delivery.',
                 'is_system' => true,
                 'permissions' => [
@@ -251,7 +251,7 @@ class RoleAndPermissionSeeder extends Seeder
             ],
             'customer' => [
                 'name' => 'customer',
-                'display_name' => 'Customer / Member (ग्राहक)',
+                'display_name' => 'Customer (ग्राहक / क्रेता)',
                 'description' => 'Standard customer who browses catalog, places orders, and requests returns.',
                 'is_system' => true,
                 'permissions' => [],

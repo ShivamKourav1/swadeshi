@@ -18,13 +18,13 @@ class AdminUserUpdateRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255', 'regex:/^[^<>]*$/'],
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId)],
+            'email' => ['nullable', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($userId), 'required_without:phone'],
             'password' => ['nullable', 'string', 'min:8'],
             'role' => ['required', 'string', 'max:50'],
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', 'exists:roles,id'],
             'status' => ['required', 'in:active,inactive'],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^[^<>]*$/'],
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^[^<>]*$/', 'required_without:email'],
             'business_name' => ['nullable', 'string', 'max:255', 'regex:/^[^<>]*$/'],
             'business_address' => ['nullable', 'string', 'max:500', 'regex:/^[^<>]*$/'],
             'vehicle_type' => ['nullable', 'string', 'max:100', 'regex:/^[^<>]*$/'],

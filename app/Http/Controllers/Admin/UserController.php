@@ -84,6 +84,8 @@ class UserController extends Controller
             abort(403, 'Admin access required.');
         }
 
+        $this->ensureCoreRolesExist();
+
         return Inertia::render('Admin/Users/Create', [
             'roles' => Role::with('permissions')->orderBy('display_name')->get(),
             'kshetras' => Kshetra::orderBy('kshetra_name')->get(),
@@ -106,7 +108,7 @@ class UserController extends Controller
 
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => !empty($validated['email']) ? $validated['email'] : null,
             'password' => Hash::make($validated['password']),
             'role' => $role,
             'phone' => $validated['phone'] ?? null,
@@ -155,6 +157,8 @@ class UserController extends Controller
             abort(403, 'Admin access required.');
         }
 
+        $this->ensureCoreRolesExist();
+
         $user->load([
             'roles',
             'profile.kshetra',
@@ -188,7 +192,7 @@ class UserController extends Controller
 
         $userData = [
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => !empty($validated['email']) ? $validated['email'] : null,
             'role' => $role,
             'phone' => $validated['phone'] ?? null,
             'status' => $validated['status'],
@@ -404,5 +408,35 @@ class UserController extends Controller
         }
 
         return redirect()->route('admin.users.index')->with('success', $msg);
+    }
+
+    /**
+     * Ensure all core roles exist with intuitive bilingual display names.
+     */
+    private function ensureCoreRolesExist(): void
+    {
+        $core = [
+            'dealer' => 'Dealer (विक्रेता / डीलर)',
+            'customer' => 'Customer (ग्राहक / क्रेता)',
+            'delivery_partner' => 'Delivery Partner (वितरण साथी)',
+            'admin' => 'Admin (व्यवस्थापक / प्रशासक)',
+            'karyakarta' => 'Karyakarta (सामान्य कार्यकर्ता)',
+            'jila_karyakarta' => 'Jila Karyakarta (जिला कार्यकर्ता)',
+            'nagar_karyakarta' => 'Nagar Karyakarta (नगर कार्यकर्ता)',
+            'shakha_karyakarta' => 'Shakha Karyakarta (शाखा कार्यकर्ता)',
+            'vibhag_karyakarta' => 'Vibhag Karyakarta (विभाग कार्यकर्ता)',
+            'prant_karyakarta' => 'Prant Karyakarta (प्रान्त कार्यकर्ता)',
+            'kshetra_karyakarta' => 'Kshetra Karyakarta (क्षेत्र कार्यकर्ता)',
+        ];
+
+        foreach ($core as $name => $displayName) {
+            Role::firstOrCreate(
+                ['name' => $name],
+                [
+                    'display_name' => $displayName,
+                    'is_system' => in_array($name, ['dealer', 'customer', 'delivery_partner', 'admin']),
+                ]
+            );
+        }
     }
 }

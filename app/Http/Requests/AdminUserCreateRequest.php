@@ -15,12 +15,12 @@ class AdminUserCreateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255', 'regex:/^[^<>]*$/'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email', 'required_without:phone'],
             'password' => ['required', 'string', 'min:8'],
             'role' => ['required', 'string', 'max:50'],
             'role_ids' => ['nullable', 'array'],
             'role_ids.*' => ['integer', 'exists:roles,id'],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^[^<>]*$/'],
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^[^<>]*$/', 'required_without:email'],
             'business_name' => ['nullable', 'string', 'max:255', 'regex:/^[^<>]*$/'],
             'business_address' => ['nullable', 'string', 'max:500', 'regex:/^[^<>]*$/'],
             'vehicle_type' => ['nullable', 'string', 'max:100', 'regex:/^[^<>]*$/'],

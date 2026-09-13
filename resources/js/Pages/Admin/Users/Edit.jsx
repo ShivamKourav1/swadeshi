@@ -258,10 +258,112 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
 
                         {/* 2. Roles & Rights Assignment */}
                         <div className="space-y-4 pt-4 border-t border-gray-100">
-                            <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider flex items-center space-x-2">
-                                <Shield className="w-4 h-4 text-indigo-600" />
-                                <span>2. Role & Privileges Assignment</span>
-                            </h2>
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                                <h2 className="text-sm font-extrabold text-gray-900 uppercase tracking-wider flex items-center space-x-2">
+                                    <Shield className="w-4 h-4 text-indigo-600" />
+                                    <span>2. Role & Privileges Assignment</span>
+                                </h2>
+
+                                <span className="text-[11px] text-gray-400 font-medium">
+                                    Current Primary: <strong className="text-purple-900 uppercase">{data.role}</strong>
+                                </span>
+                            </div>
+
+                            {/* Quick Role Selection Presets */}
+                            <div>
+                                <label className="block font-bold text-gray-600 text-[11px] uppercase mb-1.5">
+                                    Quick Role Shortcuts (त्वरित भूमिका चयन)
+                                </label>
+                                <div className="flex flex-wrap gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const dealerRole = roles.find((r) => r.name === 'dealer');
+                                            setData((prev) => ({
+                                                ...prev,
+                                                role: 'dealer',
+                                                role_ids: dealerRole && !prev.role_ids.includes(dealerRole.id)
+                                                    ? [...prev.role_ids, dealerRole.id]
+                                                    : prev.role_ids,
+                                            }));
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 border transition cursor-pointer ${
+                                            data.role === 'dealer'
+                                                ? 'bg-blue-700 text-white border-blue-700 shadow-md ring-2 ring-blue-300'
+                                                : 'bg-blue-50 hover:bg-blue-100 text-blue-900 border-blue-200'
+                                        }`}
+                                    >
+                                        <Store className="w-3.5 h-3.5" />
+                                        <span>Dealer / Store (विक्रेता बनाएं)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const customerRole = roles.find((r) => r.name === 'customer');
+                                            setData((prev) => ({
+                                                ...prev,
+                                                role: 'customer',
+                                                role_ids: customerRole && !prev.role_ids.includes(customerRole.id)
+                                                    ? [...prev.role_ids, customerRole.id]
+                                                    : prev.role_ids,
+                                            }));
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 border transition cursor-pointer ${
+                                            data.role === 'customer'
+                                                ? 'bg-gray-900 text-white border-gray-900 shadow-md'
+                                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
+                                        }`}
+                                    >
+                                        <UserCheck className="w-3.5 h-3.5" />
+                                        <span>Customer (ग्राहक)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const deliveryRole = roles.find((r) => r.name === 'delivery_partner');
+                                            setData((prev) => ({
+                                                ...prev,
+                                                role: 'delivery_partner',
+                                                role_ids: deliveryRole && !prev.role_ids.includes(deliveryRole.id)
+                                                    ? [...prev.role_ids, deliveryRole.id]
+                                                    : prev.role_ids,
+                                            }));
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 border transition cursor-pointer ${
+                                            data.role === 'delivery_partner'
+                                                ? 'bg-orange-600 text-white border-orange-600 shadow-md ring-2 ring-orange-300'
+                                                : 'bg-orange-50 hover:bg-orange-100 text-orange-900 border-orange-200'
+                                        }`}
+                                    >
+                                        <Truck className="w-3.5 h-3.5" />
+                                        <span>Delivery Partner (वितरण साथी)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const karyakartaRole = roles.find((r) => r.name === 'karyakarta') || roles.find((r) => r.name.includes('karyakarta'));
+                                            setData((prev) => ({
+                                                ...prev,
+                                                role: 'karyakarta',
+                                                role_ids: karyakartaRole && !prev.role_ids.includes(karyakartaRole.id)
+                                                    ? [...prev.role_ids, karyakartaRole.id]
+                                                    : prev.role_ids,
+                                            }));
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 border transition cursor-pointer ${
+                                            data.role === 'karyakarta' || data.role.includes('karyakarta')
+                                                ? 'bg-amber-600 text-white border-amber-600 shadow-md ring-2 ring-amber-300'
+                                                : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200'
+                                        }`}
+                                    >
+                                        <Building2 className="w-3.5 h-3.5" />
+                                        <span>Karyakarta (कार्यकर्ता)</span>
+                                    </button>
+                                </div>
+                            </div>
 
                             <div>
                                 <label className="block font-bold text-gray-700 uppercase mb-1">Primary Role *</label>
@@ -272,6 +374,7 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
                                 >
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.name}>
+                                            {r.name === 'dealer' ? '🏪 ' : r.name === 'delivery_partner' ? '🚚 ' : r.name === 'admin' ? '🛡️ ' : ''}
                                             {r.display_name} ({r.name})
                                         </option>
                                     ))}
@@ -285,24 +388,34 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                     {roles.map((r) => {
                                         const isChecked = data.role_ids.includes(r.id);
+                                        const isDealer = r.name === 'dealer';
                                         return (
                                             <div
                                                 key={r.id}
                                                 onClick={() => toggleRoleId(r.id)}
-                                                className={`p-3 rounded-xl border flex items-start space-x-2 transition cursor-pointer select-none ${
+                                                className={`p-3 rounded-xl border flex items-start space-x-2.5 transition cursor-pointer select-none ${
                                                     isChecked
-                                                        ? 'bg-purple-50 border-purple-300 text-purple-900 font-bold'
-                                                        : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                                                        ? isDealer
+                                                            ? 'bg-blue-50 border-blue-400 text-blue-950 font-bold ring-1 ring-blue-300'
+                                                            : 'bg-purple-50 border-purple-300 text-purple-900 font-bold'
+                                                        : isDealer
+                                                            ? 'bg-blue-50/30 border-blue-200 text-blue-900 hover:bg-blue-50/70'
+                                                            : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
                                                 }`}
                                             >
                                                 <input
                                                     type="checkbox"
                                                     checked={isChecked}
                                                     onChange={() => {}}
-                                                    className="mt-0.5 rounded text-purple-600 focus:ring-purple-400 cursor-pointer"
+                                                    className={`mt-0.5 rounded cursor-pointer ${
+                                                        isDealer ? 'text-blue-600 focus:ring-blue-400' : 'text-purple-600 focus:ring-purple-400'
+                                                    }`}
                                                 />
-                                                <div>
-                                                    <div className="text-xs">{r.display_name}</div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-xs flex items-center gap-1 font-bold">
+                                                        {isDealer && <Store className="w-3.5 h-3.5 text-blue-700 flex-shrink-0" />}
+                                                        <span className="truncate">{r.display_name}</span>
+                                                    </div>
                                                     <div className="text-[10px] text-gray-400 font-mono">{r.name}</div>
                                                 </div>
                                             </div>
