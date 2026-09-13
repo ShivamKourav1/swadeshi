@@ -24,7 +24,7 @@ import {
     CheckCircle2,
 } from 'lucide-react';
 
-export default function Index({ users, roles = [], filters }) {
+export default function Index({ users, roles = [], filters, can_manage_roles = false, is_superadmin = false, is_toli_admin = false }) {
     const [selectedRole, setSelectedRole] = useState(filters.role || '');
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [showImportModal, setShowImportModal] = useState(false);
@@ -85,7 +85,8 @@ export default function Index({ users, roles = [], filters }) {
     };
 
     const getRoleBadgeStyle = (roleName) => {
-        if (roleName.includes('admin')) return 'bg-purple-100 text-purple-800 border-purple-200';
+        if (roleName === 'superadmin') return 'bg-rose-100 text-rose-800 border-rose-200';
+        if (roleName === 'admin') return 'bg-purple-100 text-purple-800 border-purple-200';
         if (roleName.includes('karyakarta')) return 'bg-amber-100 text-amber-900 border-amber-200';
         if (roleName.includes('dealer')) return 'bg-blue-100 text-blue-900 border-blue-200';
         if (roleName.includes('delivery')) return 'bg-orange-100 text-orange-900 border-orange-200';
@@ -113,11 +114,11 @@ export default function Index({ users, roles = [], filters }) {
                     <div>
                         <div className="flex items-center space-x-2 text-purple-200 text-xs font-bold uppercase tracking-wider mb-1">
                             <Shield className="w-4 h-4" />
-                            <span>System Administrator Control Panel</span>
+                            <span>{is_superadmin ? 'Superadmin Control Panel (मुख्य व्यवस्थापक)' : 'Toli Administrator Control Panel (टोली प्रशासक)'}</span>
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-black">User & Access Management (उपयोगकर्ता प्रबंधन)</h1>
                         <p className="text-purple-200 text-xs mt-1">
-                            Manage user accounts, assign multiple roles & permissions, and configure organizational jurisdictions.
+                            {is_toli_admin ? 'Scoped management for users and resources within your assigned organizational toli.' : 'Manage user accounts, assign multiple roles & permissions, and configure organizational jurisdictions.'}
                         </p>
                     </div>
 
@@ -131,13 +132,15 @@ export default function Index({ users, roles = [], filters }) {
                             <span>Import Users (Excel/CSV)</span>
                         </button>
 
-                        <Link
-                            href={route('admin.roles.index')}
-                            className="bg-white/15 hover:bg-white/25 text-white font-extrabold px-4 py-3 rounded-2xl text-xs transition flex items-center space-x-2"
-                        >
-                            <KeyRound className="w-4 h-4" />
-                            <span>Roles & Rights Matrix</span>
-                        </Link>
+                        {can_manage_roles && (
+                            <Link
+                                href={route('admin.roles.index')}
+                                className="bg-white/15 hover:bg-white/25 text-white font-extrabold px-4 py-3 rounded-2xl text-xs transition flex items-center space-x-2"
+                            >
+                                <KeyRound className="w-4 h-4" />
+                                <span>Roles & Rights Matrix</span>
+                            </Link>
+                        )}
 
                         <Link
                             href={route('admin.users.create')}
@@ -164,7 +167,7 @@ export default function Index({ users, roles = [], filters }) {
                             >
                                 All Roles
                             </button>
-                            {['dealer', 'customer', 'karyakarta', 'delivery_partner', 'admin'].map((roleKey) => {
+                            {(is_superadmin ? ['superadmin', 'admin', 'karyakarta', 'dealer', 'customer', 'delivery_partner'] : ['admin', 'karyakarta', 'dealer', 'customer', 'delivery_partner']).map((roleKey) => {
                                 const matched = roles.find((r) => r.name === roleKey);
                                 const label = matched ? matched.display_name.split('(')[0].trim() : roleKey.replace('_', ' ');
                                 return (
@@ -177,7 +180,7 @@ export default function Index({ users, roles = [], filters }) {
                                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                         }`}
                                     >
-                                        {roleKey === 'dealer' ? '🏪 ' : roleKey === 'delivery_partner' ? '🚚 ' : ''}
+                                        {roleKey === 'superadmin' ? '👑 ' : roleKey === 'dealer' ? '🏪 ' : roleKey === 'delivery_partner' ? '🚚 ' : ''}
                                         {label}
                                     </button>
                                 );

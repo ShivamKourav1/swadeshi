@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'System Admin',
             'email' => 'admin@ecommerce.com',
             'password' => Hash::make('password'),
-            'role' => 'admin',
+            'role' => 'superadmin',
             'phone' => '+15550100',
             'status' => 'active',
         ]);

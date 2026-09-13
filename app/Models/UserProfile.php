@@ -24,11 +24,21 @@ class UserProfile extends Model
         'jila_id',
         'nagar_id',
         'shakha_id',
+        'is_shakha_toli_member',
+        'is_nagar_toli_member',
+        'is_jila_toli_member',
+        'is_vibhag_toli_member',
+        'is_kshetra_toli_member',
         'has_seeded_shakha_products',
     ];
 
     protected $casts = [
         'has_seeded_shakha_products' => 'boolean',
+        'is_shakha_toli_member' => 'boolean',
+        'is_nagar_toli_member' => 'boolean',
+        'is_jila_toli_member' => 'boolean',
+        'is_vibhag_toli_member' => 'boolean',
+        'is_kshetra_toli_member' => 'boolean',
     ];
 
     public function user(): BelongsTo

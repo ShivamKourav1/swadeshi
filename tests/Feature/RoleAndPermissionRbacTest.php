@@ -37,9 +37,9 @@ class RoleAndPermissionRbacTest extends TestCase
 
         $this->seed(RoleAndPermissionSeeder::class);
 
-        $this->admin = User::factory()->create(['role' => 'admin']);
+        $this->admin = User::factory()->create(['role' => 'superadmin']);
         UserProfile::create(['user_id' => $this->admin->id]);
-        $this->admin->assignRole('admin');
+        $this->admin->assignRole('superadmin');
 
         $this->kshetra = Kshetra::create(['kshetra_name' => 'Madhya Kshetra']);
         $this->prant = Prant::create(['kshetra_id' => $this->kshetra->id, 'prant_name' => 'Malwa Prant']);

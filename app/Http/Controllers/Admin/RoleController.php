@@ -17,8 +17,8 @@ class RoleController extends Controller
      */
     public function index(Request $request): Response
     {
-        if (!$request->user()->isAdmin() && !$request->user()->hasPermission('manage_roles')) {
-            abort(403, 'Unauthorized access to Role Management.');
+        if (!$request->user()->isSuperAdmin() && !$request->user()->hasPermission('manage_roles')) {
+            abort(403, 'Unauthorized access to Role Management. Super Administrator rights required.');
         }
 
         $roles = Role::with(['permissions'])
@@ -42,8 +42,8 @@ class RoleController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        if (!$request->user()->isAdmin() && !$request->user()->hasPermission('manage_roles')) {
-            abort(403, 'Unauthorized access to Role Management.');
+        if (!$request->user()->isSuperAdmin() && !$request->user()->hasPermission('manage_roles')) {
+            abort(403, 'Unauthorized access to Role Management. Super Administrator rights required.');
         }
 
         $validated = $request->validate([
@@ -76,8 +76,8 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role): RedirectResponse
     {
-        if (!$request->user()->isAdmin() && !$request->user()->hasPermission('manage_roles')) {
-            abort(403, 'Unauthorized access to Role Management.');
+        if (!$request->user()->isSuperAdmin() && !$request->user()->hasPermission('manage_roles')) {
+            abort(403, 'Unauthorized access to Role Management. Super Administrator rights required.');
         }
 
         $rules = [
@@ -117,11 +117,11 @@ class RoleController extends Controller
      */
     public function destroy(Request $request, Role $role): RedirectResponse
     {
-        if (!$request->user()->isAdmin() && !$request->user()->hasPermission('manage_roles')) {
-            abort(403, 'Unauthorized access to Role Management.');
+        if (!$request->user()->isSuperAdmin() && !$request->user()->hasPermission('manage_roles')) {
+            abort(403, 'Unauthorized access to Role Management. Super Administrator rights required.');
         }
 
-        if ($role->is_system) {
+        if ($role->is_system || $role->name === 'superadmin' || $role->name === 'admin') {
             return back()->with('error', "System role '{$role->display_name}' is locked and cannot be deleted.");
         }
 

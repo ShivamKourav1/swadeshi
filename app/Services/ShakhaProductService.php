@@ -214,7 +214,7 @@ class ShakhaProductService
                     'sku' => $sku,
                     'description' => $item['description'],
                     'price' => $item['price'],
-                    'stock' => 50,
+                    'stock' => 0,
                     'image_url' => '/images/categories/ganvesh.jpg',
                     'status' => 'active',
                 ]);

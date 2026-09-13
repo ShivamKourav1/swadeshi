@@ -47,7 +47,7 @@ class OrganizationUnitController extends Controller
             'manage_jila' => $user->canManageUnit('jila'),
             'manage_nagar' => $user->canManageUnit('nagar'),
             'manage_shakha' => $user->canManageUnit('shakha'),
-            'manage_toli' => $user->hasPermission('manage_toli') || $user->isAdmin(),
+            'manage_toli' => $user->isSuperAdmin() || $user->hasPermission('manage_toli') || $user->isToliAdmin(),
         ];
 
         return Inertia::render('Karyakarta/Units/Index', [
@@ -59,7 +59,7 @@ class OrganizationUnitController extends Controller
             'nagars' => $nagars,
             'shakhas' => $shakhas,
             'permissions' => $permissions,
-            'is_admin' => $user->isAdmin(),
+            'is_admin' => $user->isSuperAdmin(),
             'scope' => [
                 'description' => $profile?->scope_description ?? 'Global Jurisdiction',
                 'kshetra_id' => $profile?->kshetra_id,
@@ -328,7 +328,7 @@ class OrganizationUnitController extends Controller
      */
     private function checkParentJurisdiction($user, string $unitType, Request $request): void
     {
-        if ($user->isAdmin()) {
+        if ($user->isSuperAdmin()) {
             return;
         }
 

@@ -81,9 +81,19 @@ class User extends Authenticatable
         return $this->role === 'customer' || $this->hasRole('customer');
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'superadmin' || $this->hasRole('superadmin');
+    }
+
+    public function isToliAdmin(): bool
+    {
+        return ($this->role === 'admin' || $this->hasRole('admin')) && !$this->isSuperAdmin();
+    }
+
     public function isAdmin(): bool
     {
-        return $this->role === 'admin' || $this->hasRole('admin');
+        return $this->isSuperAdmin() || $this->role === 'admin' || $this->hasRole('admin');
     }
 
     public function isKaryakarta(): bool
@@ -106,7 +116,7 @@ class User extends Authenticatable
 
     public function hasPermission(string $permissionName): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isSuperAdmin()) {
             return true;
         }
 
@@ -126,7 +136,7 @@ class User extends Authenticatable
 
     public function getAllPermissions(): array
     {
-        if ($this->isAdmin()) {
+        if ($this->isSuperAdmin()) {
             return Permission::pluck('name')->toArray();
         }
 
@@ -177,19 +187,33 @@ class User extends Authenticatable
      */
     public function canManageUnit(string $unitType, $targetUnit = null): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->isSuperAdmin()) {
             return true;
         }
 
         $permissionName = "manage_{$unitType}";
-        if (!$this->hasPermission($permissionName)) {
+        if (!$this->hasPermission($permissionName) && !$this->isToliAdmin()) {
             return false;
         }
 
-        // If user has no specific profile restriction, they have global jurisdiction with their permission
-        $profile = $this->profile;
+        $profile = $this->relationLoaded('profile') ? $this->profile : $this->profile()->first();
         if (!$profile) {
-            return true;
+            return false;
+        }
+
+        // Toli admin cannot manage unit levels higher than their own toli jurisdiction
+        if ($this->isToliAdmin()) {
+            $jurisdiction = $this->getToliJurisdiction();
+            if (!$jurisdiction) {
+                return false;
+            }
+
+            $levelHierarchy = ['kshetra' => 6, 'prant' => 5, 'vibhag' => 4, 'jila' => 3, 'nagar' => 2, 'shakha' => 1];
+            $adminRank = $levelHierarchy[$jurisdiction['level']] ?? 0;
+            $unitRank = $levelHierarchy[$unitType] ?? 0;
+            if ($unitRank > $adminRank) {
+                return false;
+            }
         }
 
         // If target unit is provided, verify it falls within the user's jurisdiction scope
@@ -309,12 +333,206 @@ class User extends Authenticatable
     }
 
     /**
+     * Check if user belongs to any organizational toli (Shakha, Nagar, Jila, Vibhag, or Kshetra).
+     */
+    public function belongsToToli(): bool
+    {
+        return $this->getToliJurisdiction() !== null;
+    }
+
+    /**
+     * Resolve the user's toli jurisdiction level and ID.
+     */
+    public function getToliJurisdiction(): ?array
+    {
+        $profile = $this->relationLoaded('profile') ? $this->profile : $this->profile()->first();
+        if (!$profile) {
+            return null;
+        }
+
+        // 1. Check explicit toli member indicator flags
+        if ($profile->is_shakha_toli_member && $profile->shakha_id) {
+            return ['level' => 'shakha', 'id' => (int)$profile->shakha_id];
+        }
+        if ($profile->is_nagar_toli_member && $profile->nagar_id) {
+            return ['level' => 'nagar', 'id' => (int)$profile->nagar_id];
+        }
+        if ($profile->is_jila_toli_member && $profile->jila_id) {
+            return ['level' => 'jila', 'id' => (int)$profile->jila_id];
+        }
+        if ($profile->is_vibhag_toli_member && $profile->vibhag_id) {
+            return ['level' => 'vibhag', 'id' => (int)$profile->vibhag_id];
+        }
+        if ($profile->is_kshetra_toli_member && ($profile->kshetra_id || $profile->prant_id)) {
+            return ['level' => 'kshetra', 'id' => (int)($profile->kshetra_id ?? $profile->prant_id)];
+        }
+
+        // 2. Check toli roles
+        if ($this->hasRole('shakha_karyakarta') && $profile->shakha_id) {
+            return ['level' => 'shakha', 'id' => (int)$profile->shakha_id];
+        }
+        if ($this->hasRole('nagar_karyakarta') && $profile->nagar_id) {
+            return ['level' => 'nagar', 'id' => (int)$profile->nagar_id];
+        }
+        if ($this->hasRole('jila_karyakarta') && $profile->jila_id) {
+            return ['level' => 'jila', 'id' => (int)$profile->jila_id];
+        }
+        if ($this->hasRole('vibhag_karyakarta') && $profile->vibhag_id) {
+            return ['level' => 'vibhag', 'id' => (int)$profile->vibhag_id];
+        }
+        if ($this->hasRole('prant_karyakarta') && $profile->prant_id) {
+            return ['level' => 'prant', 'id' => (int)$profile->prant_id];
+        }
+        if ($this->hasRole('kshetra_karyakarta') && $profile->kshetra_id) {
+            return ['level' => 'kshetra', 'id' => (int)$profile->kshetra_id];
+        }
+
+        // 3. Fallback: If user is karyakarta or admin and has assigned unit in profile
+        if ($this->isKaryakarta() || $this->role === 'admin' || $this->hasRole('admin')) {
+            if ($profile->shakha_id) {
+                return ['level' => 'shakha', 'id' => (int)$profile->shakha_id];
+            }
+            if ($profile->nagar_id) {
+                return ['level' => 'nagar', 'id' => (int)$profile->nagar_id];
+            }
+            if ($profile->jila_id) {
+                return ['level' => 'jila', 'id' => (int)$profile->jila_id];
+            }
+            if ($profile->vibhag_id) {
+                return ['level' => 'vibhag', 'id' => (int)$profile->vibhag_id];
+            }
+            if ($profile->prant_id) {
+                return ['level' => 'prant', 'id' => (int)$profile->prant_id];
+            }
+            if ($profile->kshetra_id) {
+                return ['level' => 'kshetra', 'id' => (int)$profile->kshetra_id];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Determine if this administrator can manage the given target user.
+     */
+    public function canManageUser(User $targetUser): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        // Toli admin cannot manage superadmin accounts
+        if ($targetUser->isSuperAdmin()) {
+            return false;
+        }
+
+        if ($this->id === $targetUser->id) {
+            return true;
+        }
+
+        if (!$this->isToliAdmin()) {
+            return false;
+        }
+
+        $jurisdiction = $this->getToliJurisdiction();
+        if (!$jurisdiction) {
+            return false;
+        }
+
+        $targetProfile = $targetUser->profile()->first();
+        if (!$targetProfile) {
+            return false;
+        }
+
+        return $this->isProfileWithinToliJurisdiction($targetProfile, $jurisdiction);
+    }
+
+    /**
+     * Check if a given user profile falls within the specified toli jurisdiction.
+     */
+    public function isProfileWithinToliJurisdiction(UserProfile $targetProfile, array $jurisdiction): bool
+    {
+        $level = $jurisdiction['level'];
+        $id = (int)$jurisdiction['id'];
+
+        if ($level === 'shakha') {
+            return (int)$targetProfile->shakha_id === $id;
+        }
+
+        if ($level === 'nagar') {
+            if ((int)$targetProfile->nagar_id === $id) {
+                return true;
+            }
+            if ($targetProfile->shakha_id) {
+                $shakha = $targetProfile->shakha ?: Shakha::find($targetProfile->shakha_id);
+                return $shakha && (int)$shakha->nagar_id === $id;
+            }
+            return false;
+        }
+
+        if ($level === 'jila') {
+            if ((int)$targetProfile->jila_id === $id) {
+                return true;
+            }
+            if ($targetProfile->nagar_id) {
+                $nagar = $targetProfile->nagar ?: Nagar::find($targetProfile->nagar_id);
+                return $nagar && (int)$nagar->jila_id === $id;
+            }
+            if ($targetProfile->shakha_id) {
+                $shakha = $targetProfile->shakha ?: Shakha::with('nagar')->find($targetProfile->shakha_id);
+                return $shakha && $shakha->nagar && (int)$shakha->nagar->jila_id === $id;
+            }
+            return false;
+        }
+
+        if ($level === 'vibhag') {
+            if ((int)$targetProfile->vibhag_id === $id) {
+                return true;
+            }
+            if ($targetProfile->jila_id) {
+                $jila = $targetProfile->jila ?: Jila::find($targetProfile->jila_id);
+                return $jila && (int)$jila->vibhag_id === $id;
+            }
+            if ($targetProfile->nagar_id) {
+                $nagar = $targetProfile->nagar ?: Nagar::with('jila')->find($targetProfile->nagar_id);
+                return $nagar && $nagar->jila && (int)$nagar->jila->vibhag_id === $id;
+            }
+            return false;
+        }
+
+        if ($level === 'prant') {
+            if ((int)$targetProfile->prant_id === $id) {
+                return true;
+            }
+            if ($targetProfile->vibhag_id) {
+                $vibhag = $targetProfile->vibhag ?: Vibhag::find($targetProfile->vibhag_id);
+                return $vibhag && (int)$vibhag->prant_id === $id;
+            }
+            return false;
+        }
+
+        if ($level === 'kshetra') {
+            if ((int)$targetProfile->kshetra_id === $id) {
+                return true;
+            }
+            if ($targetProfile->prant_id) {
+                $prant = $targetProfile->prant ?: Prant::find($targetProfile->prant_id);
+                return $prant && (int)$prant->kshetra_id === $id;
+            }
+            return false;
+        }
+
+        return false;
+    }
+
+    /**
      * Fallback default permissions for legacy role strings.
      */
     private function getDefaultRolePermissions(string $role): array
     {
         return match ($role) {
-            'admin' => Permission::pluck('name')->toArray(),
+            'superadmin' => Permission::pluck('name')->toArray(),
+            'admin' => ['manage_users', 'manage_toli', 'view_unit_directory', 'view_karyakarta_dashboard'],
             'kshetra_karyakarta' => ['manage_prant', 'manage_vibhag', 'manage_jila', 'manage_nagar', 'manage_shakha', 'manage_toli', 'view_karyakarta_dashboard', 'view_unit_directory'],
             'prant_karyakarta' => ['manage_vibhag', 'manage_jila', 'manage_nagar', 'manage_shakha', 'manage_toli', 'view_karyakarta_dashboard', 'view_unit_directory'],
             'vibhag_karyakarta' => ['manage_jila', 'manage_nagar', 'manage_shakha', 'manage_toli', 'view_karyakarta_dashboard', 'view_unit_directory'],

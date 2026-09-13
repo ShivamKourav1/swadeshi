@@ -115,7 +115,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 </Link>
                             )}
 
-                            {(user?.is_admin || user?.role === 'admin') && (
+                            {(user?.is_admin || user?.role === 'admin' || user?.is_superadmin || user?.role === 'superadmin') && (
                                 <>
                                     <Link
                                         href={route('admin.users.index')}
@@ -124,13 +124,15 @@ export default function AuthenticatedLayout({ children, title }) {
                                         <Shield className="w-4 h-4 text-purple-700" />
                                         <span>{t('admin_panel')}</span>
                                     </Link>
-                                    <Link
-                                        href={route('admin.roles.index')}
-                                        className="text-indigo-800 bg-indigo-100 px-3 py-1.5 rounded-lg text-sm font-extrabold hover:bg-indigo-200 transition flex items-center space-x-1"
-                                    >
-                                        <Shield className="w-4 h-4 text-indigo-700" />
-                                        <span>{t('roles_rights')}</span>
-                                    </Link>
+                                    {(user?.is_superadmin || user?.role === 'superadmin') && (
+                                        <Link
+                                            href={route('admin.roles.index')}
+                                            className="text-indigo-800 bg-indigo-100 px-3 py-1.5 rounded-lg text-sm font-extrabold hover:bg-indigo-200 transition flex items-center space-x-1"
+                                        >
+                                            <Shield className="w-4 h-4 text-indigo-700" />
+                                            <span>{t('roles_rights')}</span>
+                                        </Link>
+                                    )}
                                 </>
                             )}
                         </nav>
@@ -181,7 +183,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                     <div className="text-right hidden sm:block">
                                         <div className="text-sm font-bold text-gray-900">{user.name}</div>
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                                            {user.is_admin ? 'Admin' : (user.is_karyakarta ? 'Karyakarta' : (user.is_dealer ? 'Dealer' : (user.is_delivery_partner ? 'Delivery Partner' : user.role)))}
+                                            {user.is_superadmin ? 'Superadmin' : (user.is_toli_admin ? 'Toli Admin' : (user.is_admin ? 'Admin' : (user.is_karyakarta ? 'Karyakarta' : (user.is_dealer ? 'Dealer' : (user.is_delivery_partner ? 'Delivery Partner' : user.role)))))}
                                         </span>
                                     </div>
                                     <Link

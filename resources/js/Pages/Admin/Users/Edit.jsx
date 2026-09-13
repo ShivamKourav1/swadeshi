@@ -15,7 +15,18 @@ import {
     MapPin,
 } from 'lucide-react';
 
-export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, nagars, shakhas }) {
+export default function Edit({
+    user,
+    roles = [],
+    kshetras = [],
+    prants = [],
+    vibhags = [],
+    jilas = [],
+    nagars = [],
+    shakhas = [],
+    is_superadmin = false,
+    is_toli_admin = false,
+}) {
     const profile = user.profile || {};
     const initialRoleIds = user.roles ? user.roles.map((r) => r.id) : [];
 
@@ -38,6 +49,11 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
         jila_id: profile.jila_id ? String(profile.jila_id) : '',
         nagar_id: profile.nagar_id ? String(profile.nagar_id) : '',
         shakha_id: profile.shakha_id ? String(profile.shakha_id) : '',
+        is_shakha_toli_member: Boolean(profile.is_shakha_toli_member),
+        is_nagar_toli_member: Boolean(profile.is_nagar_toli_member),
+        is_jila_toli_member: Boolean(profile.is_jila_toli_member),
+        is_vibhag_toli_member: Boolean(profile.is_vibhag_toli_member),
+        is_kshetra_toli_member: Boolean(profile.is_kshetra_toli_member),
     });
 
     // Cascading filters for organizational units
@@ -119,6 +135,11 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
             jila_id: '',
             nagar_id: '',
             shakha_id: '',
+            is_shakha_toli_member: false,
+            is_nagar_toli_member: false,
+            is_jila_toli_member: false,
+            is_vibhag_toli_member: false,
+            is_kshetra_toli_member: false,
         }));
     };
 
@@ -362,8 +383,63 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
                                         <Building2 className="w-3.5 h-3.5" />
                                         <span>Karyakarta (कार्यकर्ता)</span>
                                     </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const adminRole = roles.find((r) => r.name === 'admin');
+                                            setData((prev) => ({
+                                                ...prev,
+                                                role: 'admin',
+                                                role_ids: adminRole && !prev.role_ids.includes(adminRole.id)
+                                                    ? [...prev.role_ids, adminRole.id]
+                                                    : prev.role_ids,
+                                            }));
+                                        }}
+                                        className={`px-3 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 border transition cursor-pointer ${
+                                            data.role === 'admin'
+                                                ? 'bg-rose-700 text-white border-rose-700 shadow-md ring-2 ring-rose-300'
+                                                : 'bg-rose-50 hover:bg-rose-100 text-rose-900 border-rose-200'
+                                        }`}
+                                    >
+                                        <Shield className="w-3.5 h-3.5" />
+                                        <span>Admin (टोली प्रशासक)</span>
+                                    </button>
+
+                                    {is_superadmin && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const saRole = roles.find((r) => r.name === 'superadmin');
+                                                setData((prev) => ({
+                                                    ...prev,
+                                                    role: 'superadmin',
+                                                    role_ids: saRole && !prev.role_ids.includes(saRole.id)
+                                                        ? [...prev.role_ids, saRole.id]
+                                                        : prev.role_ids,
+                                                }));
+                                            }}
+                                            className={`px-3 py-2 rounded-xl text-xs font-black flex items-center space-x-1.5 border transition cursor-pointer ${
+                                                data.role === 'superadmin'
+                                                    ? 'bg-purple-900 text-white border-purple-900 shadow-md ring-2 ring-purple-300'
+                                                    : 'bg-purple-50 hover:bg-purple-100 text-purple-900 border-purple-200'
+                                            }`}
+                                        >
+                                            <Shield className="w-3.5 h-3.5 text-amber-400" />
+                                            <span>Superadmin (मुख्य व्यवस्थापक)</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
+
+                            {data.role === 'admin' && (
+                                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start space-x-2">
+                                    <Shield className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <strong className="font-bold">टोली प्रशासक (Toli Admin) नियम:</strong> यह एडमिन केवल अपनी टोली / अधिकार क्षेत्र (Shakha, Nagar, Jila, Vibhag या Kshetra) के अंतर्गत आने वाले उपयोगकर्ताओं, इकाइयों और ऑर्डरों का प्रबंधन कर सकता है। नीचे दिए गए अनुभाग में टोली सदस्यता अथवा अधिकार क्षेत्र का चयन अनिवार्य है।
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <label className="block font-bold text-gray-700 uppercase mb-1">Primary Role *</label>
@@ -374,7 +450,7 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
                                 >
                                     {roles.map((r) => (
                                         <option key={r.id} value={r.name}>
-                                            {r.name === 'dealer' ? '🏪 ' : r.name === 'delivery_partner' ? '🚚 ' : r.name === 'admin' ? '🛡️ ' : ''}
+                                            {r.name === 'dealer' ? '🏪 ' : r.name === 'delivery_partner' ? '🚚 ' : r.name === 'superadmin' ? '👑 ' : r.name === 'admin' ? '🛡️ ' : ''}
                                             {r.display_name} ({r.name})
                                         </option>
                                     ))}
@@ -586,6 +662,42 @@ export default function Edit({ user, roles, kshetras, prants, vibhags, jilas, na
                                             </option>
                                         ))}
                                     </select>
+                                </div>
+                            </div>
+
+                            {/* Toli Memberships (टोली सदस्यता) */}
+                            <div className="pt-3 border-t border-amber-200/60">
+                                <label className="block font-bold text-amber-900 text-xs uppercase mb-1">
+                                    Toli Memberships (टोली सदस्यता)
+                                </label>
+                                <p className="text-gray-500 text-[11px] mb-2.5">
+                                    Select which organizational toli committees this user is an active member of (आवश्यक होने पर संबंधित टोली चुनें):
+                                </p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                                    {[
+                                        { key: 'is_shakha_toli_member', label: 'Shakha Toli (शाखा टोली सदस्य)' },
+                                        { key: 'is_nagar_toli_member', label: 'Nagar Toli (नगर टोली सदस्य)' },
+                                        { key: 'is_jila_toli_member', label: 'Jila Toli (जिला टोली सदस्य)' },
+                                        { key: 'is_vibhag_toli_member', label: 'Vibhag Toli (विभाग टोली सदस्य)' },
+                                        { key: 'is_kshetra_toli_member', label: 'Kshetra Toli (क्षेत्र टोली सदस्य)' },
+                                    ].map((toli) => (
+                                        <label
+                                            key={toli.key}
+                                            className={`p-2.5 rounded-xl border flex items-center space-x-2.5 cursor-pointer transition select-none ${
+                                                data[toli.key]
+                                                    ? 'bg-amber-100 border-amber-400 text-amber-950 font-bold'
+                                                    : 'bg-white border-amber-200 text-gray-700 hover:bg-amber-50/50'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(data[toli.key])}
+                                                onChange={(e) => setData(toli.key, e.target.checked)}
+                                                className="rounded text-amber-600 focus:ring-amber-500"
+                                            />
+                                            <span className="text-xs">{toli.label}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         </div>

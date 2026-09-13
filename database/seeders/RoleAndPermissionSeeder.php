@@ -127,12 +127,24 @@ class RoleAndPermissionSeeder extends Seeder
 
         // 2. Define Standard Roles
         $roles = [
-            'admin' => [
-                'name' => 'admin',
-                'display_name' => 'System Administrator (प्रशासक)',
-                'description' => 'Full administrative access to manage all modules, users, roles, and units.',
+            'superadmin' => [
+                'name' => 'superadmin',
+                'display_name' => 'Superadmin (मुख्य व्यवस्थापक / सुपर एडमिन)',
+                'description' => 'Unrestricted global administrator with authority over all modules, users, roles, system settings, and all jurisdictions.',
                 'is_system' => true,
                 'permissions' => array_column($permissions, 'name'),
+            ],
+            'admin' => [
+                'name' => 'admin',
+                'display_name' => 'Toli Administrator (टोली व्यवस्थापक / प्रशासक)',
+                'description' => 'Scoped administrative access for karyakartas belonging to an organizational toli (Shakha, Nagar, Jila, Vibhag, or Kshetra).',
+                'is_system' => true,
+                'permissions' => [
+                    'manage_users',
+                    'manage_toli',
+                    'view_unit_directory',
+                    'view_karyakarta_dashboard',
+                ],
             ],
             'kshetra_karyakarta' => [
                 'name' => 'kshetra_karyakarta',

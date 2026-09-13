@@ -52,7 +52,7 @@ class UserImportService
     /**
      * Import users from an uploaded CSV or XLSX file.
      */
-    public function import(UploadedFile $file): array
+    public function import(UploadedFile $file, ?User $importingAdmin = null): array
     {
         $extension = strtolower($file->getClientOriginalExtension());
         $rows = [];
@@ -156,6 +156,25 @@ class UserImportService
                     }
                 }
 
+                // Prepare profile payload with toli flags and admin jurisdiction
+                $profilePayload = [
+                    'is_shakha_toli_member' => $isShakha,
+                    'is_nagar_toli_member' => $isNagar,
+                    'is_jila_toli_member' => $isJila,
+                ];
+
+                if ($importingAdmin && $importingAdmin->isToliAdmin()) {
+                    $adminProfile = $importingAdmin->profile;
+                    if ($adminProfile) {
+                        if ($adminProfile->kshetra_id) $profilePayload['kshetra_id'] = $adminProfile->kshetra_id;
+                        if ($adminProfile->prant_id) $profilePayload['prant_id'] = $adminProfile->prant_id;
+                        if ($adminProfile->vibhag_id) $profilePayload['vibhag_id'] = $adminProfile->vibhag_id;
+                        if ($adminProfile->jila_id) $profilePayload['jila_id'] = $adminProfile->jila_id;
+                        if ($adminProfile->nagar_id) $profilePayload['nagar_id'] = $adminProfile->nagar_id;
+                        if ($adminProfile->shakha_id) $profilePayload['shakha_id'] = $adminProfile->shakha_id;
+                    }
+                }
+
                 // Look for existing user by phone
                 $user = User::where('phone', $cleanPhone)
                     ->orWhere('phone', $mobile)
@@ -169,6 +188,13 @@ class UserImportService
                         'status' => 'active',
                     ]);
                     $user->roles()->sync($assignedRoleIds);
+
+                    if ($user->profile) {
+                        $user->profile->update($profilePayload);
+                    } else {
+                        $profilePayload['user_id'] = $user->id;
+                        $user->profile()->create($profilePayload);
+                    }
                     $updatedCount++;
                 } else {
                     // Create new user with password set to mobile number
@@ -181,9 +207,8 @@ class UserImportService
                         'status' => 'active',
                     ]);
 
-                    UserProfile::create([
-                        'user_id' => $user->id,
-                    ]);
+                    $profilePayload['user_id'] = $user->id;
+                    UserProfile::create($profilePayload);
 
                     $user->roles()->sync($assignedRoleIds);
                     $importedCount++;

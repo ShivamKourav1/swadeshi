@@ -179,6 +179,27 @@ class KaryakartaDashboardController extends Controller
             abort(403);
         }
 
+        if ($user->isToliAdmin()) {
+            $jurisdiction = $user->getToliJurisdiction();
+            if ($jurisdiction) {
+                $location = $order->deliveryLocation;
+                $level = $jurisdiction['level'];
+                $id = (int)$jurisdiction['id'];
+                $allowed = false;
+                if ($location) {
+                    if ($level === 'shakha' && (int)$location->shakha_id === $id) $allowed = true;
+                    elseif ($level === 'nagar' && (int)$location->nagar_id === $id) $allowed = true;
+                    elseif ($level === 'jila' && (int)$location->jila_id === $id) $allowed = true;
+                    elseif ($level === 'vibhag' && (int)$location->vibhag_id === $id) $allowed = true;
+                    elseif ($level === 'prant' && (int)$location->prant_id === $id) $allowed = true;
+                    elseif ($level === 'kshetra' && (int)$location->kshetra_id === $id) $allowed = true;
+                }
+                if (!$allowed) {
+                    abort(403, 'Unauthorized. Order is outside your assigned toli jurisdiction.');
+                }
+            }
+        }
+
         $order->load([
             'customer',
             'deliveryLocation.kshetra',
