@@ -65,11 +65,14 @@ export default function Login() {
 
                 <form onSubmit={handleSubmit} className="space-y-4 text-xs">
                     <div>
-                        <label className="block font-bold text-gray-700 uppercase mb-1">Email Address</label>
+                        <label className="block font-bold text-gray-700 uppercase mb-1">
+                            Email Address or Mobile Number (ईमेल या मोबाइल नंबर)
+                        </label>
                         <input
-                            type="email"
+                            type="text"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
+                            placeholder="e.g. user@example.com or 9826012345"
                             className="w-full p-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-500"
                         />
                         {errors.email && <div className="text-rose-600 mt-1">{errors.email}</div>}

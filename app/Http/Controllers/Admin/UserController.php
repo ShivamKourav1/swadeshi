@@ -14,6 +14,7 @@ use App\Models\Shakha;
 use App\Models\User;
 use App\Models\UserProfile;
 use App\Models\Vibhag;
+use App\Services\UserImportService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -356,5 +357,52 @@ class UserController extends Controller
         $user->update(['status' => $newStatus]);
 
         return back()->with('success', "User status updated to {$newStatus}.");
+    }
+
+    /**
+     * Download Excel/CSV user import template with Toli membership columns.
+     */
+    public function downloadImportTemplate(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $csvContent = UserImportService::generateTemplateCsv();
+
+        return response()->streamDownload(function () use ($csvContent) {
+            echo $csvContent;
+        }, 'users_import_template.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Import users via uploaded Excel or CSV spreadsheet.
+     */
+    public function importUsers(Request $request, UserImportService $importService): RedirectResponse
+    {
+        if (!$request->user()->isAdmin()) {
+            abort(403, 'Admin access required.');
+        }
+
+        $request->validate([
+            'file' => ['required', 'file', 'max:5120'], // Max 5MB
+        ]);
+
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension());
+        if (!in_array($ext, ['csv', 'xlsx', 'txt'])) {
+            return back()->with('error', 'Invalid file type. Please upload an Excel (.xlsx) or CSV (.csv) file.');
+        }
+
+        $result = $importService->import($file);
+
+        if (!$result['success']) {
+            return back()->with('error', $result['message']);
+        }
+
+        $msg = $result['message'];
+        if (!empty($result['errors'])) {
+            $msg .= ' (Note: ' . implode(' ', array_slice($result['errors'], 0, 3)) . ')';
+        }
+
+        return redirect()->route('admin.users.index')->with('success', $msg);
     }
 }

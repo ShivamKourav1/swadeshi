@@ -67,4 +67,84 @@ class AuthTest extends TestCase
             'role' => 'customer',
         ]);
     }
+
+    public function test_user_can_login_using_mobile_number(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '9876543210',
+            'email' => 'phoneuser@example.com',
+            'password' => bcrypt('secret123'),
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => '9876543210',
+            'password' => 'secret123',
+        ]);
+
+        $this->assertAuthenticatedAs($user);
+        $response->assertRedirect(route('products.index'));
+    }
+
+    public function test_user_can_login_using_mobile_number_with_plus_91_or_formatting(): void
+    {
+        $user = User::factory()->create([
+            'phone' => '9876543210',
+            'email' => 'phoneformatted@example.com',
+            'password' => bcrypt('secret123'),
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => '+91 98765-43210',
+            'password' => 'secret123',
+        ]);
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_user_can_register_with_phone_number_only_without_email(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Phone Only User',
+            'phone' => '9988776655',
+            'password' => 'secret1234',
+            'password_confirmation' => 'secret1234',
+        ]);
+
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', [
+            'name' => 'Phone Only User',
+            'phone' => '9988776655',
+            'role' => 'customer',
+            'email' => null,
+        ]);
+    }
+
+    public function test_user_can_register_with_email_only_without_phone(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'Email Only User',
+            'email' => 'emailonly@example.com',
+            'password' => 'secret1234',
+            'password_confirmation' => 'secret1234',
+        ]);
+
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', [
+            'name' => 'Email Only User',
+            'email' => 'emailonly@example.com',
+            'role' => 'customer',
+        ]);
+    }
+
+    public function test_registration_fails_if_neither_email_nor_phone_provided(): void
+    {
+        $response = $this->post('/register', [
+            'name' => 'No Contact User',
+            'password' => 'secret1234',
+            'password_confirmation' => 'secret1234',
+        ]);
+
+        $response->assertSessionHasErrors(['email', 'phone']);
+        $this->assertGuest();
+    }
 }

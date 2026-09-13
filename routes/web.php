@@ -63,6 +63,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/products', [ProductController::class, 'dealerIndex'])->name('dealer.products.index');
         Route::get('/products/create', [ProductController::class, 'create'])->name('dealer.products.create');
         Route::post('/products', [ProductController::class, 'store'])->name('dealer.products.store');
+        Route::post('/products/seed-shakha', [ProductController::class, 'seedShakhaProducts'])->name('dealer.products.seed_shakha');
         Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('dealer.products.edit');
         Route::put('/products/{product}', [ProductController::class, 'update'])->name('dealer.products.update');
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('dealer.products.destroy');
@@ -106,6 +107,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/users', [AdminUserController::class, 'index'])->name('admin.users.index');
         Route::get('/users/create', [AdminUserController::class, 'create'])->name('admin.users.create');
         Route::post('/users', [AdminUserController::class, 'store'])->name('admin.users.store');
+        Route::get('/users/import-template', [AdminUserController::class, 'downloadImportTemplate'])->name('admin.users.import_template');
+        Route::post('/users/import', [AdminUserController::class, 'importUsers'])->name('admin.users.import');
         Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->name('admin.users.edit');
         Route::put('/users/{user}', [AdminUserController::class, 'update'])->name('admin.users.update');
         Route::delete('/users/{user}', [AdminUserController::class, 'destroy'])->name('admin.users.destroy');

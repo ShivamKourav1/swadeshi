@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import React, { useState, useRef } from 'react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     Shield,
@@ -16,11 +16,23 @@ import {
     MapPin,
     Layers,
     KeyRound,
+    FileSpreadsheet,
+    Upload,
+    Download,
+    X,
+    AlertCircle,
+    CheckCircle2,
 } from 'lucide-react';
 
 export default function Index({ users, roles = [], filters }) {
     const [selectedRole, setSelectedRole] = useState(filters.role || '');
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [showImportModal, setShowImportModal] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const { data: importData, setData: setImportData, post: postImport, processing: importProcessing, errors: importErrors, reset: resetImport } = useForm({
+        file: null,
+    });
 
     const handleFilter = (roleVal) => {
         setSelectedRole(roleVal);
@@ -44,6 +56,22 @@ export default function Index({ users, roles = [], filters }) {
             },
             { preserveState: true }
         );
+    };
+
+    const handleImportSubmit = (e) => {
+        e.preventDefault();
+        if (!importData.file) {
+            alert('Please select an Excel or CSV file to import.');
+            return;
+        }
+
+        postImport(route('admin.users.import'), {
+            onSuccess: () => {
+                setShowImportModal(false);
+                resetImport();
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+        });
     };
 
     const toggleUserStatus = (userId) => {
@@ -93,7 +121,16 @@ export default function Index({ users, roles = [], filters }) {
                         </p>
                     </div>
 
-                    <div className="flex items-center space-x-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                        <button
+                            type="button"
+                            onClick={() => setShowImportModal(true)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold px-4 py-3 rounded-2xl text-xs transition shadow-md flex items-center space-x-2 cursor-pointer"
+                        >
+                            <FileSpreadsheet className="w-4 h-4" />
+                            <span>Import Users (Excel/CSV)</span>
+                        </button>
+
                         <Link
                             href={route('admin.roles.index')}
                             className="bg-white/15 hover:bg-white/25 text-white font-extrabold px-4 py-3 rounded-2xl text-xs transition flex items-center space-x-2"
@@ -293,6 +330,102 @@ export default function Index({ users, roles = [], filters }) {
                     )}
                 </div>
             </div>
+
+            {/* Import Users Modal */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-gray-100 relative animate-in fade-in zoom-in duration-200">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowImportModal(false);
+                                resetImport();
+                            }}
+                            className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition cursor-pointer"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="flex items-center space-x-3 mb-4">
+                            <div className="p-3 bg-emerald-100 text-emerald-700 rounded-2xl">
+                                <FileSpreadsheet className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-gray-900">Import Users (Excel / CSV)</h3>
+                                <p className="text-xs text-gray-500">Bulk upload members with Toli roles</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 mb-5 text-xs text-amber-900 space-y-1.5">
+                            <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600" />
+                                <span>Template Structure & Guidelines:</span>
+                            </div>
+                            <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-800 ml-1">
+                                <li><strong>Required Columns:</strong> <code>name</code>, <code>mobile</code>, <code>Is Shakha Toli Member</code>, <code>Is Nagar Toli Member</code>, <code>Is Jila Toli Member</code></li>
+                                <li><strong>Default Password:</strong> Set automatically to the user's <strong>mobile number</strong>.</li>
+                                <li><strong>Toli Flags:</strong> Value should be <code>Yes</code> / <code>No</code> (or <code>1</code> / <code>0</code>).</li>
+                            </ul>
+                        </div>
+
+                        <div className="mb-5 flex justify-between items-center bg-gray-50 p-3 rounded-2xl border border-gray-200">
+                            <div>
+                                <div className="text-xs font-bold text-gray-800">Need the official template?</div>
+                                <div className="text-[11px] text-gray-500">Pre-formatted columns with sample data</div>
+                            </div>
+                            <a
+                                href={route('admin.users.import_template')}
+                                download
+                                className="inline-flex items-center space-x-1.5 text-xs font-black text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-xl border border-emerald-200 transition cursor-pointer"
+                            >
+                                <Download className="w-4 h-4" />
+                                <span>Download Template</span>
+                            </a>
+                        </div>
+
+                        <form onSubmit={handleImportSubmit} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-700 mb-1.5">
+                                    Select Excel (.xlsx) or CSV (.csv) File
+                                </label>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                    onChange={(e) => setImportData('file', e.target.files[0])}
+                                    className="block w-full text-xs text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100 cursor-pointer border border-gray-200 rounded-2xl p-1 bg-white"
+                                />
+                                {importErrors.file && (
+                                    <div className="text-rose-600 text-[11px] mt-1 font-semibold">
+                                        {importErrors.file}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end space-x-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowImportModal(false);
+                                        resetImport();
+                                    }}
+                                    className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={importProcessing || !importData.file}
+                                    className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-black shadow-md transition cursor-pointer"
+                                >
+                                    <Upload className="w-4 h-4" />
+                                    <span>{importProcessing ? 'Importing...' : 'Upload & Import'}</span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

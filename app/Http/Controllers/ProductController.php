@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProductRequest;
 use App\Models\Category;
 use App\Models\Product;
+use App\Services\ShakhaProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -56,15 +57,50 @@ class ProductController extends Controller
     public function dealerIndex(Request $request): Response
     {
         $user = $request->user();
+        $search = $request->input('search');
 
         $products = Product::where('dealer_id', $user->id)
             ->with('category')
+            ->search($search)
             ->latest()
-            ->paginate(10);
+            ->paginate(15)
+            ->withQueryString();
+
+        // Check if user has dual roles (Dealer + Karyakarta) and hasn't yet seeded shakha products
+        $hasBothRoles = $user->isDealer() && $user->isKaryakarta();
+        $alreadySeeded = ($user->profile && $user->profile->has_seeded_shakha_products)
+            || Product::where('dealer_id', $user->id)->where('sku', 'like', 'SHK-%')->exists();
+
+        $canSeedShakhaProducts = $hasBothRoles && !$alreadySeeded;
 
         return Inertia::render('Products/Dealer/Index', [
             'products' => $products,
+            'filters' => [
+                'search' => $search ?? '',
+            ],
+            'can_seed_shakha_products' => $canSeedShakhaProducts,
         ]);
+    }
+
+    /**
+     * One-time batch creation of all Shakha products for users with both Dealer & Karyakarta roles.
+     */
+    public function seedShakhaProducts(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (!$user->isDealer() || !$user->isKaryakarta()) {
+            abort(403, 'Unauthorized. Only users with both Dealer and Karyakarta roles can access this facility.');
+        }
+
+        if ($user->profile && $user->profile->has_seeded_shakha_products) {
+            return redirect()->route('dealer.products.index')->with('error', 'Standard Shakha products have already been generated for this account.');
+        }
+
+        $count = ShakhaProductService::createForDealer($user);
+
+        return redirect()->route('dealer.products.index')
+            ->with('success', "{$count} standard Shakha products added to your inventory successfully!");
     }
 
     public function create(): Response

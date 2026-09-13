@@ -71,4 +71,42 @@ class ProductCrudTest extends TestCase
 
         $response->assertStatus(403);
     }
+
+    public function test_product_search_is_case_insensitive(): void
+    {
+        $dealer = User::factory()->create(['role' => 'dealer']);
+        $category = Category::create(['name' => 'Ganvesh', 'slug' => 'ganvesh']);
+
+        Product::create([
+            'dealer_id' => $dealer->id,
+            'category_id' => $category->id,
+            'name' => 'Shakha Dhwaj Flag Large',
+            'slug' => 'shakha-dhwaj-flag-large',
+            'sku' => 'FLG-LRG-01',
+            'price' => 150.00,
+            'stock' => 50,
+            'status' => 'active',
+            'description' => 'Saffron flag for outdoor gatherings',
+        ]);
+
+        // Search with lowercase 'dhwaj'
+        $responseLower = $this->get('/?search=dhwaj');
+        $responseLower->assertStatus(200);
+        $responseLower->assertSee('Shakha Dhwaj Flag Large');
+
+        // Search with uppercase 'DHWAJ'
+        $responseUpper = $this->get('/?search=DHWAJ');
+        $responseUpper->assertStatus(200);
+        $responseUpper->assertSee('Shakha Dhwaj Flag Large');
+
+        // Search with mixed case 'sHaKhA'
+        $responseMixed = $this->get('/?search=sHaKhA');
+        $responseMixed->assertStatus(200);
+        $responseMixed->assertSee('Shakha Dhwaj Flag Large');
+
+        // Search SKU with lowercase 'flg-lrg'
+        $responseSku = $this->get('/?search=flg-lrg');
+        $responseSku->assertStatus(200);
+        $responseSku->assertSee('Shakha Dhwaj Flag Large');
+    }
 }

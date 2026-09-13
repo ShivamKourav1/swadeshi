@@ -64,10 +64,17 @@ export default function Register() {
                         {errors.name && <div className="text-rose-600 mt-1 font-semibold">{errors.name}</div>}
                     </div>
 
+                    {/* Mandatory Identifier Notice */}
+                    <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-[11px] text-amber-900 font-medium">
+                        {isHi 
+                            ? '💡 खाता निर्माण हेतु मोबाइल नंबर अथवा ईमेल में से कोई एक प्रदान करना अनिवार्य है।' 
+                            : '💡 Either Mobile Number or Email Address is required for sign up.'}
+                    </div>
+
                     {/* Phone Number */}
                     <div>
                         <label className="block font-bold text-gray-700 uppercase mb-1">
-                            {isHi ? 'फ़ोन नंबर' : 'Phone Number'}
+                            {isHi ? 'मोबाइल नंबर (फ़ोन)' : 'Mobile / Phone Number'}
                         </label>
                         <input
                             type="tel"
@@ -82,14 +89,13 @@ export default function Register() {
                     {/* Email Address */}
                     <div>
                         <label className="block font-bold text-gray-700 uppercase mb-1">
-                            {isHi ? 'ईमेल पता *' : 'Email Address *'}
+                            {isHi ? 'ईमेल पता' : 'Email Address'}
                         </label>
                         <input
                             type="email"
                             value={data.email}
                             onChange={(e) => setData('email', e.target.value)}
                             placeholder="name@example.com"
-                            required
                             className="w-full p-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition"
                         />
                         {errors.email && <div className="text-rose-600 mt-1 font-semibold">{errors.email}</div>}

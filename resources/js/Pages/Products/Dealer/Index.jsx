@@ -1,13 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Store, Plus, Edit3, Trash2, Tag, AlertCircle, FolderTree } from 'lucide-react';
+import { Store, Plus, Edit3, Trash2, Tag, AlertCircle, FolderTree, Sparkles, Search } from 'lucide-react';
 
-export default function Index({ products }) {
+export default function Index({ products, filters = {}, can_seed_shakha_products = false }) {
+    const [searchTerm, setSearchTerm] = useState(filters.search || '');
+
     const handleDelete = (productId) => {
         if (confirm('Are you sure you want to delete this product?')) {
             router.delete(route('dealer.products.destroy', productId));
         }
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        router.get(route('dealer.products.index'), { search: searchTerm }, { preserveState: true });
     };
 
     return (
@@ -26,7 +33,22 @@ export default function Index({ products }) {
                         <p className="text-xs text-gray-500 mt-1">Manage your catalog, prices, and stock inventory.</p>
                     </div>
 
-                    <div className="flex items-center space-x-3 w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+                        {can_seed_shakha_products && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (confirm('Generate all 23 official Shakha products in your dealer inventory? This is a one-time convenience setup for Dealer + Karyakarta members.')) {
+                                        router.post(route('dealer.products.seed_shakha'));
+                                    }
+                                }}
+                                className="bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-extrabold px-4 py-3 rounded-2xl text-xs transition shadow-md shadow-emerald-600/20 flex items-center space-x-1.5 cursor-pointer"
+                                title="One-time batch creation for Dealer + Karyakarta"
+                            >
+                                <Sparkles className="w-4 h-4 text-emerald-200" />
+                                <span>Create All Shakha Products (शाखा उत्पाद जोड़ें)</span>
+                            </button>
+                        )}
                         <Link
                             href={route('dealer.categories.index')}
                             className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-3 rounded-2xl text-xs transition flex items-center space-x-1.5 cursor-pointer"
@@ -43,6 +65,38 @@ export default function Index({ products }) {
                         </Link>
                     </div>
                 </div>
+
+                {/* Search Bar */}
+                <form onSubmit={handleSearch} className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                            type="text"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Search by product name, SKU, or description (case-insensitive)..."
+                            className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-2xl text-xs focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs rounded-2xl transition cursor-pointer"
+                    >
+                        Search
+                    </button>
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSearchTerm('');
+                                router.get(route('dealer.products.index'));
+                            }}
+                            className="px-3 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-xs rounded-2xl transition cursor-pointer"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </form>
 
                 {/* Inventory Table */}
                 <div className="bg-white rounded-3xl border border-amber-100 shadow-sm overflow-hidden">

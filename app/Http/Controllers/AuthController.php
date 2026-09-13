@@ -27,14 +27,53 @@ class AuthController extends Controller
 
     public function login(Request $request): RedirectResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
+        $loginId = trim($request->input('login_id') ?? $request->input('email') ?? '');
+        $password = $request->input('password');
+
+        $request->validate([
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (empty($loginId)) {
+            return back()->withErrors([
+                'email' => 'Email address or mobile number is required.',
+            ])->onlyInput('email');
+        }
+
+        // Normalize phone: strip non-numeric characters for digits matching
+        $cleanPhone = preg_replace('/[^\d+]/', '', $loginId);
+        $digitsOnly = preg_replace('/\D/', '', $loginId);
+        $last10 = strlen($digitsOnly) >= 10 ? substr($digitsOnly, -10) : null;
+
+        // Find user by email (case-insensitive) OR by phone variations
+        $user = User::where(function ($query) use ($loginId, $cleanPhone, $digitsOnly, $last10) {
+            $query->whereRaw('LOWER(email) = ?', [strtolower($loginId)])
+                ->orWhere('phone', $loginId)
+                ->orWhere('phone', $cleanPhone);
+
+            if ($digitsOnly) {
+                $query->orWhere('phone', $digitsOnly);
+            }
+
+            if ($last10) {
+                $query->orWhere('phone', $last10)
+                    ->orWhere('phone', '+91' . $last10)
+                    ->orWhere('phone', '+91 ' . $last10)
+                    ->orWhere('phone', '0' . $last10)
+                    ->orWhereRaw("REPLACE(REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+91', ''), '+', '') = ?", [$last10]);
+            }
+        })->first();
+
+        if ($user && Hash::check($password, $user->password)) {
+            if ($user->status === 'inactive' || $user->status === 'suspended') {
+                return back()->withErrors([
+                    'email' => 'Your account is inactive. Please contact system administrator.',
+                ])->onlyInput('email');
+            }
+
+            Auth::login($user, $request->boolean('remember'));
             $request->session()->regenerate();
-            $user = Auth::user();
+
             if ($user->isKaryakarta()) {
                 return redirect()->intended(route('karyakarta.dashboard'))->with('success', 'Logged in to Karyakarta Panel!');
             }
@@ -53,23 +92,36 @@ class AuthController extends Controller
 
     public function register(Request $request): RedirectResponse
     {
+        $email = trim($request->input('email') ?? '');
+        $phone = trim($request->input('phone') ?? '');
+
+        // Validation: At least one of email or mobile number is required
+        if (empty($email) && empty($phone)) {
+            return back()->withErrors([
+                'email' => 'Either Email Address or Mobile Number is required for registration.',
+                'phone' => 'Either Email Address or Mobile Number is required for registration.',
+            ])->withInput();
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'regex:/^[^<>]*$/'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:20', 'regex:/^[^<>]*$/', 'unique:users,phone'],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'phone' => ['nullable', 'string', 'max:20', 'regex:/^[^<>]*$/'],
         ], [
             'name.regex' => 'The name field cannot contain special characters like < or >.',
             'phone.regex' => 'The phone field cannot contain special characters like < or >.',
+            'email.unique' => 'This email address is already registered.',
+            'phone.unique' => 'This phone number is already registered.',
         ]);
 
         // Public registration always assigns the 'customer' role
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => !empty($validated['email']) ? $validated['email'] : null,
             'password' => Hash::make($validated['password']),
             'role' => 'customer',
-            'phone' => $validated['phone'] ?? null,
+            'phone' => !empty($validated['phone']) ? $validated['phone'] : null,
             'status' => 'active',
         ]);
 

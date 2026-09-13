@@ -24,6 +24,11 @@ class UserProfile extends Model
         'jila_id',
         'nagar_id',
         'shakha_id',
+        'has_seeded_shakha_products',
+    ];
+
+    protected $casts = [
+        'has_seeded_shakha_products' => 'boolean',
     ];
 
     public function user(): BelongsTo

@@ -55,10 +55,12 @@ class Product extends Model
             return $query;
         }
 
+        $term = '%' . mb_strtolower(trim($term)) . '%';
+
         return $query->where(function ($q) use ($term) {
-            $q->where('name', 'like', "%{$term}%")
-              ->orWhere('description', 'like', "%{$term}%")
-              ->orWhere('sku', 'like', "%{$term}%");
+            $q->whereRaw('LOWER(name) LIKE ?', [$term])
+              ->orWhereRaw('LOWER(description) LIKE ?', [$term])
+              ->orWhereRaw('LOWER(sku) LIKE ?', [$term]);
         });
     }
 
