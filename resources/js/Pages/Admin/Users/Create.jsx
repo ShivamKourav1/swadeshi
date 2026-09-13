@@ -63,11 +63,27 @@ export default function Create({
     const toggleRoleId = (roleId) => {
         setData((prev) => {
             const exists = prev.role_ids.includes(roleId);
+            const nextIds = exists
+                ? prev.role_ids.filter((id) => id !== roleId)
+                : [...prev.role_ids, roleId];
+
+            let newRole = prev.role;
+            if (!exists) {
+                const checked = roles.find((r) => r.id === roleId);
+                if (checked && (prev.role === 'customer' || !prev.role)) {
+                    newRole = checked.name.includes('karyakarta') ? 'karyakarta' : checked.name;
+                }
+            } else if (exists && nextIds.length > 0) {
+                const remaining = roles.find((r) => nextIds.includes(r.id));
+                if (remaining && (prev.role === 'customer' || !prev.role)) {
+                    newRole = remaining.name.includes('karyakarta') ? 'karyakarta' : remaining.name;
+                }
+            }
+
             return {
                 ...prev,
-                role_ids: exists
-                    ? prev.role_ids.filter((id) => id !== roleId)
-                    : [...prev.role_ids, roleId],
+                role: newRole,
+                role_ids: nextIds,
             };
         });
     };

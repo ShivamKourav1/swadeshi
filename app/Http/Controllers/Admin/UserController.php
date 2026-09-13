@@ -101,16 +101,18 @@ class UserController extends Controller
     {
         $validated = $request->validated();
 
+        [$role, $roleIds] = $this->resolveRoleAndIds($validated['role'] ?? 'karyakarta', $validated['role_ids'] ?? []);
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'],
+            'role' => $role,
             'phone' => $validated['phone'] ?? null,
             'status' => 'active',
         ]);
 
-        UserProfile::create([
+        $profileData = $this->resolveJurisdictionHierarchy([
             'user_id' => $user->id,
             'bio' => $validated['bio'] ?? null,
             'business_name' => $validated['business_name'] ?? null,
@@ -125,9 +127,11 @@ class UserController extends Controller
             'shakha_id' => $validated['shakha_id'] ?? null,
         ]);
 
+        UserProfile::create($profileData);
+
         // Sync assigned roles
-        if (!empty($validated['role_ids'])) {
-            $user->roles()->sync($validated['role_ids']);
+        if (!empty($roleIds)) {
+            $user->roles()->sync($roleIds);
         } else {
             $matchedRole = Role::where('name', $user->role)->first();
             if ($matchedRole) {
@@ -179,10 +183,12 @@ class UserController extends Controller
     {
         $validated = $request->validated();
 
+        [$role, $roleIds] = $this->resolveRoleAndIds($validated['role'] ?? $user->role, $validated['role_ids'] ?? null);
+
         $userData = [
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'role' => $validated['role'],
+            'role' => $role,
             'phone' => $validated['phone'] ?? null,
             'status' => $validated['status'],
         ];
@@ -193,7 +199,7 @@ class UserController extends Controller
 
         $user->update($userData);
 
-        $profileData = [
+        $profileData = $this->resolveJurisdictionHierarchy([
             'bio' => $validated['bio'] ?? null,
             'business_name' => $validated['business_name'] ?? null,
             'business_address' => $validated['business_address'] ?? null,
@@ -205,17 +211,18 @@ class UserController extends Controller
             'jila_id' => $validated['jila_id'] ?? null,
             'nagar_id' => $validated['nagar_id'] ?? null,
             'shakha_id' => $validated['shakha_id'] ?? null,
-        ];
+        ]);
 
         if ($user->profile) {
             $user->profile->update($profileData);
         } else {
+            $profileData['user_id'] = $user->id;
             $user->profile()->create($profileData);
         }
 
         // Sync assigned roles
-        if (isset($validated['role_ids'])) {
-            $user->roles()->sync($validated['role_ids']);
+        if (!empty($roleIds)) {
+            $user->roles()->sync($roleIds);
         } else {
             $matchedRole = Role::where('name', $user->role)->first();
             if ($matchedRole) {
@@ -225,6 +232,84 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', "User '{$user->name}' updated successfully!");
+    }
+
+    /**
+     * Resolve effective primary role and role IDs.
+     */
+    private function resolveRoleAndIds(string $role, ?array $roleIds): array
+    {
+        $roleIds = $roleIds ?? [];
+        if (!empty($roleIds)) {
+            $assignedRoleNames = Role::whereIn('id', $roleIds)->pluck('name')->toArray();
+            $hasKaryakartaRole = array_intersect($assignedRoleNames, [
+                'karyakarta', 'kshetra_karyakarta', 'prant_karyakarta', 
+                'vibhag_karyakarta', 'jila_karyakarta', 'nagar_karyakarta', 'shakha_karyakarta'
+            ]);
+
+            if ($role === 'customer' || empty($role)) {
+                if (in_array('admin', $assignedRoleNames)) {
+                    $role = 'admin';
+                } elseif (!empty($hasKaryakartaRole)) {
+                    $role = 'karyakarta';
+                } elseif (in_array('dealer', $assignedRoleNames)) {
+                    $role = 'dealer';
+                } elseif (in_array('delivery_partner', $assignedRoleNames)) {
+                    $role = 'delivery_partner';
+                }
+            }
+        }
+
+        if (str_contains($role, 'karyakarta')) {
+            $role = 'karyakarta';
+        }
+
+        return [$role, $roleIds];
+    }
+
+    /**
+     * Auto-resolve parent jurisdiction hierarchy when sub-units are selected.
+     */
+    private function resolveJurisdictionHierarchy(array $profileData): array
+    {
+        if (!empty($profileData['shakha_id'])) {
+            $shakha = Shakha::with('nagar.jila.vibhag.prant')->find($profileData['shakha_id']);
+            if ($shakha) {
+                $profileData['nagar_id'] = $profileData['nagar_id'] ?: $shakha->nagar_id;
+                $profileData['jila_id'] = $profileData['jila_id'] ?: $shakha->nagar?->jila_id;
+                $profileData['vibhag_id'] = $profileData['vibhag_id'] ?: $shakha->nagar?->jila?->vibhag_id;
+                $profileData['prant_id'] = $profileData['prant_id'] ?: $shakha->nagar?->jila?->vibhag?->prant_id;
+                $profileData['kshetra_id'] = $profileData['kshetra_id'] ?: $shakha->nagar?->jila?->vibhag?->prant?->kshetra_id;
+            }
+        } elseif (!empty($profileData['nagar_id'])) {
+            $nagar = Nagar::with('jila.vibhag.prant')->find($profileData['nagar_id']);
+            if ($nagar) {
+                $profileData['jila_id'] = $profileData['jila_id'] ?: $nagar->jila_id;
+                $profileData['vibhag_id'] = $profileData['vibhag_id'] ?: $nagar->jila?->vibhag_id;
+                $profileData['prant_id'] = $profileData['prant_id'] ?: $nagar->jila?->vibhag?->prant_id;
+                $profileData['kshetra_id'] = $profileData['kshetra_id'] ?: $nagar->jila?->vibhag?->prant?->kshetra_id;
+            }
+        } elseif (!empty($profileData['jila_id'])) {
+            $jila = Jila::with('vibhag.prant')->find($profileData['jila_id']);
+            if ($jila) {
+                $profileData['vibhag_id'] = $profileData['vibhag_id'] ?: $jila->vibhag_id;
+                $profileData['prant_id'] = $profileData['prant_id'] ?: $jila->vibhag?->prant_id;
+                $profileData['kshetra_id'] = $profileData['kshetra_id'] ?: $jila->vibhag?->prant?->kshetra_id;
+            }
+        } elseif (!empty($profileData['vibhag_id'])) {
+            $vibhag = Vibhag::with('prant')->find($profileData['vibhag_id']);
+            if ($vibhag) {
+                $profileData['prant_id'] = $profileData['prant_id'] ?: $vibhag->prant_id;
+                $profileData['kshetra_id'] = $profileData['kshetra_id'] ?: $vibhag->prant?->kshetra_id;
+            }
+        } elseif (!empty($profileData['prant_id'])) {
+            $prant = Prant::find($profileData['prant_id']);
+            if ($prant) {
+                $profileData['kshetra_id'] = $profileData['kshetra_id'] ?: $prant->kshetra_id;
+            }
+        }
+
+        return $profileData;
     }
 
     /**

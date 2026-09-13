@@ -176,7 +176,7 @@ class OrderController extends Controller
     {
         $user = $request->user();
 
-        if ($user->role === 'customer' && $order->customer_id !== $user->id) {
+        if ($user->isCustomer() && !$user->isAdmin() && !$user->isKaryakarta() && !$user->isDealer() && !$user->isDeliveryPartner() && $order->customer_id !== $user->id) {
             abort(403);
         }
 

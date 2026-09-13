@@ -116,7 +116,7 @@ class DealerCategoryController extends Controller
     private function authorizeDealer(): void
     {
         $user = auth()->user();
-        if (!$user || ($user->role !== 'dealer' && $user->role !== 'admin')) {
+        if (!$user || (!$user->isDealer() && !$user->isAdmin())) {
             abort(403, 'Unauthorized. Only dealers and admins can manage product categories.');
         }
     }

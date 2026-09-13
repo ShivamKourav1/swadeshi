@@ -124,7 +124,7 @@ class ProductController extends Controller
 
     private function authorizeProductOwnership($user, Product $product): void
     {
-        if ($user->role !== 'admin' && $product->dealer_id !== $user->id) {
+        if (!$user->isAdmin() && $product->dealer_id !== $user->id) {
             abort(403, 'Unauthorized action on product.');
         }
     }

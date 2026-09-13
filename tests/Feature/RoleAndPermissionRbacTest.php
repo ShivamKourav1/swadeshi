@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Jila;
 use App\Models\Kshetra;
 use App\Models\Nagar;
+use App\Models\DeliveryLocation;
+use App\Models\Order;
 use App\Models\Permission;
 use App\Models\Prant;
 use App\Models\Role;
@@ -220,5 +222,90 @@ class RoleAndPermissionRbacTest extends TestCase
 
         $response->assertStatus(403);
         $this->assertDatabaseHas('shakhas', ['id' => $foreignShakha->id]);
+    }
+
+    public function test_signup_user_promoted_to_jila_karyakarta_can_access_dashboard_and_see_orders(): void
+    {
+        // 1. User created via signup has role 'customer'
+        $signupUser = User::factory()->create(['role' => 'customer', 'password' => bcrypt('secret123')]);
+        UserProfile::create(['user_id' => $signupUser->id]);
+
+        $jilaRole = Role::where('name', 'jila_karyakarta')->first();
+
+        // 2. Admin assigns Jila Karyakarta role and Badrinath (jila1) jurisdiction
+        $response = $this->actingAs($this->admin)->put(route('admin.users.update', $signupUser->id), [
+            'name' => 'SK1 Karyakarta',
+            'email' => $signupUser->email,
+            'role' => 'customer', // Even if left as customer in dropdown
+            'role_ids' => [$jilaRole->id],
+            'status' => 'active',
+            'jila_id' => $this->jila1->id,
+        ]);
+
+        $response->assertRedirect(route('admin.users.index'));
+
+        $signupUser->refresh();
+        $this->assertTrue($signupUser->isKaryakarta());
+        $this->assertEquals('karyakarta', $signupUser->role);
+        $this->assertEquals($this->jila1->id, $signupUser->profile->jila_id);
+
+        // 3. Create an order in Jila 1 and another order in Jila 2
+        $loc1 = DeliveryLocation::create([
+            'user_id' => $signupUser->id,
+            'recipient_name' => 'Recipient 1',
+            'phone' => '+91 9999900001',
+            'address_line_1' => 'Street 1',
+            'city' => 'City 1',
+            'state' => 'State 1',
+            'postal_code' => '123456',
+            'jila_id' => $this->jila1->id,
+        ]);
+        $orderInJila1 = Order::create([
+            'order_number' => 'ORD-JILA1-001',
+            'customer_id' => $signupUser->id,
+            'delivery_location_id' => $loc1->id,
+            'subtotal' => 1500,
+            'delivery_fee' => 0,
+            'total_amount' => 1500,
+            'delivery_status' => 'dispatched',
+            'payment_status' => 'paid',
+            'payment_method' => 'cod',
+            'order_status' => 'pending',
+        ]);
+
+        $loc2 = DeliveryLocation::create([
+            'user_id' => $signupUser->id,
+            'recipient_name' => 'Recipient 2',
+            'phone' => '+91 9999900002',
+            'address_line_1' => 'Street 2',
+            'city' => 'City 2',
+            'state' => 'State 2',
+            'postal_code' => '123456',
+            'jila_id' => $this->jila2->id,
+        ]);
+        $orderInJila2 = Order::create([
+            'order_number' => 'ORD-JILA2-002',
+            'customer_id' => $signupUser->id,
+            'delivery_location_id' => $loc2->id,
+            'subtotal' => 2500,
+            'delivery_fee' => 0,
+            'total_amount' => 2500,
+            'delivery_status' => 'dispatched',
+            'payment_status' => 'paid',
+            'payment_method' => 'cod',
+            'order_status' => 'pending',
+        ]);
+
+        // 4. Hit karyakarta dashboard as promoted user
+        $dashboardResponse = $this->actingAs($signupUser)->get(route('karyakarta.dashboard'));
+        $dashboardResponse->assertStatus(200);
+
+        // 5. Verify Inertia props contain scope and only the order for Jila 1
+        $dashboardResponse->assertInertia(fn ($page) => $page
+            ->component('Karyakarta/Dashboard')
+            ->where('scope.level', 'jila')
+            ->has('orders.data', 1)
+            ->where('orders.data.0.order_number', 'ORD-JILA1-001')
+        );
     }
 }

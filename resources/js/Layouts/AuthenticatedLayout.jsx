@@ -45,7 +45,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 <BookOpen className="w-4 h-4 text-amber-600" />
                                 <span>{t('user_manual')}</span>
                             </Link>
-                            {user && user.role === 'customer' && (
+                            {user && (user.role === 'customer' || (!user.is_dealer && !user.is_admin && !user.is_karyakarta && !user.is_delivery_partner)) && (
                                 <Link
                                     href={route('orders.index')}
                                     className="text-gray-700 hover:text-amber-600 font-semibold text-sm transition"
@@ -63,7 +63,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 </Link>
                             )}
 
-                            {(user?.role === 'dealer' || user?.role === 'admin') && (
+                            {(user?.is_dealer || user?.role === 'dealer' || user?.is_admin || user?.role === 'admin') && (
                                 <>
                                     <Link
                                         href={route('dealer.products.index')}
@@ -86,7 +86,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 </>
                             )}
 
-                            {(user?.role === 'karyakarta' || user?.role === 'admin') && (
+                            {(user?.is_karyakarta || user?.role === 'karyakarta' || user?.role?.includes('karyakarta') || user?.is_admin || user?.role === 'admin') && (
                                 <>
                                     <Link
                                         href={route('karyakarta.dashboard')}
@@ -105,7 +105,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 </>
                             )}
 
-                            {(user?.role === 'delivery_partner' || user?.role === 'admin') && (
+                            {(user?.is_delivery_partner || user?.role === 'delivery_partner' || user?.is_admin || user?.role === 'admin') && (
                                 <Link
                                     href={route('delivery.index')}
                                     className="text-orange-800 bg-orange-100/80 px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-orange-200 transition flex items-center space-x-1"
@@ -115,7 +115,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 </Link>
                             )}
 
-                            {user?.role === 'admin' && (
+                            {(user?.is_admin || user?.role === 'admin') && (
                                 <>
                                     <Link
                                         href={route('admin.users.index')}
@@ -181,7 +181,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                     <div className="text-right hidden sm:block">
                                         <div className="text-sm font-bold text-gray-900">{user.name}</div>
                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                                            {user.role}
+                                            {user.is_admin ? 'Admin' : (user.is_karyakarta ? 'Karyakarta' : (user.is_dealer ? 'Dealer' : (user.is_delivery_partner ? 'Delivery Partner' : user.role)))}
                                         </span>
                                     </div>
                                     <Link

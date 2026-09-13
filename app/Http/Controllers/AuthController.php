@@ -35,8 +35,8 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
             $user = Auth::user();
-            if ($user->role === 'karyakarta') {
-                return redirect()->route('karyakarta.dashboard')->with('success', 'Logged in to Karyakarta Panel!');
+            if ($user->isKaryakarta()) {
+                return redirect()->intended(route('karyakarta.dashboard'))->with('success', 'Logged in to Karyakarta Panel!');
             }
             return redirect()->intended(route('products.index'))->with('success', 'Logged in successfully!');
         }

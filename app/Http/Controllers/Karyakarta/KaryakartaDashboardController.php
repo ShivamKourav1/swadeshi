@@ -23,7 +23,7 @@ class KaryakartaDashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->role !== 'karyakarta' && $user->role !== 'admin') {
+        if (!$user->isKaryakarta() && !$user->isAdmin()) {
             abort(403, 'Unauthorized access to Karyakarta Dashboard.');
         }
 
@@ -175,7 +175,7 @@ class KaryakartaDashboardController extends Controller
     {
         $user = $request->user();
 
-        if ($user->role !== 'karyakarta' && $user->role !== 'admin') {
+        if (!$user->isKaryakarta() && !$user->isAdmin()) {
             abort(403);
         }
 
