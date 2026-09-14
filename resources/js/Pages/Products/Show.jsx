@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { ShoppingCart, ArrowLeft, Store, ShieldCheck, Truck, Check } from 'lucide-react';
+import { useTranslation } from '@/i18n/translations';
 
 export default function Show({ product }) {
+    const { locale } = usePage().props;
+    const { t } = useTranslation(locale || 'hi');
     const [quantity, setQuantity] = useState(1);
 
     const handleAddToCart = () => {
@@ -100,8 +103,16 @@ export default function Show({ product }) {
                                 }`}
                             >
                                 <ShoppingCart className="w-5 h-5" />
-                                <span>{product.stock > 0 ? 'Add to Shopping Cart' : 'Out of Stock'}</span>
+                                <span>{product.stock > 0 ? t('add_to_cart') : t('out_of_stock')}</span>
                             </button>
+
+                            <Link
+                                href={route('cart.index')}
+                                className="w-full sm:w-auto py-3.5 px-6 rounded-xl font-bold text-sm transition border-2 border-amber-500 hover:border-amber-600 bg-amber-50 hover:bg-amber-100 text-amber-950 flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
+                            >
+                                <ShoppingCart className="w-5 h-5 text-amber-600" />
+                                <span>{t('go_to_cart')}</span>
+                            </Link>
                         </div>
                     </div>
                 </div>

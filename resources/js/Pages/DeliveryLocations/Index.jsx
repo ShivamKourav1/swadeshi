@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import LocationPicker from '@/Components/LocationPicker';
 import {
@@ -14,9 +14,14 @@ import {
     ShieldAlert,
     Building2,
     Flag,
+    ShoppingCart,
+    ArrowRight,
 } from 'lucide-react';
+import { useTranslation } from '@/i18n/translations';
 
 export default function Index({ locations, orgData }) {
+    const { locale } = usePage().props;
+    const { t } = useTranslation(locale || 'hi');
     const [showModal, setShowModal] = useState(false);
     const [editingLocation, setEditingLocation] = useState(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
@@ -159,14 +164,32 @@ export default function Index({ locations, orgData }) {
                         </p>
                     </div>
 
-                    <button
-                        type="button"
-                        onClick={openAddModal}
-                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold px-5 py-3 rounded-2xl text-sm transition shadow-md shadow-amber-500/20 hover:shadow-lg flex items-center space-x-2 cursor-pointer"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>Add New Address</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                        <Link
+                            href={route('cart.index')}
+                            className="bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 font-bold px-4 py-3 rounded-2xl text-sm transition shadow-xs flex items-center space-x-2 cursor-pointer"
+                        >
+                            <ShoppingCart className="w-4 h-4 text-amber-600" />
+                            <span>{t('go_to_cart')}</span>
+                        </Link>
+
+                        <Link
+                            href={route('checkout.index')}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-3 rounded-2xl text-sm transition shadow-md flex items-center space-x-2 cursor-pointer"
+                        >
+                            <span>{t('proceed_to_checkout')}</span>
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+
+                        <button
+                            type="button"
+                            onClick={openAddModal}
+                            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold px-5 py-3 rounded-2xl text-sm transition shadow-md shadow-amber-500/20 hover:shadow-lg flex items-center space-x-2 cursor-pointer"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>{t('add_new_address')}</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Locations Grid */}
@@ -285,6 +308,37 @@ export default function Index({ locations, orgData }) {
                                 </div>
                             </div>
                         ))}
+                    </div>
+                )}
+
+                {/* Checkout & Cart Navigation Callout */}
+                {locations.length > 0 && (
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-6 rounded-3xl border border-amber-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center space-x-3">
+                            <div className="p-3 bg-white rounded-2xl shadow-xs text-amber-600">
+                                <CheckCircle2 className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="font-extrabold text-gray-900 text-base">Finished Managing Addresses?</h4>
+                                <p className="text-xs text-gray-500">Return to your shopping cart or proceed directly to checkout.</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center space-x-3 w-full sm:w-auto">
+                            <Link
+                                href={route('cart.index')}
+                                className="flex-1 sm:flex-initial bg-white hover:bg-amber-50 text-amber-950 border border-amber-300 font-bold px-5 py-3 rounded-2xl text-sm transition shadow-xs flex items-center justify-center space-x-2 cursor-pointer"
+                            >
+                                <ShoppingCart className="w-4 h-4 text-amber-600" />
+                                <span>{t('go_to_cart')}</span>
+                            </Link>
+                            <Link
+                                href={route('checkout.index')}
+                                className="flex-1 sm:flex-initial bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold px-6 py-3 rounded-2xl text-sm transition shadow-md shadow-amber-500/20 flex items-center justify-center space-x-2 cursor-pointer"
+                            >
+                                <span>{t('proceed_to_checkout')}</span>
+                                <ArrowRight className="w-4 h-4" />
+                            </Link>
+                        </div>
                     </div>
                 )}
 

@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { MapPin, CreditCard, ShieldCheck, Truck, CheckCircle2, AlertCircle, Navigation, Building2 } from 'lucide-react';
+import { MapPin, CreditCard, ShieldCheck, Truck, CheckCircle2, AlertCircle, Navigation, Building2, ShoppingCart, ArrowLeft } from 'lucide-react';
+import { useTranslation } from '@/i18n/translations';
 
 export default function Index({ cart, locations, subtotal, deliveryFee, total }) {
+    const { locale } = usePage().props;
+    const { t } = useTranslation(locale || 'hi');
     const defaultLoc = locations.find((l) => l.is_default) || locations[0];
 
     const { data, setData, post, processing, errors } = useForm({
@@ -19,14 +22,24 @@ export default function Index({ cart, locations, subtotal, deliveryFee, total })
 
     return (
         <AuthenticatedLayout>
-            <Head title="Checkout Order" />
+            <Head title={t('checkout_title')} />
 
             <div className="max-w-4xl mx-auto">
+                <div className="flex items-center justify-between mb-4">
+                    <Link
+                        href={route('cart.index')}
+                        className="inline-flex items-center text-sm text-amber-700 hover:text-amber-800 font-bold transition"
+                    >
+                        <ArrowLeft className="w-4 h-4 mr-1.5" />
+                        <span>{t('back_to_cart')}</span>
+                    </Link>
+                </div>
+
                 <h1 className="text-2xl font-extrabold text-gray-900 mb-6 flex items-center space-x-2.5">
                     <div className="p-2 bg-amber-50 text-amber-600 rounded-2xl">
                         <ShieldCheck className="w-6 h-6" />
                     </div>
-                    <span>Checkout & Order Placement</span>
+                    <span>{t('checkout_title')}</span>
                 </h1>
 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -37,14 +50,23 @@ export default function Index({ cart, locations, subtotal, deliveryFee, total })
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="font-bold text-gray-900 text-lg flex items-center space-x-2">
                                     <MapPin className="w-5 h-5 text-amber-600" />
-                                    <span>1. Select Delivery Location</span>
+                                    <span>{t('select_location')}</span>
                                 </h3>
-                                <Link
-                                    href={route('locations.index')}
-                                    className="text-xs text-amber-600 hover:text-amber-700 hover:underline font-bold"
-                                >
-                                    + Add New Address
-                                </Link>
+                                <div className="flex items-center space-x-3">
+                                    <Link
+                                        href={route('cart.index')}
+                                        className="text-xs text-amber-700 hover:text-amber-800 hover:underline font-bold flex items-center space-x-1"
+                                    >
+                                        <ShoppingCart className="w-3.5 h-3.5" />
+                                        <span>{t('go_to_cart')}</span>
+                                    </Link>
+                                    <Link
+                                        href={route('locations.index')}
+                                        className="text-xs text-amber-600 hover:text-amber-700 hover:underline font-bold"
+                                    >
+                                        {t('add_new_address')}
+                                    </Link>
+                                </div>
                             </div>
 
                             {locations.length === 0 ? (
@@ -237,8 +259,16 @@ export default function Index({ cart, locations, subtotal, deliveryFee, total })
                             }`}
                         >
                             <CheckCircle2 className="w-5 h-5" />
-                            <span>{processing ? 'Placing Order...' : 'Confirm & Place Order'}</span>
+                            <span>{processing ? t('placing_order') : t('confirm_place_order')}</span>
                         </button>
+
+                        <Link
+                            href={route('cart.index')}
+                            className="w-full py-3.5 px-4 rounded-xl font-bold text-sm transition border-2 border-amber-500 hover:border-amber-600 bg-amber-50 hover:bg-amber-100 text-amber-950 flex items-center justify-center space-x-2 cursor-pointer shadow-xs"
+                        >
+                            <ShoppingCart className="w-4 h-4 text-amber-600" />
+                            <span>{t('go_to_cart')}</span>
+                        </Link>
                     </div>
                 </form>
             </div>

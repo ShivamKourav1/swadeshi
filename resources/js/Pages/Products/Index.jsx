@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Search, ShoppingCart, Filter, Tag, Store, CheckCircle } from 'lucide-react';
+import { Search, ShoppingCart, Filter, Tag, Store, CheckCircle, ArrowRight } from 'lucide-react';
 import { useTranslation } from '@/i18n/translations';
 
 export default function Index({ products, categories, filters }) {
-    const { locale } = usePage().props;
+    const { locale, cartCount } = usePage().props;
     const { t } = useTranslation(locale || 'hi');
 
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
@@ -65,6 +65,19 @@ export default function Index({ products, categories, filters }) {
                             <Search className="w-4 h-4" />
                             <span>{t('search_btn')}</span>
                         </button>
+
+                        <Link
+                            href={route('cart.index')}
+                            className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-5 py-3 rounded-xl font-bold text-sm transition shadow-lg flex items-center justify-center space-x-2 cursor-pointer"
+                        >
+                            <ShoppingCart className="w-4 h-4" />
+                            <span>{t('go_to_cart')}</span>
+                            {cartCount > 0 && (
+                                <span className="bg-white text-amber-950 text-xs px-2 py-0.5 rounded-full font-black ml-1">
+                                    {cartCount}
+                                </span>
+                            )}
+                        </Link>
                     </form>
                 </div>
             </div>
@@ -206,18 +219,28 @@ export default function Index({ products, categories, filters }) {
                                         </div>
                                     </div>
 
-                                    <button
-                                        onClick={() => addToCart(product.id)}
-                                        disabled={product.stock <= 0}
-                                        className={`p-2.5 rounded-xl transition flex items-center justify-center cursor-pointer ${
-                                            product.stock > 0
-                                                ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-sm'
-                                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        }`}
-                                        title={product.stock > 0 ? t('add_to_cart') : t('out_of_stock')}
-                                    >
-                                        <ShoppingCart className="w-5 h-5" />
-                                    </button>
+                                    <div className="flex items-center space-x-1.5">
+                                        <button
+                                            onClick={() => addToCart(product.id)}
+                                            disabled={product.stock <= 0}
+                                            className={`p-2.5 rounded-xl transition flex items-center justify-center cursor-pointer ${
+                                                product.stock > 0
+                                                    ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-sm'
+                                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            }`}
+                                            title={product.stock > 0 ? t('add_to_cart') : t('out_of_stock')}
+                                        >
+                                            <ShoppingCart className="w-4 h-4" />
+                                        </button>
+
+                                        <Link
+                                            href={route('cart.index')}
+                                            className="p-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 transition flex items-center justify-center cursor-pointer shadow-xs"
+                                            title={t('go_to_cart')}
+                                        >
+                                            <ArrowRight className="w-4 h-4 text-amber-600" />
+                                        </Link>
+                                    </div>
                                 </div>
                             </div>
                         </div>
