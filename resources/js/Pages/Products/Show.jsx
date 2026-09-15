@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { ShoppingCart, ArrowLeft, Store, ShieldCheck, Truck, Check } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Store, ShieldCheck, Truck, Check, MapPin } from 'lucide-react';
 import { useTranslation } from '@/i18n/translations';
 
 export default function Show({ product }) {
@@ -58,13 +58,43 @@ export default function Show({ product }) {
 
                             {/* Dealer Information */}
                             {product.dealer && (
-                                <div className="bg-amber-50/50 rounded-2xl p-4 border border-amber-200/70 mb-6 flex items-center justify-between">
-                                    <div>
-                                        <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Verified Dealer</div>
-                                        <div className="font-bold text-gray-900 text-sm">{product.dealer.name}</div>
-                                        <div className="text-xs text-gray-500">{product.dealer.email}</div>
+                                <div className="bg-amber-50/50 rounded-2xl p-5 border border-amber-200/70 mb-6">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <div className="text-[11px] font-bold text-amber-700 uppercase tracking-wider flex items-center space-x-1">
+                                                <Store className="w-3.5 h-3.5 mr-1 text-amber-700" />
+                                                <span>{t('verified_dealer')}</span>
+                                                {product.dealer_unit_info?.is_karyakarta && (
+                                                    <span className="ml-2 px-2 py-0.5 bg-amber-600 text-white text-[10px] font-black rounded-full">
+                                                        ⭐ {t('karyakarta_dealer')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="font-extrabold text-gray-900 text-base mt-1">{product.dealer.name}</div>
+                                            {product.dealer_unit_info?.business_name && (
+                                                <div className="text-xs font-semibold text-gray-700">{product.dealer_unit_info.business_name}</div>
+                                            )}
+                                            <div className="text-xs text-gray-500">{product.dealer.email}</div>
+                                        </div>
+                                        <ShieldCheck className="w-8 h-8 text-amber-600 flex-shrink-0" />
                                     </div>
-                                    <ShieldCheck className="w-8 h-8 text-amber-600" />
+
+                                    {/* Toli / Organizational Unit details */}
+                                    {(product.dealer_unit_info?.toli_badge || product.dealer_unit_info?.location_summary) && (
+                                        <div className="mt-3 pt-3 border-t border-amber-200/60 flex flex-wrap items-center gap-2">
+                                            {product.dealer_unit_info?.toli_badge && (
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                                    🏛️ {product.dealer_unit_info.toli_badge}
+                                                </span>
+                                            )}
+                                            {product.dealer_unit_info?.location_summary && (
+                                                <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-white text-gray-700 border border-amber-200 shadow-2xs">
+                                                    <MapPin className="w-3.5 h-3.5 text-amber-600 mr-1" />
+                                                    <span>{product.dealer_unit_info.location_summary}</span>
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

@@ -4,7 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ProductRequest;
 use App\Models\Category;
+use App\Models\Jila;
+use App\Models\Nagar;
 use App\Models\Product;
+use App\Models\Shakha;
 use App\Services\ShakhaProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,10 +24,71 @@ class ProductController extends Controller
     {
         $categories = Category::where('is_active', true)->get();
 
-        $products = Product::with(['dealer', 'category'])
+        $jilas = Jila::select('id', 'jila_name')->orderBy('jila_name')->get();
+        $nagars = Nagar::with('jila:id,jila_name')->select('id', 'nagar_name', 'jila_id')->orderBy('nagar_name')->get();
+        $shakhas = Shakha::with('nagar:id,nagar_name')->select('id', 'shakha_name', 'nagar_id')->orderBy('shakha_name')->get();
+
+        // Check user's location if authenticated
+        $userUnit = null;
+        if ($user = $request->user()) {
+            $loc = $user->deliveryLocations()->where('is_default', true)->first()
+                ?: $user->deliveryLocations()->latest()->first();
+            $prof = $user->profile;
+
+            $shakhaId = $loc?->shakha_id ?: $prof?->shakha_id;
+            $nagarId = $loc?->nagar_id ?: $prof?->nagar_id;
+            $jilaId = $loc?->jila_id ?: $prof?->jila_id;
+
+            if ($nagarId) {
+                $n = Nagar::find($nagarId);
+                if ($n) {
+                    $userUnit = [
+                        'type' => 'nagar',
+                        'id' => $n->id,
+                        'name' => $n->nagar_name,
+                        'label' => "{$n->nagar_name} Nagar",
+                    ];
+                }
+            } elseif ($shakhaId) {
+                $s = Shakha::find($shakhaId);
+                if ($s) {
+                    $userUnit = [
+                        'type' => 'shakha',
+                        'id' => $s->id,
+                        'name' => $s->shakha_name,
+                        'label' => "{$s->shakha_name} (Shakha)",
+                    ];
+                }
+            } elseif ($jilaId) {
+                $j = Jila::find($jilaId);
+                if ($j) {
+                    $userUnit = [
+                        'type' => 'jila',
+                        'id' => $j->id,
+                        'name' => $j->jila_name,
+                        'label' => "{$j->jila_name} Jila",
+                    ];
+                }
+            }
+        }
+
+        $products = Product::with([
+            'dealer.profile.shakha',
+            'dealer.profile.nagar',
+            'dealer.profile.jila',
+            'dealer.profile.vibhag',
+            'dealer.roles',
+            'category'
+        ])
             ->active()
             ->search($request->input('search'))
             ->byCategory($request->input('category_id'))
+            ->byOrgUnit(
+                $request->input('org_unit_type'),
+                $request->input('org_unit_id'),
+                $request->input('org_unit_search'),
+                $request->boolean('only_karyakarta')
+            )
             ->latest()
             ->paginate(12)
             ->withQueryString();
@@ -32,9 +96,19 @@ class ProductController extends Controller
         return Inertia::render('Products/Index', [
             'products' => $products,
             'categories' => $categories,
+            'orgUnits' => [
+                'jilas' => $jilas,
+                'nagars' => $nagars,
+                'shakhas' => $shakhas,
+            ],
+            'userUnit' => $userUnit,
             'filters' => [
                 'search' => $request->input('search', ''),
                 'category_id' => $request->input('category_id', ''),
+                'org_unit_type' => $request->input('org_unit_type', ''),
+                'org_unit_id' => $request->input('org_unit_id', ''),
+                'org_unit_search' => $request->input('org_unit_search', ''),
+                'only_karyakarta' => $request->boolean('only_karyakarta'),
             ],
         ]);
     }
@@ -44,7 +118,14 @@ class ProductController extends Controller
      */
     public function show(Product $product): Response
     {
-        $product->load(['dealer', 'category']);
+        $product->load([
+            'dealer.profile.shakha',
+            'dealer.profile.nagar',
+            'dealer.profile.jila',
+            'dealer.profile.vibhag',
+            'dealer.roles',
+            'category'
+        ]);
 
         return Inertia::render('Products/Show', [
             'product' => $product,
