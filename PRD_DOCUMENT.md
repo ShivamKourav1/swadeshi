@@ -244,7 +244,7 @@ The platform bridges certified manufacturers/suppliers (**Dealers**), regional o
 - **Acceptance Criteria**:
   - `AC-RET-01`: Customer can submit return requests only for orders with status `delivered`.
   - `AC-RET-02`: Dealer can accept, reject (with mandatory reason), or fulfill return tickets.
-
+  - `AC-RET-03`: Once the return request fulfilled, the Ordser gets cancelled and stock gets restored.
 ---
 
 ### Module 8: Delivery Partner Logistics Dashboard
