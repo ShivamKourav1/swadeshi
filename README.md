@@ -1,59 +1,62 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Vastu Bhandar (वस्तु भंडार)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+> Multi-stakeholder e-commerce and community logistics orchestration platform tailored for organizational supplies, authentic uniform apparel (Ganvesh), literature, and ceremonial items.
 
-## About Laravel
+**Production URL**: [https://panchp.in](https://panchp.in)  
+**Tech Stack**: Laravel 11, Inertia.js, React 18, Tailwind CSS, PostgreSQL, Docker, Vite
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 📚 Project Documentation
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **[Product Requirements Document (PRD)](./PRD_DOCUMENT.md)** — Complete specification of features, user roles & RBAC matrix, database architecture, testing matrix (61 passing tests), and deployment specifications.
+- **[User Manual & Feature Guide](./USER_MANUAL.md)** — Step-by-step user guide for Customers, Dealers, Delivery Partners, Karyakartas, and Administrators.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 🚀 Key Features
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. **Flexible Authentication & Dual Sign-In**:
+   - Sign in using either registered Email or 10-digit Mobile Number in a clean 2-field form.
+   - Public registration requiring only Mobile Number or Email (guaranteed `customer` role).
+2. **Multi-Role RBAC & Governance**:
+   - `superadmin`: Unrestricted global authority across all 6 administrative tiers (*Kshetra ➔ Prant ➔ Vibhag ➔ Jila ➔ Nagar ➔ Shakha*).
+   - `admin`: Toli-scoped Karyakarta administrator restricted to their assigned geographical jurisdiction.
+   - `dealer`: Inventory management, custom products, and one-time Shakha product batch generation.
+   - `karyakarta`: Regional unit & toli management and order monitoring.
+   - `delivery_partner`: OpenStreetMap GPS coordinate navigation and Cash on Delivery (COD) collection.
+   - `customer`: Storefront catalog browsing, advanced unit search, cart, and COD order placement.
+3. **Advanced Organizational Unit Search & Filtering**:
+   - Filter products by unit hierarchy (*Nagar*, *Jila*, *Shakha*) or keyword (e.g., *"Madhav Nagar"*).
+   - Filter for verified Karyakarta dealers only.
+   - Product cards display dealer name, Karyakarta badge, and Toli affiliation.
+   - One-click "My Nearest Unit" shortcut for authenticated users based on their default delivery location.
+4. **Bulk User Import**:
+   - Admin Excel/CSV spreadsheet import with automatic Toli role assignment and phone-number-based default credentials.
+5. **Interactive Map Pinning**:
+   - Leaflet + OpenStreetMap coordinate pinning for precision delivery to open community grounds.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+## 🛠️ Local Development & Testing
 
-### Premium Partners
+```bash
+# Install PHP & Node dependencies
+composer install
+npm install
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# Run database migrations and seeders
+php artisan migrate --seed
 
-## Contributing
+# Build frontend assets
+npm run build    # or npm run dev for hot reload
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Run test suite (61 tests, 303 assertions)
+php artisan test
+```
 
-## Code of Conduct
+---
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## 📄 License
 
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Proprietary community e-commerce platform. All rights reserved.
