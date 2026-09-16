@@ -11,6 +11,7 @@
 
 - **[Product Requirements Document (PRD)](./PRD_DOCUMENT.md)** — Complete specification of features, user roles & RBAC matrix, database architecture, testing matrix (61 passing tests), and deployment specifications.
 - **[User Manual & Feature Guide](./USER_MANUAL.md)** — Step-by-step user guide for Customers, Dealers, Delivery Partners, Karyakartas, and Administrators.
+- **[Staging Environment Setup Guide (`dev.panchp.in`)](./STAGING_SETUP_GUIDE.md)** — Complete guide to setting up and deploying the isolated staging environment on AWS EC2 with BigRock DNS and free SSL.
 
 ---
 

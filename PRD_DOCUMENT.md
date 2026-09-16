@@ -354,3 +354,10 @@ All 61 automated tests are verified and passing:
    - HTTPS enforced via Let's Encrypt / Certbot SSL.
 3. **Health Check**:
    - Dedicated endpoint at `GET /up` returning HTTP 200 OK.
+4. **Staging Environment Architecture (`dev.panchp.in`)**:
+   - **Subdomain**: `https://dev.panchp.in`
+   - **Complete Data & Process Isolation**: Dedicated Docker compose stack (`docker-compose.staging.yml`), isolated PostgreSQL database (`ecommerce_staging_db`), separate Redis cache prefix (`vastu_staging_cache_*`), and isolated file storage (`storage_staging_uploads`).
+   - **Host Reverse Proxy**: Nginx on Ubuntu host routes `panchp.in` -> Port 8080 and `dev.panchp.in` -> Port 8081 with automated Let's Encrypt SSL.
+   - **Dedicated Deployment Script**: `./deploy-staging.sh` with automated zero-downtime container builds, queue restarts, and cache optimization.
+   - **Setup Reference**: Detailed operational instructions maintained in [`STAGING_SETUP_GUIDE.md`](./STAGING_SETUP_GUIDE.md).
+
