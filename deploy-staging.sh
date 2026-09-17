@@ -15,8 +15,9 @@ docker compose -f docker-compose.staging.yml exec -T app php artisan down --rend
 
 # 3. Pull latest code from repository (if in git)
 if [ -d .git ]; then
-    echo "📥 Pulling latest git repository changes..."
-    git pull origin main
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "stage")
+    echo "📥 Pulling latest git repository changes on branch '$CURRENT_BRANCH'..."
+    git pull origin "$CURRENT_BRANCH"
 fi
 
 # 4. Build and restart containers
