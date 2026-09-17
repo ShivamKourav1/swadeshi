@@ -139,49 +139,65 @@ class ProductController extends Controller
     {
         $user = $request->user();
         $search = $request->input('search');
+        $perPage = (int) $request->input('per_page', 50);
+        if ($perPage < 10 || $perPage > 200) {
+            $perPage = 50;
+        }
 
         $products = Product::where('dealer_id', $user->id)
             ->with('category')
             ->search($search)
-            ->latest()
-            ->paginate(15)
+            ->orderBy('id', 'asc')
+            ->paginate($perPage)
             ->withQueryString();
 
-        // Check if user has dual roles (Dealer + Karyakarta) and hasn't yet seeded shakha products
-        $hasBothRoles = $user->isDealer() && $user->isKaryakarta();
-        $alreadySeeded = ($user->profile && $user->profile->has_seeded_shakha_products)
-            || Product::where('dealer_id', $user->id)->where('sku', 'like', 'SHK-%')->exists();
+        // Standard Shakha products count
+        $standardTotal = count(ShakhaProductService::getProductList());
+        $dealerStandardCount = Product::where('dealer_id', $user->id)
+            ->where('sku', 'like', 'SHK-%')
+            ->count();
 
-        $canSeedShakhaProducts = $hasBothRoles && !$alreadySeeded;
+        // Dealer can seed if any standard products are missing
+        $canSeedShakhaProducts = ($user->isDealer() || $user->hasRole('superadmin'))
+            && ($dealerStandardCount < $standardTotal);
 
         return Inertia::render('Products/Dealer/Index', [
             'products' => $products,
             'filters' => [
                 'search' => $search ?? '',
+                'per_page' => $perPage,
             ],
             'can_seed_shakha_products' => $canSeedShakhaProducts,
+            'standard_products_count' => $dealerStandardCount,
+            'standard_products_total' => $standardTotal,
         ]);
     }
 
     /**
-     * One-time batch creation of all Shakha products for users with both Dealer & Karyakarta roles.
+     * Batch creation or sync of all 23 standard Shakha products for dealers.
      */
     public function seedShakhaProducts(Request $request): RedirectResponse
     {
         $user = $request->user();
 
-        if (!$user->isDealer() || !$user->isKaryakarta()) {
-            abort(403, 'Unauthorized. Only users with both Dealer and Karyakarta roles can access this facility.');
+        if (!$user->isDealer() && !$user->hasRole('superadmin')) {
+            abort(403, 'Unauthorized. Only dealers can access this facility.');
         }
 
-        if ($user->profile && $user->profile->has_seeded_shakha_products) {
-            return redirect()->route('dealer.products.index')->with('error', 'Standard Shakha products have already been generated for this account.');
+        $standardTotal = count(ShakhaProductService::getProductList());
+        $existingCount = Product::where('dealer_id', $user->id)
+            ->where('sku', 'like', 'SHK-%')
+            ->count();
+
+        if ($existingCount >= $standardTotal && $user->profile && $user->profile->has_seeded_shakha_products) {
+            return redirect()->route('dealer.products.index')
+                ->with('error', 'Standard Shakha products have already been generated for this account.');
         }
 
         $count = ShakhaProductService::createForDealer($user);
 
         return redirect()->route('dealer.products.index')
-            ->with('success', "{$count} standard Shakha products added to your inventory successfully!");
+            ->with('success', "All {$standardTotal} standard Shakha products (including Shirts, Pants, Shoes, Cap, Belts, etc.) are synchronized in your inventory!");
     }
 
     public function create(): Response
