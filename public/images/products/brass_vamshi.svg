@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="vamshiCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffdf5"/>
+      <stop offset="100%" stop-color="#fef9c3"/>
+    </linearGradient>
+    <linearGradient id="brassPipe" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ca8a04"/>
+      <stop offset="25%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#ffffff"/>
+      <stop offset="75%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+    <linearGradient id="brassDark" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#713f12"/>
+      <stop offset="50%" stop-color="#a16207"/>
+      <stop offset="100%" stop-color="#422006"/>
+    </linearGradient>
+    <filter id="vamshiShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="4" dy="12" stdDeviation="10" flood-color="#713f12" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#vamshiCardBg)"/>
+  <ellipse cx="250" cy="445" rx="180" ry="18" fill="#e2d4c0" opacity="0.6"/>
+
+  <!-- Saffron / Gold Hanging Decorative Tassel (Vamshi Dhwaja / Thread) -->
+  <path d="M120 280 C90 320 80 370 95 420" fill="none" stroke="#ea580c" stroke-width="4" stroke-linecap="round"/>
+  <!-- Tassel Bunch -->
+  <polygon points="90,420 100,420 106,450 84,450" fill="#ea580c"/>
+  <polygon points="87,422 97,422 102,448 82,448" fill="#facc15"/>
+
+  <!-- Diagonal Flute Alignment (-35 deg angle across canvas) -->
+  <g transform="rotate(-35 250 250)" filter="url(#vamshiShadow)">
+    <!-- Main Flute Brass Tube Cylinder -->
+    <rect x="50" y="238" width="400" height="24" rx="10" fill="url(#brassPipe)"/>
+
+    <!-- Left Crown Cap (Headjoint end with cork stopper cap) -->
+    <rect x="42" y="235" width="16" height="30" rx="4" fill="url(#brassPipe)" stroke="#713f12" stroke-width="1.5"/>
+    <circle cx="44" cy="250" r="5" fill="#ca8a04"/>
+
+    <!-- Decorative Engraved Rings around Headjoint -->
+    <line x1="75" y1="238" x2="75" y2="262" stroke="#713f12" stroke-width="2"/>
+    <line x1="80" y1="238" x2="80" y2="262" stroke="#713f12" stroke-width="2"/>
+
+    <!-- Embouchure Blow Hole (Mouthpiece) & Lip Plate -->
+    <ellipse cx="115" cy="250" rx="14" ry="9" fill="url(#brassDark)"/>
+    <ellipse cx="115" cy="250" rx="8" ry="5.5" fill="#0f172a" stroke="#ca8a04" stroke-width="1"/>
+    <!-- Raised lip plate highlight -->
+    <path d="M102 242 Q115 238 128 242" fill="none" stroke="#ffffff" stroke-width="2" opacity="0.8"/>
+
+    <!-- Joint Ring between Headjoint and Body -->
+    <rect x="155" y="236" width="8" height="28" rx="2" fill="url(#brassDark)"/>
+    <line x1="159" y1="236" x2="159" y2="264" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+
+    <!-- 6 Precision Finger Tone Holes -->
+    <!-- Tone Hole 1 -->
+    <ellipse cx="210" cy="250" rx="7" ry="5" fill="#0f172a" stroke="#713f12" stroke-width="1.5"/>
+    <ellipse cx="210" cy="249" rx="5" ry="3.5" fill="#1c1917"/>
+
+    <!-- Tone Hole 2 -->
+    <ellipse cx="245" cy="250" rx="7" ry="5" fill="#0f172a" stroke="#713f12" stroke-width="1.5"/>
+    <ellipse cx="245" cy="249" rx="5" ry="3.5" fill="#1c1917"/>
+
+    <!-- Tone Hole 3 -->
+    <ellipse cx="280" cy="250" rx="7" ry="5" fill="#0f172a" stroke="#713f12" stroke-width="1.5"/>
+    <ellipse cx="280" cy="249" rx="5" ry="3.5" fill="#1c1917"/>
+
+    <!-- Tone Hole 4 (Split spacing) -->
+    <ellipse cx="325" cy="250" rx="7" ry="5" fill="#0f172a" stroke="#713f12" stroke-width="1.5"/>
+    <ellipse cx="325" cy="249" rx="5" ry="3.5" fill="#1c1917"/>
+
+    <!-- Tone Hole 5 -->
+    <ellipse cx="360" cy="250" rx="7" ry="5" fill="#0f172a" stroke="#713f12" stroke-width="1.5"/>
+    <ellipse cx="360" cy="249" rx="5" ry="3.5" fill="#1c1917"/>
+
+    <!-- Tone Hole 6 -->
+    <ellipse cx="395" cy="250" rx="7" ry="5" fill="#0f172a" stroke="#713f12" stroke-width="1.5"/>
+    <ellipse cx="395" cy="249" rx="5" ry="3.5" fill="#1c1917"/>
+
+    <!-- Right Open Footjoint End Rim -->
+    <rect x="444" y="236" width="8" height="28" rx="2" fill="url(#brassDark)"/>
+    <ellipse cx="452" cy="250" rx="3" ry="11" fill="#0f172a"/>
+
+    <!-- Bright Linear Polish Glare across full cylinder -->
+    <line x1="55" y1="243" x2="445" y2="243" stroke="#ffffff" stroke-width="3" opacity="0.8" stroke-linecap="round"/>
+  </g>
+</svg>

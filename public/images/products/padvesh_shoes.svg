@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="shoeCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="leatherGloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="25%" stop-color="#1e293b"/>
+      <stop offset="70%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="soleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="50%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="highlightGloss" x1="0%" y1="0%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="#ffffff" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shoeShadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="3" dy="12" stdDeviation="10" flood-color="#020617" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#shoeCardBg)"/>
+  <ellipse cx="250" cy="415" rx="190" ry="24" fill="#94a3b8" opacity="0.4"/>
+
+  <g filter="url(#shoeShadow)">
+    <!-- Main Shoe Upper Profile -->
+    <path d="M75 320 C85 245 130 200 170 200 C210 200 230 250 290 270 C345 285 415 315 435 345 C445 360 435 380 395 380 L80 380 C70 380 65 350 75 320 Z" fill="url(#leatherGloss)"/>
+
+    <!-- High-gloss reflection curve across vamp -->
+    <path d="M170 205 C210 205 235 250 295 270 C350 285 410 315 425 340 C380 325 330 305 285 290 C230 270 205 220 170 205 Z" fill="url(#highlightGloss)"/>
+
+    <!-- Ankle Collar / Top Opening -->
+    <ellipse cx="160" cy="205" rx="40" ry="16" fill="#020617" stroke="#334155" stroke-width="2"/>
+    <ellipse cx="160" cy="207" rx="35" ry="12" fill="#1e293b"/>
+
+    <!-- Heel Counter Stitching Line -->
+    <path d="M125 215 C105 250 95 310 95 380" fill="none" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,2"/>
+
+    <!-- Toe Cap (Oxford cap-toe seam) -->
+    <path d="M365 310 C370 330 375 360 375 380" fill="none" stroke="#334155" stroke-width="2"/>
+    <path d="M367 310 C372 330 377 360 377 380" fill="none" stroke="#64748b" stroke-width="1" stroke-dasharray="3,2"/>
+    
+    <!-- Toe Cap Gloss Shine -->
+    <path d="M375 315 C410 335 430 355 420 370 C395 355 380 335 375 315 Z" fill="url(#highlightGloss)"/>
+
+    <!-- Facing & Eyelets (Lace area) -->
+    <path d="M200 215 L260 265 L245 280 L185 230 Z" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+    
+    <!-- Eyelets (Left & Right pairs) -->
+    <circle cx="210" cy="228" r="3" fill="#cbd5e1" stroke="#334155" stroke-width="1"/>
+    <circle cx="225" cy="240" r="3" fill="#cbd5e1" stroke="#334155" stroke-width="1"/>
+    <circle cx="240" cy="253" r="3" fill="#cbd5e1" stroke="#334155" stroke-width="1"/>
+    <circle cx="255" cy="265" r="3" fill="#cbd5e1" stroke="#334155" stroke-width="1"/>
+
+    <!-- Black Waxed Laces -->
+    <line x1="205" y1="224" x2="216" y2="232" stroke="#000000" stroke-width="2.5"/>
+    <line x1="220" y1="236" x2="231" y2="244" stroke="#000000" stroke-width="2.5"/>
+    <line x1="235" y1="249" x2="246" y2="257" stroke="#000000" stroke-width="2.5"/>
+    <line x1="250" y1="261" x2="261" y2="269" stroke="#000000" stroke-width="2.5"/>
+    <!-- Tied knot and lace ends -->
+    <path d="M202 220 Q195 210 185 220 Q180 230 195 228" fill="none" stroke="#000000" stroke-width="2"/>
+    <path d="M208 222 Q215 208 225 215 Q228 225 212 226" fill="none" stroke="#000000" stroke-width="2"/>
+
+    <!-- Heavy Duty Sole & Heel Block -->
+    <!-- Midsole layer -->
+    <path d="M70 380 L425 380 L425 390 L70 390 Z" fill="#334155"/>
+    <!-- Outsole layer with tread grip -->
+    <path d="M68 390 L425 390 C425 398 415 404 395 404 L210 404 L205 396 L150 396 L145 404 L68 404 Z" fill="url(#soleGrad)"/>
+    <!-- Distinct Heel Block (Padvesh parade heel) -->
+    <rect x="68" y="390" width="77" height="18" rx="2" fill="#020617"/>
+    <line x1="68" y1="400" x2="145" y2="400" stroke="#1e293b" stroke-width="1.5"/>
+  </g>
+</svg>

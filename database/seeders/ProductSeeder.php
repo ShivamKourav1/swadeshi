@@ -83,7 +83,7 @@ class ProductSeeder extends Seeder
                 'description' => 'Comprehensive collection of inspiring stories, moral values, and biographical teachings for all ages.',
                 'price' => 150.00,
                 'stock' => 0,
-                'image_url' => '/images/categories/books.png',
+                'image_url' => '/images/products/bodh_katha_book.svg',
                 'status' => 'active',
             ],
             [
@@ -95,7 +95,7 @@ class ProductSeeder extends Seeder
                 'description' => 'Guiding philosophies on community building, cultural heritage preservation, and selfless service.',
                 'price' => 220.00,
                 'stock' => 0,
-                'image_url' => '/images/categories/books.png',
+                'image_url' => '/images/products/rashtriya_book.svg',
                 'status' => 'active',
             ],
             [
@@ -107,7 +107,7 @@ class ProductSeeder extends Seeder
                 'description' => 'Professional march rhythm drum crafted with tuned synthetic skin, ergonomic shoulder harness, and hardwood sticks.',
                 'price' => 2400.00,
                 'stock' => 0,
-                'image_url' => '/images/categories/ghosh.jpg',
+                'image_url' => '/images/products/aanaka_drum.svg',
                 'status' => 'active',
             ],
             [
@@ -119,7 +119,7 @@ class ProductSeeder extends Seeder
                 'description' => 'Precision tuned brass Ghosh Vamshi flute engineered for crisp acoustic projection in open grounds.',
                 'price' => 450.00,
                 'stock' => 0,
-                'image_url' => '/images/categories/ghosh.jpg',
+                'image_url' => '/images/products/brass_vamshi.svg',
                 'status' => 'active',
             ],
             [
@@ -131,7 +131,7 @@ class ProductSeeder extends Seeder
                 'description' => 'Authentic polished natural Shankha with resonant high decibel resonance, complete with carved stand.',
                 'price' => 799.00,
                 'stock' => 0,
-                'image_url' => '/images/categories/ghosh.jpg',
+                'image_url' => '/images/products/ghosh_shankha.svg',
                 'status' => 'active',
             ],
         ];
@@ -140,6 +140,8 @@ class ProductSeeder extends Seeder
             $existing = Product::where('sku', $item['sku'])->first();
             if (!$existing) {
                 Product::create($item);
+            } else {
+                $existing->update(['image_url' => $item['image_url']]);
             }
         }
     }

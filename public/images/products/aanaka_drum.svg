@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="drumCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+    <linearGradient id="drumShell" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="25%" stop-color="#f59e0b"/>
+      <stop offset="50%" stop-color="#fbbf24"/>
+      <stop offset="75%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <linearGradient id="drumSkin" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="chromeRim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="30%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#cbd5e1"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+    <linearGradient id="stickGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde68a"/>
+      <stop offset="50%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <filter id="drumShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="3" dy="12" stdDeviation="10" flood-color="#451a03" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#drumCardBg)"/>
+  <ellipse cx="250" cy="445" rx="180" ry="24" fill="#cbd5e1" opacity="0.6"/>
+
+  <!-- Sling Carrying Strap in Background -->
+  <path d="M140 220 C70 120 180 50 250 50 C320 50 430 120 360 220" fill="none" stroke="#ea580c" stroke-width="18" stroke-linecap="round"/>
+  <path d="M140 220 C70 120 180 50 250 50 C320 50 430 120 360 220" fill="none" stroke="#ffffff" stroke-width="3" stroke-dasharray="8,6"/>
+
+  <g filter="url(#drumShadow)">
+    <!-- Main Cylindrical Drum Shell Body -->
+    <!-- Bottom Rim Outer -->
+    <ellipse cx="250" cy="380" rx="170" ry="50" fill="url(#chromeRim)"/>
+    
+    <!-- Drum Shell Wall -->
+    <path d="M80 200 L80 380 C80 430 420 430 420 380 L420 200 Z" fill="url(#drumShell)"/>
+
+    <!-- Bottom Counter-Hoop Chrome Rim -->
+    <path d="M80 375 C80 425 420 425 420 375 L420 395 C420 445 80 445 80 395 Z" fill="url(#chromeRim)"/>
+
+    <!-- Traditional Tension Tuning Lugs / Zigzag Tension Cords -->
+    <g stroke="#ffffff" stroke-width="3" stroke-linecap="round" filter="url(#drumShadow)">
+      <line x1="110" y1="210" x2="140" y2="385"/>
+      <line x1="140" y1="385" x2="180" y2="218"/>
+      <line x1="180" y1="218" x2="220" y2="395"/>
+      <line x1="220" y1="395" x2="260" y2="220"/>
+      <line x1="260" y1="220" x2="300" y2="395"/>
+      <line x1="300" y1="395" x2="340" y2="218"/>
+      <line x1="340" y1="218" x2="370" y2="385"/>
+      <line x1="370" y1="385" x2="395" y2="210"/>
+    </g>
+
+    <!-- Chrome Tuning Tension Brackets/Lugs on top & bottom -->
+    <circle cx="110" cy="210" r="5" fill="url(#chromeRim)"/>
+    <circle cx="140" cy="385" r="5" fill="url(#chromeRim)"/>
+    <circle cx="180" cy="218" r="5" fill="url(#chromeRim)"/>
+    <circle cx="220" cy="395" r="5" fill="url(#chromeRim)"/>
+    <circle cx="260" cy="220" r="5" fill="url(#chromeRim)"/>
+    <circle cx="300" cy="395" r="5" fill="url(#chromeRim)"/>
+    <circle cx="340" cy="218" r="5" fill="url(#chromeRim)"/>
+    <circle cx="370" cy="385" r="5" fill="url(#chromeRim)"/>
+
+    <!-- Top Counter Hoop Rim -->
+    <ellipse cx="250" cy="200" rx="170" ry="50" fill="url(#chromeRim)"/>
+
+    <!-- Drumhead Batter Skin (Top Resonating Membrane) -->
+    <ellipse cx="250" cy="198" rx="158" ry="44" fill="url(#drumSkin)" stroke="#cbd5e1" stroke-width="2"/>
+    <ellipse cx="250" cy="198" rx="140" ry="38" fill="none" stroke="#e2e8f0" stroke-width="1.5"/>
+
+    <!-- Pair of Crossed Hardwood Drumsticks (Aanaka Dandika) -->
+    <!-- Left to Right Stick -->
+    <g transform="rotate(-25 250 180)" filter="url(#drumShadow)">
+      <rect x="90" y="174" width="320" height="12" rx="6" fill="url(#stickGrad)"/>
+      <!-- Teardrop Wooden Tip -->
+      <ellipse cx="414" cy="180" rx="10" ry="7" fill="#78350f"/>
+    </g>
+
+    <!-- Right to Left Stick -->
+    <g transform="rotate(25 250 180)" filter="url(#drumShadow)">
+      <rect x="90" y="174" width="320" height="12" rx="6" fill="url(#stickGrad)"/>
+      <!-- Teardrop Wooden Tip -->
+      <ellipse cx="414" cy="180" rx="10" ry="7" fill="#78350f"/>
+    </g>
+  </g>
+</svg>

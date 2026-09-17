@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff8f0"/>
+      <stop offset="100%" stop-color="#feede0"/>
+    </linearGradient>
+    <linearGradient id="flagGrad" x1="0%" y1="30%" x2="100%" y2="70%">
+      <stop offset="0%" stop-color="#ff9933"/>
+      <stop offset="50%" stop-color="#ff6600"/>
+      <stop offset="100%" stop-color="#e65100"/>
+    </linearGradient>
+    <linearGradient id="poleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8d6e63"/>
+      <stop offset="40%" stop-color="#d7ccc8"/>
+      <stop offset="70%" stop-color="#6d4c41"/>
+      <stop offset="100%" stop-color="#4e342e"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffe082"/>
+      <stop offset="50%" stop-color="#ffb300"/>
+      <stop offset="100%" stop-color="#ff8f00"/>
+    </linearGradient>
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="3" dy="6" stdDeviation="6" flood-color="#5c2b00" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- Background Card -->
+  <rect width="500" height="500" rx="28" fill="url(#bgGrad)"/>
+  <circle cx="250" cy="250" r="180" fill="#ff7700" opacity="0.05"/>
+  <circle cx="250" cy="250" r="130" fill="#ff9933" opacity="0.06"/>
+
+  <!-- Flag Shadow -->
+  <path d="M140 100 Q240 70 390 140 L340 215 Q260 170 140 220 Z" fill="#000" opacity="0.08" transform="translate(8, 12)"/>
+  <path d="M140 220 Q240 190 400 270 L340 345 Q260 300 140 340 Z" fill="#000" opacity="0.08" transform="translate(8, 12)"/>
+
+  <!-- Flag Body (Bhagwa Dhwaj - Double Swallowtail) -->
+  <!-- Top Tongue -->
+  <path d="M140 100 Q240 75 390 140 L335 215 Q250 175 140 220 Z" fill="url(#flagGrad)" filter="url(#dropShadow)"/>
+  <!-- Top Tongue Wave Highlight -->
+  <path d="M140 100 Q240 75 390 140 Q310 135 220 120 Q170 115 140 100 Z" fill="#ffb74d" opacity="0.4"/>
+  <path d="M220 120 Q290 135 335 215 Q250 175 140 220 Q200 170 220 120 Z" fill="#d84315" opacity="0.25"/>
+
+  <!-- Bottom Tongue -->
+  <path d="M140 220 Q240 195 405 270 L345 345 Q250 305 140 340 Z" fill="url(#flagGrad)" filter="url(#dropShadow)"/>
+  <!-- Bottom Tongue Highlight -->
+  <path d="M140 220 Q240 195 405 270 Q320 265 230 245 Q170 235 140 220 Z" fill="#ffb74d" opacity="0.4"/>
+  <path d="M230 245 Q300 265 345 345 Q250 305 140 340 Q205 290 230 245 Z" fill="#d84315" opacity="0.25"/>
+
+  <!-- Gold border/trim along flag edge -->
+  <path d="M140 100 Q240 75 390 140" fill="none" stroke="#ffe082" stroke-width="2.5" opacity="0.6"/>
+  <path d="M140 220 Q240 195 405 270" fill="none" stroke="#ffe082" stroke-width="2.5" opacity="0.6"/>
+
+  <!-- Flag Ties to Pole -->
+  <rect x="135" y="115" width="10" height="8" rx="2" fill="#d84315"/>
+  <rect x="135" y="215" width="10" height="8" rx="2" fill="#d84315"/>
+  <rect x="135" y="325" width="10" height="8" rx="2" fill="#d84315"/>
+
+  <!-- Bamboo Pole (Dand/Staff) -->
+  <rect x="132" y="55" width="14" height="395" rx="5" fill="url(#poleGrad)" filter="url(#dropShadow)"/>
+  <!-- Pole segments/nodes -->
+  <line x1="131" y1="130" x2="147" y2="130" stroke="#3e2723" stroke-width="2.5"/>
+  <line x1="131" y1="210" x2="147" y2="210" stroke="#3e2723" stroke-width="2.5"/>
+  <line x1="131" y1="290" x2="147" y2="290" stroke="#3e2723" stroke-width="2.5"/>
+  <line x1="131" y1="370" x2="147" y2="370" stroke="#3e2723" stroke-width="2.5"/>
+
+  <!-- Golden Finial (Kalash Top) -->
+  <path d="M139 30 Q147 42 147 55 L131 55 Q131 42 139 30 Z" fill="url(#goldGrad)" filter="url(#dropShadow)"/>
+  <circle cx="139" cy="28" r="6" fill="#ffe082"/>
+  <ellipse cx="139" cy="56" rx="9" ry="3" fill="#ff8f00"/>
+
+  <!-- Bottom Pole Cap -->
+  <rect x="132" y="445" width="14" height="12" rx="3" fill="url(#goldGrad)"/>
+</svg>

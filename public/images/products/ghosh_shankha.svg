@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="shankhaCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+    <linearGradient id="shellWhite" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="30%" stop-color="#fffbeb"/>
+      <stop offset="60%" stop-color="#fef3c7"/>
+      <stop offset="85%" stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#f3ede2"/>
+    </linearGradient>
+    <linearGradient id="shellShadowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#f5e6d3"/>
+      <stop offset="100%" stop-color="#d4bba2"/>
+    </linearGradient>
+    <linearGradient id="woodStand" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#451a03"/>
+      <stop offset="30%" stop-color="#78350f"/>
+      <stop offset="70%" stop-color="#92400e"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </linearGradient>
+    <linearGradient id="goldBrass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+    <filter id="shankhaShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="3" dy="12" stdDeviation="10" flood-color="#451a03" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#shankhaCardBg)"/>
+  <ellipse cx="250" cy="445" rx="170" ry="20" fill="#cbd5e1" opacity="0.6"/>
+
+  <!-- Carved Wooden Stand (Base supporting the Shankha) -->
+  <g filter="url(#shankhaShadow)">
+    <!-- Base Plinth -->
+    <path d="M140 400 L360 400 L345 425 L155 425 Z" fill="url(#woodStand)"/>
+    <!-- Brass Inlay Strip on Plinth -->
+    <rect x="150" y="410" width="200" height="4" rx="2" fill="url(#goldBrass)"/>
+
+    <!-- Left & Right Curved Stand Pillars -->
+    <path d="M165 400 Q155 350 180 320 Q195 350 190 400 Z" fill="url(#woodStand)"/>
+    <path d="M335 400 Q345 350 320 320 Q305 350 310 400 Z" fill="url(#woodStand)"/>
+    <!-- Center Cradle Arc -->
+    <path d="M180 325 Q250 355 320 325 L320 340 Q250 370 180 340 Z" fill="#451a03"/>
+  </g>
+
+  <!-- Shankha (Conch Shell) Body Group -->
+  <g filter="url(#shankhaShadow)">
+    <!-- Main Shell Outer Body -->
+    <path d="M95 240 C110 160 180 120 280 120 C370 120 425 180 405 260 C390 320 330 350 240 345 C160 340 105 300 95 240 Z" fill="url(#shellWhite)" stroke="#d4bba2" stroke-width="1.5"/>
+
+    <!-- Spiral Spire / Apex (Left tip with natural whorls) -->
+    <path d="M95 240 C75 245 60 255 50 265 C42 273 55 285 75 280 C95 275 120 270 135 255 Z" fill="url(#shellShadowGrad)"/>
+    <!-- Gold Tip Fitting (Ceremonial mouthpiece clamp) -->
+    <path d="M45 262 C40 268 45 278 56 276 L62 268 Z" fill="url(#goldBrass)"/>
+    <circle cx="48" cy="270" r="4" fill="#a16207"/>
+
+    <!-- Spiral Suture Grooves on Left Spire -->
+    <path d="M75 278 C90 265 115 255 130 250" fill="none" stroke="#ca8a04" stroke-width="2"/>
+    <path d="M95 272 C115 258 145 245 165 240" fill="none" stroke="#ca8a04" stroke-width="2"/>
+    <path d="M125 265 C150 248 185 235 210 230" fill="none" stroke="#ca8a04" stroke-width="2"/>
+
+    <!-- Main Lip & Aperture (Natural conch opening with pinkish-cream gloss) -->
+    <path d="M230 180 C270 170 330 180 365 210 C395 235 390 280 360 305 C330 330 260 330 220 310 C200 300 210 260 220 220 C225 200 225 185 230 180 Z" fill="#fff7ed" stroke="#fed7aa" stroke-width="2"/>
+
+    <!-- Inside Cavity Shadow (Depth of the shell opening) -->
+    <path d="M250 200 C285 195 330 205 350 230 C370 255 365 285 340 300 C310 315 270 310 245 295 C235 280 240 250 245 220 Z" fill="#fed7aa" opacity="0.6"/>
+    <path d="M265 215 C295 215 330 230 340 250 C345 270 335 290 315 295 C295 300 270 290 258 275 Z" fill="#d97706" opacity="0.25"/>
+
+    <!-- Natural Ridge Lines and Sheen Highlights across the Body -->
+    <path d="M160 140 C230 135 310 145 360 180" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.8"/>
+    <path d="M180 160 C240 155 320 165 370 200" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.6"/>
+
+    <!-- Sacred Red Kumkum / Chandan Tilak on Center of Shankha -->
+    <ellipse cx="285" cy="155" rx="8" ry="12" fill="#dc2626"/>
+    <ellipse cx="285" cy="155" rx="4" ry="7" fill="#facc15"/>
+  </g>
+</svg>

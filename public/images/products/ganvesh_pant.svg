@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="pantBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#edf2f7"/>
+    </linearGradient>
+    <linearGradient id="clothGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#54382c"/>
+      <stop offset="35%" stop-color="#6d4c3d"/>
+      <stop offset="70%" stop-color="#5d3f32"/>
+      <stop offset="100%" stop-color="#482e23"/>
+    </linearGradient>
+    <linearGradient id="creaseGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#805b4a"/>
+      <stop offset="100%" stop-color="#3d261d"/>
+    </linearGradient>
+    <filter id="pantShadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="2" dy="8" stdDeviation="7" flood-color="#1a0f0a" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#pantBg)"/>
+  <ellipse cx="250" cy="455" rx="140" ry="18" fill="#cbd5e1" opacity="0.6"/>
+
+  <!-- Trousers Shape -->
+  <g filter="url(#pantShadow)">
+    <!-- Main Pant Legs & Waist -->
+    <path d="M165 75 L335 75 L345 140 L330 440 L262 440 L250 205 L238 440 L170 440 L155 140 Z" fill="url(#clothGrad)"/>
+    
+    <!-- Waistband -->
+    <path d="M165 75 L335 75 L338 110 L162 110 Z" fill="#4d3226"/>
+    <line x1="163" y1="110" x2="337" y2="110" stroke="#382218" stroke-width="2"/>
+    <line x1="165" y1="77" x2="335" y2="77" stroke="#7d5948" stroke-width="1.5"/>
+
+    <!-- Belt Loops -->
+    <rect x="180" y="73" width="8" height="39" rx="2" fill="#6d4c3d" stroke="#382218" stroke-width="1"/>
+    <rect x="220" y="73" width="8" height="39" rx="2" fill="#6d4c3d" stroke="#382218" stroke-width="1"/>
+    <rect x="272" y="73" width="8" height="39" rx="2" fill="#6d4c3d" stroke="#382218" stroke-width="1"/>
+    <rect x="312" y="73" width="8" height="39" rx="2" fill="#6d4c3d" stroke="#382218" stroke-width="1"/>
+
+    <!-- Waistband Button & Fly -->
+    <circle cx="250" cy="92" r="5" fill="#2b1a13" stroke="#8d6e63" stroke-width="1.5"/>
+    <path d="M250 110 L250 175 Q250 195 242 205" fill="none" stroke="#382218" stroke-width="2.5" stroke-dasharray="4,2"/>
+
+    <!-- Slash Pockets -->
+    <path d="M164 115 L192 165" stroke="#382218" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M336 115 L308 165" stroke="#382218" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Center Leg Creases (Ironing pleats) -->
+    <line x1="204" y1="140" x2="201" y2="440" stroke="#805b4a" stroke-width="2" opacity="0.6"/>
+    <line x1="205" y1="140" x2="202" y2="440" stroke="#2b1a13" stroke-width="1.5" opacity="0.5"/>
+
+    <line x1="296" y1="140" x2="299" y2="440" stroke="#805b4a" stroke-width="2" opacity="0.6"/>
+    <line x1="297" y1="140" x2="300" y2="440" stroke="#2b1a13" stroke-width="1.5" opacity="0.5"/>
+
+    <!-- Crotch Shadow -->
+    <path d="M238 205 Q250 190 262 205 Q250 240 238 205 Z" fill="#2b1a13" opacity="0.4"/>
+
+    <!-- Bottom Hem Cuffs -->
+    <rect x="170" y="428" width="68" height="12" rx="1" fill="#4d3226" stroke="#382218" stroke-width="1"/>
+    <rect x="262" y="428" width="68" height="12" rx="1" fill="#4d3226" stroke="#382218" stroke-width="1"/>
+  </g>
+</svg>

@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="whistleCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#edf2f7"/>
+    </linearGradient>
+    <linearGradient id="silverChrome" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="25%" stop-color="#e2e8f0"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="70%" stop-color="#cbd5e1"/>
+      <stop offset="90%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <linearGradient id="barrelGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f1f5f9"/>
+      <stop offset="30%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <filter id="whistleShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="3" dy="10" stdDeviation="8" flood-color="#1e293b" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#whistleCardBg)"/>
+  <ellipse cx="250" cy="420" rx="170" ry="22" fill="#cbd5e1" opacity="0.6"/>
+
+  <!-- Braided Neck Lanyard (Cord) in Background -->
+  <path d="M120 280 C90 200 120 100 250 80 C380 60 420 160 380 240" fill="none" stroke="#ea580c" stroke-width="8" stroke-linecap="round"/>
+  <path d="M120 280 C90 200 120 100 250 80 C380 60 420 160 380 240" fill="none" stroke="#fef08a" stroke-width="2.5" stroke-dasharray="8,4"/>
+
+  <!-- Whistle Body Group -->
+  <g filter="url(#whistleShadow)">
+    <!-- Rear Attachment Loop Ring -->
+    <ellipse cx="115" cy="290" rx="18" ry="18" fill="none" stroke="url(#silverChrome)" stroke-width="6"/>
+    <ellipse cx="115" cy="290" rx="12" ry="12" fill="#edf2f7"/>
+
+    <!-- Cylindrical Sound Chamber (Barrel) -->
+    <circle cx="190" cy="290" r="68" fill="url(#barrelGrad)" stroke="#64748b" stroke-width="2"/>
+    <circle cx="190" cy="290" r="58" fill="url(#silverChrome)"/>
+
+    <!-- Concentric Ridge Rings on Whistle Chamber Side -->
+    <circle cx="190" cy="290" r="42" fill="none" stroke="#475569" stroke-width="2"/>
+    <circle cx="190" cy="290" r="26" fill="url(#barrelGrad)"/>
+    <circle cx="190" cy="290" r="10" fill="#334155"/>
+
+    <!-- Sound Slot / Fipple Window (Top rectangular cutout where air vibrates) -->
+    <rect x="225" y="240" width="22" height="42" rx="3" fill="#0f172a" stroke="#475569" stroke-width="1.5"/>
+    <!-- Internal Cork Pea visible through slot -->
+    <circle cx="236" cy="265" r="7" fill="#d97706" stroke="#92400e" stroke-width="1"/>
+
+    <!-- Whistle Blowpipe / Mouthpiece Tube (Extending to the right) -->
+    <path d="M220 240 L385 220 L385 295 L220 315 Z" fill="url(#barrelGrad)" stroke="#475569" stroke-width="2"/>
+
+    <!-- Mouthpiece Lip / Rim -->
+    <rect x="375" y="215" width="20" height="85" rx="5" fill="url(#silverChrome)" stroke="#334155" stroke-width="2"/>
+    <line x1="385" y1="220" x2="385" y2="295" stroke="#ffffff" stroke-width="2.5"/>
+
+    <!-- Airway Chute Channel -->
+    <path d="M245 242 L375 226 L375 245 L245 260 Z" fill="#94a3b8" opacity="0.6"/>
+
+    <!-- Chrome Gloss Reflection Streak -->
+    <path d="M230 248 L375 230 L375 236 L230 254 Z" fill="#ffffff" opacity="0.75"/>
+    <path d="M150 250 C170 235 205 235 225 250" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.7"/>
+  </g>
+</svg>

@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="shirtBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <linearGradient id="whiteCloth" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="20%" stop-color="#f8fafc"/>
+      <stop offset="50%" stop-color="#ffffff"/>
+      <stop offset="80%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="collarGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <filter id="shirtShadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="2" dy="8" stdDeviation="8" flood-color="#334155" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#shirtBg)"/>
+  <ellipse cx="250" cy="455" rx="140" ry="16" fill="#94a3b8" opacity="0.3"/>
+
+  <g filter="url(#shirtShadow)">
+    <!-- Main Shirt Body & Short Sleeves -->
+    <!-- Left Sleeve -->
+    <path d="M160 115 L80 180 L105 240 L160 200 Z" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M80 180 L105 240" stroke="#94a3b8" stroke-width="2"/>
+    <!-- Right Sleeve -->
+    <path d="M340 115 L420 180 L395 240 L340 200 Z" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1.5"/>
+    <path d="M420 180 L395 240" stroke="#94a3b8" stroke-width="2"/>
+
+    <!-- Torso -->
+    <path d="M160 115 L340 115 L345 425 L155 425 Z" fill="url(#whiteCloth)" stroke="#cbd5e1" stroke-width="1.5"/>
+
+    <!-- Curved Bottom Hem -->
+    <path d="M155 425 Q250 445 345 425 L345 420 Q250 440 155 420 Z" fill="#e2e8f0"/>
+
+    <!-- Front Placket (Button strip) -->
+    <rect x="240" y="125" width="20" height="305" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+    <!-- Placket Buttons -->
+    <circle cx="250" cy="155" r="4.5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="250" cy="205" r="4.5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="250" cy="255" r="4.5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="250" cy="305" r="4.5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="250" cy="355" r="4.5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+    <circle cx="250" cy="405" r="4.5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Shoulder Straps (Epaulettes) -->
+    <!-- Left Shoulder Strap -->
+    <path d="M160 115 L215 125 L210 137 L158 128 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2"/>
+    <circle cx="205" cy="130" r="3" fill="#cbd5e1" stroke="#64748b" stroke-width="1"/>
+
+    <!-- Right Shoulder Strap -->
+    <path d="M340 115 L285 125 L290 137 L342 128 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2"/>
+    <circle cx="295" cy="130" r="3" fill="#cbd5e1" stroke="#64748b" stroke-width="1"/>
+
+    <!-- Left Chest Patch Pocket with Flap -->
+    <rect x="175" y="190" width="55" height="65" rx="3" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <!-- Center Pleat in Pocket -->
+    <line x1="202" y1="190" x2="202" y2="255" stroke="#e2e8f0" stroke-width="2"/>
+    <!-- Pocket Flap -->
+    <path d="M173 190 L229 190 L229 202 L202 214 L173 202 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2"/>
+    <circle cx="202" cy="203" r="3" fill="#e2e8f0" stroke="#64748b" stroke-width="1"/>
+
+    <!-- Right Chest Patch Pocket with Flap -->
+    <rect x="270" y="190" width="55" height="65" rx="3" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2"/>
+    <!-- Center Pleat in Pocket -->
+    <line x1="297" y1="190" x2="297" y2="255" stroke="#e2e8f0" stroke-width="2"/>
+    <!-- Pocket Flap -->
+    <path d="M268 190 L324 190 L324 202 L297 214 L268 202 Z" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.2"/>
+    <circle cx="297" cy="203" r="3" fill="#e2e8f0" stroke="#64748b" stroke-width="1"/>
+
+    <!-- Collar & Neck -->
+    <!-- Inner neck opening -->
+    <path d="M210 115 Q250 145 290 115 Q250 100 210 115 Z" fill="#cbd5e1"/>
+    <!-- Left Collar Leaf -->
+    <path d="M215 110 L250 140 L210 160 L185 115 Z" fill="url(#collarGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+    <!-- Right Collar Leaf -->
+    <path d="M285 110 L250 140 L290 160 L315 115 Z" fill="url(#collarGrad)" stroke="#94a3b8" stroke-width="1.5"/>
+
+    <!-- Sleeve Cuffs -->
+    <path d="M80 180 L105 240 L115 233 L90 173 Z" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+    <path d="M420 180 L395 240 L385 233 L410 173 Z" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1"/>
+  </g>
+</svg>

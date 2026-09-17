@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="canvasCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#edf2f7"/>
+    </linearGradient>
+    <linearGradient id="canvasTexture" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="30%" stop-color="#1e293b"/>
+      <stop offset="80%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="whiteRubber" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
+    </linearGradient>
+    <filter id="canvasShadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="3" dy="12" stdDeviation="10" flood-color="#0f172a" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#canvasCardBg)"/>
+  <ellipse cx="250" cy="415" rx="190" ry="24" fill="#cbd5e1" opacity="0.6"/>
+
+  <g filter="url(#canvasShadow)">
+    <!-- Canvas Upper Body -->
+    <path d="M85 330 C90 260 135 230 175 230 C215 230 235 270 295 285 C350 300 405 320 425 350 C435 365 425 385 390 385 L85 385 C75 385 75 360 85 330 Z" fill="url(#canvasTexture)"/>
+
+    <!-- Ankle Collar Rim (White piping) -->
+    <ellipse cx="165" cy="235" rx="38" ry="14" fill="#0f172a" stroke="#ffffff" stroke-width="2.5"/>
+    <ellipse cx="165" cy="237" rx="33" ry="10" fill="#1e293b"/>
+
+    <!-- Contrast White Stitching on Black Canvas -->
+    <path d="M125 245 C110 280 100 330 100 385" fill="none" stroke="#e2e8f0" stroke-width="1.8" stroke-dasharray="5,3"/>
+    <path d="M175 240 C210 240 230 275 290 290" fill="none" stroke="#e2e8f0" stroke-width="1.8" stroke-dasharray="5,3"/>
+
+    <!-- White Rubber Toe Cap (Signature canvas shoe bumper) -->
+    <path d="M370 330 C385 340 435 355 425 385 L350 385 C350 360 355 340 370 330 Z" fill="url(#whiteRubber)" stroke="#cbd5e1" stroke-width="1"/>
+    <!-- Diamond/Ribbed texture on rubber toe bumper -->
+    <path d="M380 340 L385 385 M395 348 L400 385 M410 358 L412 385" stroke="#94a3b8" stroke-width="1.2" opacity="0.6"/>
+
+    <!-- White Laces & Silver Eyelets -->
+    <circle cx="210" cy="255" r="3.5" fill="#e2e8f0" stroke="#64748b" stroke-width="1"/>
+    <circle cx="230" cy="268" r="3.5" fill="#e2e8f0" stroke="#64748b" stroke-width="1"/>
+    <circle cx="250" cy="280" r="3.5" fill="#e2e8f0" stroke="#64748b" stroke-width="1"/>
+    <circle cx="270" cy="292" r="3.5" fill="#e2e8f0" stroke="#64748b" stroke-width="1"/>
+    <circle cx="290" cy="303" r="3.5" fill="#e2e8f0" stroke="#64748b" stroke-width="1"/>
+
+    <!-- Flat White Shoelaces -->
+    <line x1="205" y1="250" x2="220" y2="260" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="225" y1="263" x2="240" y2="273" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="245" y1="275" x2="260" y2="285" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="265" y1="287" x2="280" y2="297" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    <line x1="285" y1="298" x2="300" y2="308" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+
+    <!-- Tied White Bow & Aglets -->
+    <path d="M200 248 Q185 235 175 248 Q170 260 190 255" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+    <path d="M205 250 Q215 233 228 242 Q230 255 212 255" fill="none" stroke="#ffffff" stroke-width="2.5"/>
+    <path d="M195 255 Q185 275 180 295" fill="none" stroke="#ffffff" stroke-width="2"/>
+    <path d="M202 255 Q205 280 210 300" fill="none" stroke="#ffffff" stroke-width="2"/>
+
+    <!-- Sturdy White Vulcanized Rubber Midsole / Outsole -->
+    <rect x="75" y="385" width="355" height="22" rx="4" fill="url(#whiteRubber)" stroke="#cbd5e1" stroke-width="1"/>
+    <!-- Navy/Black stripe running through foxing tape -->
+    <line x1="75" y1="395" x2="428" y2="395" stroke="#0f172a" stroke-width="2.5"/>
+    <!-- Bottom Gum Rubber Outsole -->
+    <rect x="75" y="405" width="355" height="4" fill="#b45309"/>
+    <!-- Heel License Plate Badge -->
+    <rect x="72" y="388" width="8" height="14" rx="1" fill="#dc2626"/>
+  </g>
+</svg>

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="dandCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="100%" stop-color="#f5efe6"/>
+    </linearGradient>
+    <linearGradient id="bambooGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="25%" stop-color="#d97706"/>
+      <stop offset="50%" stop-color="#f59e0b"/>
+      <stop offset="75%" stop-color="#fbbf24"/>
+      <stop offset="90%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#92400e"/>
+    </linearGradient>
+    <linearGradient id="bambooCylinder" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#78350f"/>
+      <stop offset="20%" stop-color="#b45309"/>
+      <stop offset="45%" stop-color="#fde68a"/>
+      <stop offset="70%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#451a03"/>
+    </linearGradient>
+    <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#451a03"/>
+      <stop offset="50%" stop-color="#92400e"/>
+      <stop offset="100%" stop-color="#260e02"/>
+    </linearGradient>
+    <filter id="dandShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="5" dy="12" stdDeviation="9" flood-color="#451a03" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#dandCardBg)"/>
+  <ellipse cx="250" cy="450" rx="190" ry="18" fill="#d6c7b2" opacity="0.6"/>
+
+  <!-- Diagonal Bamboo Dand Presentation (45 deg) -->
+  <g transform="rotate(-45 250 250)" filter="url(#dandShadow)">
+    <!-- Main Bamboo Shaft -->
+    <rect x="238" y="30" width="24" height="440" rx="10" fill="url(#bambooCylinder)"/>
+
+    <!-- Bamboo Nodes / Segments along length -->
+    <!-- Node 1 -->
+    <g transform="translate(0, 90)">
+      <ellipse cx="250" cy="0" rx="14" ry="4.5" fill="url(#nodeGrad)"/>
+      <ellipse cx="250" cy="2" rx="13.5" ry="3.5" fill="#fde68a" opacity="0.6"/>
+    </g>
+
+    <!-- Node 2 -->
+    <g transform="translate(0, 160)">
+      <ellipse cx="250" cy="0" rx="14" ry="4.5" fill="url(#nodeGrad)"/>
+      <ellipse cx="250" cy="2" rx="13.5" ry="3.5" fill="#fde68a" opacity="0.6"/>
+    </g>
+
+    <!-- Node 3 (Center balance point) -->
+    <g transform="translate(0, 250)">
+      <ellipse cx="250" cy="0" rx="14.5" ry="5" fill="url(#nodeGrad)"/>
+      <ellipse cx="250" cy="2" rx="14" ry="3.8" fill="#fde68a" opacity="0.6"/>
+      <!-- Saffron cord / Grip wrap around middle section -->
+      <rect x="236" y="8" width="28" height="5" rx="1.5" fill="#ea580c"/>
+      <rect x="236" y="16" width="28" height="5" rx="1.5" fill="#ea580c"/>
+      <rect x="236" y="24" width="28" height="5" rx="1.5" fill="#ea580c"/>
+    </g>
+
+    <!-- Node 4 -->
+    <g transform="translate(0, 340)">
+      <ellipse cx="250" cy="0" rx="14" ry="4.5" fill="url(#nodeGrad)"/>
+      <ellipse cx="250" cy="2" rx="13.5" ry="3.5" fill="#fde68a" opacity="0.6"/>
+    </g>
+
+    <!-- Node 5 -->
+    <g transform="translate(0, 410)">
+      <ellipse cx="250" cy="0" rx="14" ry="4.5" fill="url(#nodeGrad)"/>
+      <ellipse cx="250" cy="2" rx="13.5" ry="3.5" fill="#fde68a" opacity="0.6"/>
+    </g>
+
+    <!-- Rounded Top End Cap -->
+    <ellipse cx="250" cy="30" rx="12" ry="6" fill="#78350f"/>
+    <ellipse cx="250" cy="29" rx="8" ry="4" fill="#b45309"/>
+
+    <!-- Rounded Bottom End Cap -->
+    <ellipse cx="250" cy="470" rx="12" ry="6" fill="#451a03"/>
+
+    <!-- Subtle lengthwise woodgrain / gloss reflection line -->
+    <line x1="245" y1="35" x2="245" y2="465" stroke="#ffffff" stroke-width="2.5" opacity="0.45" stroke-linecap="round"/>
+  </g>
+</svg>

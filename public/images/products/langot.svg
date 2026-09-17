@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="langotCardBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="100%" stop-color="#fdf2e9"/>
+    </linearGradient>
+    <linearGradient id="latthaCloth" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#faf5ee"/>
+      <stop offset="80%" stop-color="#f5ede0"/>
+      <stop offset="100%" stop-color="#e8dcce"/>
+    </linearGradient>
+    <linearGradient id="saffronAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ff9933"/>
+      <stop offset="100%" stop-color="#e65100"/>
+    </linearGradient>
+    <filter id="langotShadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="2" dy="8" stdDeviation="8" flood-color="#8c6b4f" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <rect width="500" height="500" rx="28" fill="url(#langotCardBg)"/>
+  <ellipse cx="250" cy="445" rx="140" ry="16" fill="#e2d4c0" opacity="0.6"/>
+
+  <g filter="url(#langotShadow)">
+    <!-- Waist Strings (Naada) Extending outwards -->
+    <!-- Left String -->
+    <path d="M150 140 C100 130 60 160 50 210 C40 260 70 290 85 320" fill="none" stroke="#e8dcce" stroke-width="8" stroke-linecap="round"/>
+    <path d="M150 140 C100 130 60 160 50 210 C40 260 70 290 85 320" fill="none" stroke="#d4c3b0" stroke-width="2" stroke-dasharray="6,3"/>
+    
+    <!-- Right String -->
+    <path d="M350 140 C400 130 440 160 450 210 C460 260 430 290 415 320" fill="none" stroke="#e8dcce" stroke-width="8" stroke-linecap="round"/>
+    <path d="M350 140 C400 130 440 160 450 210 C460 260 430 290 415 320" fill="none" stroke="#d4c3b0" stroke-width="2" stroke-dasharray="6,3"/>
+
+    <!-- Main Triangular Lattha Cloth Body -->
+    <path d="M140 140 L360 140 L285 410 L215 410 Z" fill="url(#latthaCloth)" stroke="#d4c3b0" stroke-width="2"/>
+
+    <!-- Reinforced Center Supporter Panel (Double Lattha) -->
+    <path d="M185 140 L315 140 L268 410 L232 410 Z" fill="#faf5ee" stroke="#cbb9a3" stroke-width="1.5"/>
+
+    <!-- Waistband Top Hem -->
+    <rect x="135" y="130" width="230" height="24" rx="4" fill="#f5ede0" stroke="#cbb9a3" stroke-width="1.5"/>
+    <line x1="135" y1="136" x2="365" y2="136" stroke="#bfa991" stroke-width="1" stroke-dasharray="4,2"/>
+    <line x1="135" y1="148" x2="365" y2="148" stroke="#bfa991" stroke-width="1" stroke-dasharray="4,2"/>
+
+    <!-- Saffron Decorative Accent Border Line at Waistband -->
+    <rect x="145" y="140" width="210" height="4" rx="1" fill="url(#saffronAccent)"/>
+
+    <!-- Reinforced Multi-Row Heavy Stitching Lines down the center panel -->
+    <line x1="225" y1="160" x2="242" y2="400" stroke="#d4c3b0" stroke-width="1.8" stroke-dasharray="6,3"/>
+    <line x1="250" y1="160" x2="250" y2="400" stroke="#d4c3b0" stroke-width="1.8" stroke-dasharray="6,3"/>
+    <line x1="275" y1="160" x2="258" y2="400" stroke="#d4c3b0" stroke-width="1.8" stroke-dasharray="6,3"/>
+
+    <!-- Bottom Tail & Loop (Langot patti tail) -->
+    <rect x="220" y="405" width="60" height="15" rx="3" fill="#e8dcce" stroke="#bfa991" stroke-width="1.5"/>
+    <!-- Hanging Langot Tail Ribbon -->
+    <path d="M235 420 C230 450 240 465 245 480 L255 480 C250 465 260 450 265 420 Z" fill="#f5ede0" stroke="#cbb9a3" stroke-width="1.2"/>
+  </g>
+</svg>
