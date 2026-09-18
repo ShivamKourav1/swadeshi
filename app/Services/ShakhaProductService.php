@@ -21,7 +21,7 @@ class ShakhaProductService
                 'price' => 50.00,
                 'description' => "Standard saffron triangular Shakha Flag (शाखा ध्वज) crafted from durable outdoor ceremonial fabric.",
                 'category_slug' => 'ganvesh',
-                'image_url' => '/images/products/shakha_flag.svg',
+                'image_url' => '/images/products/dwaj.jpg',
             ],
             [
                 'name' => "Bal Pant Elastic 20'' to 22'' (बाल पैन्ट इलास्टिक 20'' से 22'')",
@@ -77,7 +77,7 @@ class ShakhaProductService
                 'price' => 370.00,
                 'description' => "100% pure cotton official uniform shirt with epaulettes and front button flap pockets.",
                 'category_slug' => 'ganvesh',
-                'image_url' => '/images/products/white_shirt.svg',
+                'image_url' => '/images/products/white_shirt.jpg',
             ],
             [
                 'name' => "Bal Shirt Terrycot 20'' to 32'' (बाल शर्ट टेरीकोट 20'' से 32'')",
@@ -85,7 +85,7 @@ class ShakhaProductService
                 'price' => 220.00,
                 'description' => "Easy maintenance wrinkle resistant terrycot fabric uniform shirt for Bal swayamsevaks (Sizes 20'' to 32'').",
                 'category_slug' => 'ganvesh',
-                'image_url' => '/images/products/white_shirt.svg',
+                'image_url' => '/images/products/white_shirt.jpg',
             ],
             [
                 'name' => "Shirt Terrycot 34'' and above (शर्ट टेरीकोट 34'' से)",
@@ -93,7 +93,7 @@ class ShakhaProductService
                 'price' => 320.00,
                 'description' => "Durable all-weather terrycot uniform shirt for adult and senior swayamsevaks (Sizes 34'' and above).",
                 'category_slug' => 'ganvesh',
-                'image_url' => '/images/products/white_shirt.svg',
+                'image_url' => '/images/products/white_shirt.jpg',
             ],
             [
                 'name' => "Cap (टोपी)",
@@ -101,7 +101,7 @@ class ShakhaProductService
                 'price' => 30.00,
                 'description' => "Traditional black foldable ceremonial cap (काली टोपी) crafted with cotton cloth.",
                 'category_slug' => 'ganvesh',
-                'image_url' => '/images/products/black_cap.svg',
+                'image_url' => '/images/products/topi.png',
             ],
             [
                 'name' => "Padvesh Rexine Shoes 6-10 (पदवेश रेग्जीन 6-10)",
@@ -229,8 +229,8 @@ class ShakhaProductService
                 ->first();
 
             if ($existing) {
-                // If existing product has the generic category image, upgrade it to the dedicated SVG
-                if (($existing->image_url === '/images/categories/ganvesh.jpg' || empty($existing->image_url)) && !empty($item['image_url'])) {
+                // Keep image synchronized if product catalog image was updated
+                if ($existing->image_url !== $item['image_url'] && !empty($item['image_url'])) {
                     $existing->update(['image_url' => $item['image_url']]);
                 }
             } else {
