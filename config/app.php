@@ -28,6 +28,8 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    'show_demo_users' => env('SHOW_DEMO_USERS', env('APP_ENV') !== 'production'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

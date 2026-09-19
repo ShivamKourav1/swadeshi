@@ -22,7 +22,9 @@ class AuthController extends Controller
 {
     public function showLogin(): Response
     {
-        return Inertia::render('Auth/Login');
+        return Inertia::render('Auth/Login', [
+            'showDemoCredentials' => (bool) config('app.show_demo_users', !app()->isProduction()),
+        ]);
     }
 
     public function login(Request $request): RedirectResponse

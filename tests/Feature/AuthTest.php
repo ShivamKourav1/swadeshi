@@ -14,6 +14,24 @@ class AuthTest extends TestCase
     {
         $response = $this->get('/login');
         $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Auth/Login')
+            ->where('showDemoCredentials', true)
+        );
+    }
+
+    public function test_demo_credentials_are_hidden_in_production(): void
+    {
+        $this->app['env'] = 'production';
+        config(['app.env' => 'production', 'app.show_demo_users' => false]);
+
+        $response = $this->get('/login');
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) => $page
+            ->component('Auth/Login')
+            ->where('showDemoCredentials', false)
+            ->where('is_production', true)
+        );
     }
 
     public function test_user_can_authenticate_with_valid_credentials(): void

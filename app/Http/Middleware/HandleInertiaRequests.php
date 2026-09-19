@@ -61,6 +61,8 @@ class HandleInertiaRequests extends Middleware
                 $cart = $request->session()->get('cart', []);
                 return array_sum(array_column($cart, 'quantity'));
             },
+            'app_env' => fn () => app()->environment(),
+            'is_production' => fn () => app()->isProduction(),
         ]);
     }
 }

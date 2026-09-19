@@ -1,8 +1,13 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { Store, LogIn } from 'lucide-react';
 
-export default function Login() {
+export default function Login({ showDemoCredentials }) {
+    const { is_production } = usePage().props;
+    const canShowDemo = showDemoCredentials !== undefined
+        ? Boolean(showDemoCredentials)
+        : !Boolean(is_production);
+
     const { data, setData, post, processing, errors } = useForm({
         email: '',
         password: '',
@@ -38,30 +43,32 @@ export default function Login() {
                     <p className="text-xs text-gray-500 mt-1">Sign in to your customer, dealer, or delivery partner account</p>
                 </div>
 
-                {/* Quick Demo Credentials Assistant */}
-                <div className="bg-amber-50 border border-amber-200/80 p-3.5 rounded-2xl text-xs space-y-2">
-                    <div className="font-extrabold text-amber-900 uppercase text-[11px]">Quick Demo Login Shortcuts:</div>
-                    <div className="flex flex-wrap gap-1.5">
-                        <button type="button" onClick={() => fillDemo('customer@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
-                            Customer
-                        </button>
-                        <button type="button" onClick={() => fillDemo('dealer@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
-                            Dealer
-                        </button>
-                        <button type="button" onClick={() => fillDemo('delivery@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
-                            Delivery Agent
-                        </button>
-                        <button type="button" onClick={() => fillDemo('karyakarta@ecommerce.com')} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-2.5 py-1 rounded-lg font-extrabold transition cursor-pointer shadow-xs">
-                            Karyakarta (Jila)
-                        </button>
-                        <button type="button" onClick={() => fillDemo('karyakarta_vibhag@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
-                            Karyakarta (Vibhag)
-                        </button>
-                        <button type="button" onClick={() => fillDemo('admin@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
-                            Admin
-                        </button>
+                {/* Quick Demo Credentials Assistant (Hidden in production) */}
+                {canShowDemo && (
+                    <div className="bg-amber-50 border border-amber-200/80 p-3.5 rounded-2xl text-xs space-y-2">
+                        <div className="font-extrabold text-amber-900 uppercase text-[11px]">Quick Demo Login Shortcuts:</div>
+                        <div className="flex flex-wrap gap-1.5">
+                            <button type="button" onClick={() => fillDemo('customer@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
+                                Customer
+                            </button>
+                            <button type="button" onClick={() => fillDemo('dealer@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
+                                Dealer
+                            </button>
+                            <button type="button" onClick={() => fillDemo('delivery@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
+                                Delivery Agent
+                            </button>
+                            <button type="button" onClick={() => fillDemo('karyakarta@ecommerce.com')} className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white px-2.5 py-1 rounded-lg font-extrabold transition cursor-pointer shadow-xs">
+                                Karyakarta (Jila)
+                            </button>
+                            <button type="button" onClick={() => fillDemo('karyakarta_vibhag@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
+                                Karyakarta (Vibhag)
+                            </button>
+                            <button type="button" onClick={() => fillDemo('admin@ecommerce.com')} className="bg-white hover:bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold transition cursor-pointer">
+                                Admin
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="space-y-4 text-xs">
                     <div>
