@@ -219,4 +219,61 @@ class ProductCrudTest extends TestCase
         $response->assertSee('Karyakarta Bodh Book');
         $response->assertDontSee('Commercial Novel');
     }
+
+    public function test_product_inch_symbols_and_quotes_are_not_corrupted_into_html_entities(): void
+    {
+        $dealer = User::factory()->create(['role' => 'dealer']);
+        $category = Category::create(['name' => 'Ganvesh', 'slug' => 'ganvesh']);
+
+        $productName = "Bal Pant Elastic 20'' to 22'' (बाल पैन्ट इलास्टिक 20'' से 22'')";
+        $productDesc = "Trousers with 20'' to 22'' elastic waist band.";
+
+        // Create product via dealer panel
+        $response = $this->actingAs($dealer)->post(route('dealer.products.store'), [
+            'name' => $productName,
+            'category_id' => $category->id,
+            'price' => 200.00,
+            'stock' => 10,
+            'description' => $productDesc,
+            'sku' => 'PNT-20-22',
+            'status' => 'active',
+        ]);
+
+        $response->assertRedirect(route('dealer.products.index'));
+
+        $product = Product::where('sku', 'PNT-20-22')->firstOrFail();
+        $this->assertEquals($productName, $product->name);
+        $this->assertStringNotContainsString('&#039;', $product->name);
+        $this->assertStringNotContainsString('&quot;', $product->name);
+
+        // Edit screen preserves clean characters
+        $editResponse = $this->actingAs($dealer)->get(route('dealer.products.edit', $product->id));
+        $editResponse->assertStatus(200);
+        $editResponse->assertInertia(fn ($page) => $page
+            ->component('Products/Dealer/Edit')
+            ->where('product.name', $productName)
+        );
+
+        // Public show page displays clean name without breaking into HTML entities
+        $showResponse = $this->get(route('products.show', $product->id));
+        $showResponse->assertStatus(200);
+        $showResponse->assertInertia(fn ($page) => $page
+            ->component('Products/Show')
+            ->where('product.name', $productName)
+        );
+
+        // If a form submits a legacy HTML entity, it gets safely decoded
+        $updateResponse = $this->actingAs($dealer)->put(route('dealer.products.update', $product->id), [
+            'name' => "Bal Pant Elastic 20&#039;&#039; to 22&#039;&#039;",
+            'category_id' => $category->id,
+            'price' => 205.00,
+            'stock' => 12,
+            'sku' => 'PNT-20-22',
+            'status' => 'active',
+        ]);
+
+        $product->refresh();
+        $this->assertEquals("Bal Pant Elastic 20'' to 22''", $product->name);
+        $this->assertStringNotContainsString('&#039;', $product->name);
+    }
 }

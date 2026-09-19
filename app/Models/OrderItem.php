@@ -26,6 +26,32 @@ class OrderItem extends Model
         'quantity' => 'integer',
     ];
 
+    public function getProductNameAttribute($value): string
+    {
+        $decoded = (string) $value;
+        while (str_contains($decoded, '&') && preg_match('/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/', $decoded)) {
+            $prev = $decoded;
+            $decoded = html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if ($decoded === $prev) {
+                break;
+            }
+        }
+        return $decoded;
+    }
+
+    public function setProductNameAttribute($value): void
+    {
+        $decoded = (string) $value;
+        while (str_contains($decoded, '&') && preg_match('/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/', $decoded)) {
+            $prev = $decoded;
+            $decoded = html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if ($decoded === $prev) {
+                break;
+            }
+        }
+        $this->attributes['product_name'] = $decoded;
+    }
+
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);

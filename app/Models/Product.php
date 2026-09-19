@@ -33,6 +33,47 @@ class Product extends Model
         'dealer_unit_info',
     ];
 
+    /**
+     * Decode any encoded HTML entities so symbols, quotes, and inch marks appear naturally.
+     */
+    protected function decodeHtmlEntities(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $decoded = $value;
+        while (str_contains($decoded, '&') && preg_match('/&(#\d+|#x[0-9a-fA-F]+|[a-zA-Z]+);/', $decoded)) {
+            $prev = $decoded;
+            $decoded = html_entity_decode($decoded, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if ($decoded === $prev) {
+                break;
+            }
+        }
+
+        return $decoded;
+    }
+
+    public function getNameAttribute($value): string
+    {
+        return $this->decodeHtmlEntities((string) $value) ?? '';
+    }
+
+    public function getDescriptionAttribute($value): ?string
+    {
+        return $this->decodeHtmlEntities($value);
+    }
+
+    public function setNameAttribute($value): void
+    {
+        $this->attributes['name'] = $this->decodeHtmlEntities((string) $value);
+    }
+
+    public function setDescriptionAttribute($value): void
+    {
+        $this->attributes['description'] = $this->decodeHtmlEntities($value);
+    }
+
     public function dealer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'dealer_id');
