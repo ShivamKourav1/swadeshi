@@ -101,6 +101,8 @@ return [
 
     'key' => env('APP_KEY'),
 
+    'toli_encryption_key' => env('TOLI_ENCRYPTION_KEY'),
+
     'previous_keys' => [
         ...array_filter(
             explode(',', (string) env('APP_PREVIOUS_KEYS', ''))

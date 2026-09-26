@@ -13,6 +13,7 @@ use App\Http\Controllers\Karyakarta\OrganizationUnitController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ToliController;
 use Illuminate\Support\Facades\Route;
 
 // Public Language Switcher Route
@@ -121,3 +122,27 @@ Route::middleware('auth')->group(function () {
         Route::delete('/roles/{role}', [AdminRoleController::class, 'destroy'])->name('admin.roles.destroy');
     });
 });
+
+// Toli Module Public API routes
+Route::post('/toli/auto-login', [ToliController::class, 'autoLogin'])->name('toli.auto_login');
+Route::post('/toli/login', [ToliController::class, 'login'])->name('toli.login');
+Route::post('/toli/logout', [ToliController::class, 'logout'])->name('toli.logout');
+Route::get('/toli/members/template', [ToliController::class, 'downloadTemplate'])->name('toli.members.template');
+
+// Toli Module Authenticated API routes
+Route::middleware('auth')->group(function () {
+    Route::post('/toli/members', [ToliController::class, 'storeMember'])->name('toli.members.store');
+    Route::put('/toli/members/{swayamsevak}', [ToliController::class, 'updateMember'])->name('toli.members.update');
+    Route::delete('/toli/members/{swayamsevak}', [ToliController::class, 'destroyMember'])->name('toli.members.destroy');
+    Route::post('/toli/members/import', [ToliController::class, 'importMembers'])->name('toli.members.import');
+    Route::post('/toli/shakhas/{shakha}/new-ganvesh', [ToliController::class, 'updateNewGanvesh'])->name('toli.shakhas.new_ganvesh');
+    Route::post('/toli/orders', [ToliController::class, 'placeOrder'])->name('toli.orders.store');
+    Route::put('/toli/orders/{order}/status', [ToliController::class, 'updateOrderStatus'])->name('toli.orders.status');
+    Route::post('/toli/orders/{order}/cancel', [ToliController::class, 'cancelOrder'])->name('toli.orders.cancel');
+    Route::post('/toli/orders/{order}/return', [ToliController::class, 'returnOrder'])->name('toli.orders.return');
+});
+
+// Toli Hierarchy SPA Route (Matches /{kshetra}/{vibhag?}/{jila?}/{nagar?}/{shakha?})
+Route::get('/{kshetra}/{vibhag?}/{jila?}/{nagar?}/{shakha?}', [ToliController::class, 'show'])
+    ->whereNumber(['kshetra', 'vibhag', 'jila', 'nagar', 'shakha'])
+    ->name('toli.page');

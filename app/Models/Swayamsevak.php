@@ -1,0 +1,54 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+class Swayamsevak extends Model
+{
+    use HasFactory;
+
+    protected $table = 'swayamsevaks';
+
+    protected $fillable = [
+        'name',
+        'mobile',
+        'address',
+        'shakha_id',
+        'ganvesh',
+        'shikshan',
+    ];
+
+    protected $casts = [
+        'ganvesh' => 'boolean',
+    ];
+
+    public const SHIKSHAN_OPTIONS = [
+        'प्रारंभिक',
+        'प्राथमिक',
+        'संघ शिक्षा वर्ग',
+        'कार्यकर्ता विकास वर्ग - १',
+        'कार्यकर्ता विकास वर्ग - २',
+        'अन्य / कोई नहीं',
+    ];
+
+    public function shakha(): BelongsTo
+    {
+        return $this->belongsTo(Shakha::class);
+    }
+
+    /**
+     * Decode any accidental HTML entities on retrieval.
+     */
+    public function getNameAttribute($value): string
+    {
+        return html_entity_decode((string)$value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+
+    public function getAddressAttribute($value): ?string
+    {
+        return $value !== null ? html_entity_decode((string)$value, ENT_QUOTES | ENT_HTML5, 'UTF-8') : null;
+    }
+}

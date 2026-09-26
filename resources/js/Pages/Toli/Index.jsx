@@ -1,0 +1,2191 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { Head, router } from '@inertiajs/react';
+import axios from 'axios';
+import {
+    Users,
+    Shirt,
+    Package,
+    Share2,
+    FileSpreadsheet,
+    FileText,
+    Copy,
+    Check,
+    Search,
+    Plus,
+    Edit3,
+    Trash2,
+    X,
+    Phone,
+    MapPin,
+    AlertCircle,
+    CheckCircle2,
+    LogOut,
+    Key,
+    ExternalLink,
+    ChevronRight,
+    TrendingUp,
+    Clock,
+    DollarSign,
+    RefreshCw,
+    Download,
+    Upload,
+    Sparkles,
+    Shield,
+    MessageCircle,
+    CornerDownRight
+} from 'lucide-react';
+
+export default function ToliIndex({
+    isAuthenticated = false,
+    authUser = null,
+    hasAccess = true,
+    unit,
+    subUnits = [],
+    swayamsevaks = [],
+    swayamsevakStats = { total: 0, ganvesh: 0, non_ganvesh: 0, new_ganvesh: 0 },
+    availableShakhas = [],
+    products = [],
+    orders = [],
+    orderStats = { total: 0, paid: 0, payment_due: 0, delivered: 0, completed: 0, cancelled: 0 },
+    reportText = '',
+    shikshanOptions = [],
+    flash = {}
+}) {
+    // Current active navigation tab
+    const [activeTab, setActiveTab] = useState('members'); // 'members', 'distribution', 'orders', 'subunits'
+
+    // Notification toast state
+    const [toastMessage, setToastMessage] = useState(flash?.success || flash?.error || null);
+    const [toastType, setToastType] = useState(flash?.error ? 'error' : 'success');
+
+    // Auto-login & Pass Code state
+    const [showLoginModal, setShowLoginModal] = useState(!isAuthenticated);
+    const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
+    const [loginTab, setLoginTab] = useState('passcode'); // 'passcode' or 'credentials'
+    const [passcodeInput, setPasscodeInput] = useState('');
+    const [loginCredential, setLoginCredential] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginError, setLoginError] = useState('');
+    const [showPassCodeShareModal, setShowPassCodeShareModal] = useState(false);
+    const [storedPasscode, setStoredPasscode] = useState('');
+
+    // Member search & filter
+    const [memberSearch, setMemberSearch] = useState('');
+    const [memberGanveshFilter, setMemberGanveshFilter] = useState('all'); // 'all', 'equipped', 'unequipped'
+    const [memberShakhaFilter, setMemberShakhaFilter] = useState('all');
+
+    // Member Add/Edit Modal
+    const [showMemberModal, setShowMemberModal] = useState(false);
+    const [editingMember, setEditingMember] = useState(null);
+    const [memberForm, setMemberForm] = useState({
+        name: '',
+        mobile: '',
+        address: '',
+        shakha_id: unit?.shakha_id || (availableShakhas[0]?.id ?? ''),
+        ganvesh: false,
+        shikshan: 'प्रारंभिक'
+    });
+    const [memberFormSubmitting, setMemberFormSubmitting] = useState(false);
+
+    // CSV Bulk Import Modal
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importShakhaId, setImportShakhaId] = useState(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+    const [importFile, setImportFile] = useState(null);
+    const [importSubmitting, setImportSubmitting] = useState(false);
+
+    // New Ganvesh Update Modal
+    const [showNewGanveshModal, setShowNewGanveshModal] = useState(false);
+    const [selectedShakhaForNewGanvesh, setSelectedShakhaForNewGanvesh] = useState(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+    const [newGanveshValue, setNewGanveshValue] = useState(unit?.new_ganvesh ?? 0);
+    const [newGanveshSubmitting, setNewGanveshSubmitting] = useState(false);
+
+    // Distribution (Uniform Products) Search & Order Modal
+    const [productSearch, setProductSearch] = useState('');
+    const [selectedProduct, setSelectedProduct] = useState(null);
+    const [orderQuantity, setOrderQuantity] = useState(1);
+    const [orderPaymentStatus, setOrderPaymentStatus] = useState('paid'); // 'paid', 'payment_due', 'placed', 'completed'
+    const [orderNotes, setOrderNotes] = useState('');
+    const [orderShakhaId, setOrderShakhaId] = useState(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+    const [orderSubmitting, setOrderSubmitting] = useState(false);
+
+    // Post-Order Success Screen (3 buttons)
+    const [placedOrderDetails, setPlacedOrderDetails] = useState(null);
+    const [showOrderSuccessModal, setShowOrderSuccessModal] = useState(false);
+
+    // Orders Filter & Actions
+    const [ordersStatusFilter, setOrdersStatusFilter] = useState('all');
+    const [ordersShakhaFilter, setOrdersShakhaFilter] = useState('all');
+    const [selectedOrderForStatus, setSelectedOrderForStatus] = useState(null);
+    const [newOrderStatusValue, setNewOrderStatusValue] = useState('');
+    const [statusUpdateSubmitting, setStatusUpdateSubmitting] = useState(false);
+
+    // Cancellation & Return Modals
+    const [orderToCancel, setOrderToCancel] = useState(null);
+    const [cancelReason, setCancelReason] = useState('');
+    const [cancelSubmitting, setCancelSubmitting] = useState(false);
+
+    const [orderToReturn, setOrderToReturn] = useState(null);
+    const [returnReason, setReturnReason] = useState('आकार परिवर्तन हेतु');
+    const [returnNotes, setReturnNotes] = useState('');
+    const [returnSubmitting, setReturnSubmitting] = useState(false);
+
+    // Report (वृत्त) Modal
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [copiedReport, setCopiedReport] = useState(false);
+
+    // Copied feedback helper
+    const [copiedIndex, setCopiedIndex] = useState(null);
+
+    // Toast auto-clear
+    useEffect(() => {
+        if (toastMessage) {
+            const timer = setTimeout(() => setToastMessage(null), 4000);
+            return () => clearTimeout(timer);
+        }
+    }, [toastMessage]);
+
+    // Check localStorage for toli passcode on mount
+    useEffect(() => {
+        const savedPasscode = localStorage.getItem('toli_passcode');
+        if (savedPasscode) {
+            setStoredPasscode(savedPasscode);
+            setPasscodeInput(savedPasscode);
+        }
+
+        // If not authenticated and passcode exists, try auto-login seamlessly
+        if (!isAuthenticated && savedPasscode) {
+            handleAutoLogin(savedPasscode);
+        }
+    }, [isAuthenticated]);
+
+    const showToast = (message, type = 'success') => {
+        setToastMessage(message);
+        setToastType(type);
+    };
+
+    // Auto-login handler using encrypted token
+    const handleAutoLogin = async (passcodeToTry) => {
+        setIsAutoLoggingIn(true);
+        setLoginError('');
+        try {
+            const res = await axios.post('/toli/auto-login', { passcode: passcodeToTry });
+            if (res.data?.success) {
+                localStorage.setItem('toli_passcode', passcodeToTry);
+                setStoredPasscode(passcodeToTry);
+                setShowLoginModal(false);
+                showToast('स्वतः लॉगिन सफल हुआ!', 'success');
+                router.reload();
+            }
+        } catch (err) {
+            console.warn('Auto login failed:', err);
+            // Stored pass code might be expired or altered
+            localStorage.removeItem('toli_passcode');
+            setStoredPasscode('');
+            setShowLoginModal(true);
+        } finally {
+            setIsAutoLoggingIn(false);
+        }
+    };
+
+    // Manual Login handler (either with credentials or direct passcode token)
+    const handleManualLogin = async (e) => {
+        e.preventDefault();
+        setLoginError('');
+
+        if (loginTab === 'passcode') {
+            if (!passcodeInput.trim()) {
+                setLoginError('कृपया पास कोड दर्ज करें।');
+                return;
+            }
+            handleAutoLogin(passcodeInput.trim());
+            return;
+        }
+
+        if (!loginCredential.trim() || !loginPassword.trim()) {
+            setLoginError('कृपया मोबाइल/ईमेल एवं पासवर्ड दर्ज करें।');
+            return;
+        }
+
+        try {
+            const res = await axios.post('/toli/login', {
+                login: loginCredential.trim(),
+                password: loginPassword.trim()
+            });
+
+            if (res.data?.success && res.data?.passcode) {
+                localStorage.setItem('toli_passcode', res.data.passcode);
+                setStoredPasscode(res.data.passcode);
+                setShowLoginModal(false);
+                showToast('लॉगिन सफल हुआ!', 'success');
+                router.reload();
+            } else {
+                setLoginError(res.data?.message || 'लॉगिन में त्रुटि हुई।');
+            }
+        } catch (err) {
+            setLoginError(err.response?.data?.message || 'गलत मोबाइल/ईमेल या पासवर्ड।');
+        }
+    };
+
+    // Logout handler
+    const handleLogout = async () => {
+        try {
+            await axios.post('/toli/logout');
+            localStorage.removeItem('toli_passcode');
+            setStoredPasscode('');
+            setShowLoginModal(true);
+            showToast('सफलतापूर्वक लॉग आउट किया गया।', 'success');
+            router.reload();
+        } catch (err) {
+            console.error('Logout error:', err);
+        }
+    };
+
+    // Copy to clipboard helper
+    const copyToClipboard = (text, idx = null) => {
+        navigator.clipboard.writeText(text);
+        if (idx !== null) {
+            setCopiedIndex(idx);
+            setTimeout(() => setCopiedIndex(null), 2000);
+        } else {
+            setCopiedReport(true);
+            setTimeout(() => setCopiedReport(false), 2000);
+        }
+        showToast('क्लिपबोर्ड पर कॉपी हो गया!', 'success');
+    };
+
+    // Share to WhatsApp helper
+    const shareToWhatsApp = (text) => {
+        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+        window.open(url, '_blank');
+    };
+
+    // Open Add Member Modal
+    const handleOpenAddMember = () => {
+        setEditingMember(null);
+        setMemberForm({
+            name: '',
+            mobile: '',
+            address: '',
+            shakha_id: unit?.shakha_id || (availableShakhas[0]?.id ?? ''),
+            ganvesh: false,
+            shikshan: 'प्रारंभिक'
+        });
+        setShowMemberModal(true);
+    };
+
+    // Open Edit Member Modal
+    const handleOpenEditMember = (m) => {
+        setEditingMember(m);
+        setMemberForm({
+            name: m.name,
+            mobile: m.mobile || '',
+            address: m.address || '',
+            shakha_id: m.shakha_id,
+            ganvesh: m.ganvesh,
+            shikshan: m.shikshan || 'प्रारंभिक'
+        });
+        setShowMemberModal(true);
+    };
+
+    // Save Member (Add or Edit)
+    const handleSaveMember = (e) => {
+        e.preventDefault();
+        if (!memberForm.name.trim()) {
+            showToast('कृपया स्वयंसेवक का नाम दर्ज करें।', 'error');
+            return;
+        }
+
+        setMemberFormSubmitting(true);
+        if (editingMember) {
+            router.put(`/toli/members/${editingMember.id}`, memberForm, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setShowMemberModal(false);
+                    setMemberFormSubmitting(false);
+                    showToast('स्वयंसेवक विवरण अपडेट हुआ।', 'success');
+                },
+                onError: () => setMemberFormSubmitting(false)
+            });
+        } else {
+            router.post('/toli/members', memberForm, {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setShowMemberModal(false);
+                    setMemberFormSubmitting(false);
+                    showToast('नया स्वयंसेवक सफलतापूर्वक जोड़ा गया।', 'success');
+                },
+                onError: () => setMemberFormSubmitting(false)
+            });
+        }
+    };
+
+    // Delete Member
+    const handleDeleteMember = (m) => {
+        if (!confirm(`क्या आप '${m.name}' को सूची से हटाना चाहते हैं?`)) return;
+        router.delete(`/toli/members/${m.id}`, {
+            preserveScroll: true,
+            onSuccess: () => showToast('स्वयंसेवक को सूची से हटा दिया गया।', 'success')
+        });
+    };
+
+    // CSV Bulk Import
+    const handleImportSubmit = (e) => {
+        e.preventDefault();
+        if (!importFile) {
+            showToast('कृपया CSV फ़ाइल चुनें।', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', importFile);
+        formData.append('shakha_id', importShakhaId);
+
+        setImportSubmitting(true);
+        router.post('/toli/members/import', formData, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowImportModal(false);
+                setImportFile(null);
+                setImportSubmitting(false);
+                showToast('स्वयंसेवक सूची सफलतापूर्वक आयात हुई।', 'success');
+            },
+            onError: () => setImportSubmitting(false)
+        });
+    };
+
+    // Update New Ganvesh Figure
+    const handleUpdateNewGanvesh = (e) => {
+        e.preventDefault();
+        const targetShakhaId = unit?.level === 'shakha' ? unit.id : selectedShakhaForNewGanvesh;
+        if (!targetShakhaId) {
+            showToast('कृपया शाखा चुनें।', 'error');
+            return;
+        }
+
+        setNewGanveshSubmitting(true);
+        router.post(`/toli/shakhas/${targetShakhaId}/new-ganvesh`, {
+            new_ganvesh: parseInt(newGanveshValue) || 0
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowNewGanveshModal(false);
+                setNewGanveshSubmitting(false);
+                showToast('नया गणवेश आंकड़ा अपडेट किया गया।', 'success');
+            },
+            onError: () => setNewGanveshSubmitting(false)
+        });
+    };
+
+    // Filter products based on search (key up minimum 3 characters)
+    const filteredProducts = useMemo(() => {
+        if (!productSearch || productSearch.trim().length < 3) {
+            return products;
+        }
+        const q = productSearch.trim().toLowerCase();
+        return products.filter((p) =>
+            p.name.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q))
+        );
+    }, [products, productSearch]);
+
+    // Open Quick Order Modal for a product
+    const handleOpenOrderModal = (product) => {
+        setSelectedProduct(product);
+        setOrderQuantity(1);
+        setOrderPaymentStatus('paid');
+        setOrderNotes('');
+        setOrderShakhaId(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+        setShowOrderSuccessModal(false);
+    };
+
+    // Place Fast Toli Order
+    const handlePlaceOrder = async (e) => {
+        e.preventDefault();
+        if (!selectedProduct) return;
+
+        setOrderSubmitting(true);
+        try {
+            const payload = {
+                product_id: selectedProduct.id,
+                quantity: parseInt(orderQuantity) || 1,
+                payment_status: orderPaymentStatus,
+                notes: orderNotes.trim() || null,
+                shakha_id: orderShakhaId || unit?.shakha_id || null,
+                nagar_id: unit?.nagar_id || null,
+                jila_id: unit?.jila_id || null,
+                vibhag_id: unit?.vibhag_id || null
+            };
+
+            const res = await axios.post('/toli/orders', payload);
+            if (res.data?.success) {
+                setPlacedOrderDetails({
+                    ...res.data.order,
+                    product_name: selectedProduct.name,
+                    quantity: orderQuantity,
+                    payment_status: orderPaymentStatus,
+                    total_amount: selectedProduct.price * orderQuantity
+                });
+                setSelectedProduct(null); // Close order form
+                setShowOrderSuccessModal(true); // Open 3-button success modal
+                showToast('ऑर्डर सफलतापूर्वक दर्ज किया गया!', 'success');
+                router.reload({ only: ['orders', 'orderStats', 'products'] });
+            } else {
+                showToast(res.data?.message || 'ऑर्डर दर्ज नहीं हो सका।', 'error');
+            }
+        } catch (err) {
+            showToast(err.response?.data?.message || 'ऑर्डर दर्ज करने में त्रुटि हुई।', 'error');
+        } finally {
+            setOrderSubmitting(false);
+        }
+    };
+
+    // Filter swaymsevaks
+    const filteredSwayamsevaks = useMemo(() => {
+        return swayamsevaks.filter((s) => {
+            const matchesSearch = !memberSearch.trim() ||
+                s.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
+                (s.mobile && s.mobile.includes(memberSearch)) ||
+                (s.address && s.address.toLowerCase().includes(memberSearch.toLowerCase()));
+
+            const matchesGanvesh =
+                memberGanveshFilter === 'all' ||
+                (memberGanveshFilter === 'equipped' && s.ganvesh) ||
+                (memberGanveshFilter === 'unequipped' && !s.ganvesh);
+
+            const matchesShakha =
+                memberShakhaFilter === 'all' ||
+                String(s.shakha_id) === String(memberShakhaFilter);
+
+            return matchesSearch && matchesGanvesh && matchesShakha;
+        });
+    }, [swayamsevaks, memberSearch, memberGanveshFilter, memberShakhaFilter]);
+
+    // Filter orders
+    const filteredOrders = useMemo(() => {
+        return orders.filter((o) => {
+            const matchesStatus =
+                ordersStatusFilter === 'all' ||
+                o.order_status === ordersStatusFilter ||
+                (ordersStatusFilter === 'paid' && o.payment_status === 'paid') ||
+                (ordersStatusFilter === 'payment_due' && (o.order_status === 'payment_due' || o.payment_status === 'pending'));
+
+            const matchesShakha =
+                ordersShakhaFilter === 'all' ||
+                String(o.shakha_id) === String(ordersShakhaFilter);
+
+            return matchesStatus && matchesShakha;
+        });
+    }, [orders, ordersStatusFilter, ordersShakhaFilter]);
+
+    // Handle Order Status Update
+    const handleUpdateOrderStatus = (e) => {
+        e.preventDefault();
+        if (!selectedOrderForStatus || !newOrderStatusValue) return;
+
+        setStatusUpdateSubmitting(true);
+        router.put(`/toli/orders/${selectedOrderForStatus.id}/status`, {
+            status: newOrderStatusValue
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setSelectedOrderForStatus(null);
+                setStatusUpdateSubmitting(false);
+                showToast('ऑर्डर की स्थिति अपडेट की गई।', 'success');
+            },
+            onError: () => setStatusUpdateSubmitting(false)
+        });
+    };
+
+    // Handle Order Cancellation
+    const handleCancelOrder = (e) => {
+        e.preventDefault();
+        if (!orderToCancel) return;
+
+        setCancelSubmitting(true);
+        router.post(`/toli/orders/${orderToCancel.id}/cancel`, {
+            reason: cancelReason || 'टोली सदस्य द्वारा रद्द'
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setOrderToCancel(null);
+                setCancelSubmitting(false);
+                showToast('ऑर्डर रद्द किया गया एवं स्टॉक वापस जोड़ दिया गया।', 'success');
+            },
+            onError: () => setCancelSubmitting(false)
+        });
+    };
+
+    // Handle Return Request
+    const handleReturnOrder = (e) => {
+        e.preventDefault();
+        if (!orderToReturn) return;
+
+        setReturnSubmitting(true);
+        router.post(`/toli/orders/${orderToReturn.id}/return`, {
+            reason: returnReason,
+            notes: returnNotes
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setOrderToReturn(null);
+                setReturnSubmitting(false);
+                showToast('वापसी अनुरोध सफलतापूर्वक दर्ज किया गया।', 'success');
+            },
+            onError: () => setReturnSubmitting(false)
+        });
+    };
+
+    // Target title & hierarchy subtitle
+    const parentSubtitle = useMemo(() => {
+        if (!unit?.parents || unit.parents.length === 0) return '';
+        return unit.parents.map((p) => p.name).join(' • ');
+    }, [unit]);
+
+    return (
+        <div className="min-h-screen bg-orange-50/60 text-stone-900 font-sans pb-16 selection:bg-amber-200">
+            <Head title={`🚩 ${unit?.name || 'टोली पृष्ठ'} | वस्तु भंडार`} />
+
+            {/* Notification Toast */}
+            {toastMessage && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg border text-sm font-medium flex items-center space-x-2 animate-bounce transition-all duration-300 ${
+                    toastType === 'error' ? 'bg-red-50 border-red-300 text-red-800' : 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                }">
+                    {toastType === 'error' ? <AlertCircle className="w-5 h-5 text-red-600" /> : <CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+                    <span>{toastMessage}</span>
+                </div>
+            )}
+
+            {/* Sticky Mobile-First Saffron Header */}
+            <header className="sticky top-0 z-40 bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 text-white shadow-md">
+                <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+                    {/* Unit Info */}
+                    <div className="flex-1 min-w-0 pr-2">
+                        <div className="flex items-center space-x-1.5 text-xs text-amber-200 font-medium tracking-wide">
+                            <span>🚩</span>
+                            <span>{unit?.level_hindi || 'इकाई'} पृष्ठ</span>
+                            {parentSubtitle && (
+                                <>
+                                    <span>•</span>
+                                    <span className="truncate max-w-[200px]">{parentSubtitle}</span>
+                                </>
+                            )}
+                        </div>
+                        <h1 className="text-xl md:text-2xl font-bold truncate text-white tracking-tight flex items-center space-x-1.5 mt-0.5">
+                            <span>{unit?.name}</span>
+                        </h1>
+                    </div>
+
+                    {/* Header Action Buttons */}
+                    <div className="flex items-center space-x-2 shrink-0">
+                        {/* Report Button */}
+                        <button
+                            onClick={() => setShowReportModal(true)}
+                            className="bg-amber-800/80 hover:bg-amber-900 text-amber-100 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-1 transition border border-amber-500/40 shadow-sm"
+                            title="वृत्त रिपोर्ट देखें व शेयर करें"
+                        >
+                            <FileText className="w-4 h-4 text-amber-300" />
+                            <span className="hidden sm:inline">वृत्त</span>
+                        </button>
+
+                        {/* Stored Pass Code Modal Trigger */}
+                        {isAuthenticated && (
+                            <button
+                                onClick={() => setShowPassCodeShareModal(true)}
+                                className="bg-amber-500/30 hover:bg-amber-500/50 text-white px-2.5 py-1.5 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-1 transition border border-amber-400/30"
+                                title="टोली पास कोड देखें"
+                            >
+                                <Key className="w-4 h-4 text-amber-200" />
+                                <span className="hidden md:inline">पास कोड</span>
+                            </button>
+                        )}
+
+                        {/* Auth Status / Login / Logout */}
+                        {isAuthenticated ? (
+                            <button
+                                onClick={handleLogout}
+                                className="bg-white/10 hover:bg-white/20 text-white p-2 rounded-lg text-xs transition"
+                                title="लॉग आउट करें"
+                            >
+                                <LogOut className="w-4 h-4" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => setShowLoginModal(true)}
+                                className="bg-white text-orange-700 px-3 py-1.5 rounded-lg text-xs md:text-sm font-bold shadow hover:bg-amber-50 transition"
+                            >
+                                लॉगिन
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Sub-Header Tabs */}
+                <div className="bg-amber-700/60 border-t border-amber-500/30">
+                    <div className="max-w-5xl mx-auto px-2 flex overflow-x-auto no-scrollbar space-x-1">
+                        <button
+                            onClick={() => setActiveTab('members')}
+                            className={`px-3 py-2.5 text-xs md:text-sm font-semibold rounded-t-lg transition flex items-center space-x-1.5 whitespace-nowrap shrink-0 ${
+                                activeTab === 'members'
+                                    ? 'bg-orange-50/90 text-orange-900 shadow-sm font-bold'
+                                    : 'text-amber-100 hover:bg-amber-600/40'
+                            }`}
+                        >
+                            <Users className="w-4 h-4" />
+                            <span>सूची संपादन ({swayamsevakStats.total})</span>
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('distribution')}
+                            className={`px-3 py-2.5 text-xs md:text-sm font-semibold rounded-t-lg transition flex items-center space-x-1.5 whitespace-nowrap shrink-0 ${
+                                activeTab === 'distribution'
+                                    ? 'bg-orange-50/90 text-orange-900 shadow-sm font-bold'
+                                    : 'text-amber-100 hover:bg-amber-600/40'
+                            }`}
+                        >
+                            <Shirt className="w-4 h-4" />
+                            <span>गणवेश वितरण</span>
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('orders')}
+                            className={`px-3 py-2.5 text-xs md:text-sm font-semibold rounded-t-lg transition flex items-center space-x-1.5 whitespace-nowrap shrink-0 ${
+                                activeTab === 'orders'
+                                    ? 'bg-orange-50/90 text-orange-900 shadow-sm font-bold'
+                                    : 'text-amber-100 hover:bg-amber-600/40'
+                            }`}
+                        >
+                            <Package className="w-4 h-4" />
+                            <span>टोली ऑर्डर्स ({orderStats.total})</span>
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('subunits')}
+                            className={`px-3 py-2.5 text-xs md:text-sm font-semibold rounded-t-lg transition flex items-center space-x-1.5 whitespace-nowrap shrink-0 ${
+                                activeTab === 'subunits'
+                                    ? 'bg-orange-50/90 text-orange-900 shadow-sm font-bold'
+                                    : 'text-amber-100 hover:bg-amber-600/40'
+                            }`}
+                        >
+                            <Share2 className="w-4 h-4" />
+                            <span>उप-इकाई लिंक ({subUnits.length})</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            {/* Main Content Area */}
+            <main className="max-w-5xl mx-auto px-3 sm:px-4 py-4 space-y-4">
+
+                {/* TAB 1: सूची संपादन (SWAYAMSEVAK MANAGEMENT) */}
+                {activeTab === 'members' && (
+                    <div className="space-y-4">
+                        {/* Summary Stats Cards */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            {/* Total Members */}
+                            <div className="bg-white p-3 rounded-xl border border-orange-200/80 shadow-xs flex flex-col justify-between">
+                                <span className="text-xs text-stone-500 font-medium">👥 कुल स्वयंसेवक</span>
+                                <div className="text-2xl font-black text-stone-800 mt-1">
+                                    {swayamsevakStats.total}
+                                </div>
+                                <span className="text-[11px] text-stone-400 mt-0.5">पंजीकृत सूची</span>
+                            </div>
+
+                            {/* Ganvesh Equipped */}
+                            <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-xs flex flex-col justify-between">
+                                <span className="text-xs text-emerald-700 font-medium">👕 गणवेश युक्त</span>
+                                <div className="text-2xl font-black text-emerald-800 mt-1">
+                                    {swayamsevakStats.ganvesh}
+                                </div>
+                                <span className="text-[11px] text-emerald-600 mt-0.5">
+                                    {swayamsevakStats.total > 0 ? `${Math.round((swayamsevakStats.ganvesh / swayamsevakStats.total) * 100)}% युक्त` : '0%'}
+                                </span>
+                            </div>
+
+                            {/* Without Ganvesh */}
+                            <div className="bg-white p-3 rounded-xl border border-amber-200 shadow-xs flex flex-col justify-between">
+                                <span className="text-xs text-amber-700 font-medium">⚠️ गणवेश अपेक्षित</span>
+                                <div className="text-2xl font-black text-amber-800 mt-1">
+                                    {swayamsevakStats.non_ganvesh}
+                                </div>
+                                <span className="text-[11px] text-amber-600 mt-0.5">गणवेश शेष</span>
+                            </div>
+
+                            {/* New Ganvesh Figure */}
+                            <div className="bg-white p-3 rounded-xl border border-orange-300 bg-gradient-to-br from-white to-orange-50/50 shadow-xs flex flex-col justify-between relative group">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-orange-800 font-bold">✨ नया गणवेश</span>
+                                    <button
+                                        onClick={() => setShowNewGanveshModal(true)}
+                                        className="text-[11px] text-orange-700 hover:text-orange-900 bg-orange-100 hover:bg-orange-200 px-1.5 py-0.5 rounded flex items-center space-x-0.5"
+                                        title="नया गणवेश आंकड़ा बदलें"
+                                    >
+                                        <Edit3 className="w-3 h-3" />
+                                        <span>अपडेट</span>
+                                    </button>
+                                </div>
+                                <div className="text-2xl font-black text-orange-900 mt-1">
+                                    {swayamsevakStats.new_ganvesh}
+                                </div>
+                                <span className="text-[11px] text-orange-700 mt-0.5">इस सत्र में नया गणवेश</span>
+                            </div>
+                        </div>
+
+                        {/* Action Buttons: Add Member, Import CSV, Template */}
+                        <div className="bg-white p-3 rounded-xl border border-orange-100 shadow-xs flex flex-wrap gap-2 items-center justify-between">
+                            <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                                <button
+                                    onClick={handleOpenAddMember}
+                                    className="flex-1 sm:flex-initial bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-2 rounded-lg text-sm font-semibold flex items-center justify-center space-x-1.5 shadow-xs transition"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    <span>नया स्वयंसेवक जोड़ें</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setShowImportModal(true)}
+                                    className="flex-1 sm:flex-initial bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center space-x-1.5 border border-stone-300 transition"
+                                >
+                                    <Upload className="w-4 h-4 text-stone-600" />
+                                    <span>एक्सेल / CSV अपलोड</span>
+                                </button>
+                            </div>
+
+                            <a
+                                href="/toli/members/template"
+                                download
+                                className="text-xs text-amber-700 hover:text-amber-900 hover:underline flex items-center space-x-1 ml-auto py-1"
+                            >
+                                <Download className="w-3.5 h-3.5" />
+                                <span>नमूना फ़ाइल (CSV) डाउनलोड करें</span>
+                            </a>
+                        </div>
+
+                        {/* Search and Filters */}
+                        <div className="bg-white p-3 rounded-xl border border-orange-100 shadow-xs space-y-2.5">
+                            <div className="relative">
+                                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={memberSearch}
+                                    onChange={(e) => setMemberSearch(e.target.value)}
+                                    placeholder="स्वयंसेवक का नाम, मोबाइल या पता खोजें..."
+                                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                                />
+                                {memberSearch && (
+                                    <button
+                                        onClick={() => setMemberSearch('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs"
+                                    >
+                                        हटाएं
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 text-xs">
+                                <span className="self-center font-medium text-stone-500">गणवेश स्थिति:</span>
+                                {[
+                                    { id: 'all', label: 'सभी' },
+                                    { id: 'equipped', label: '🟢 गणवेश युक्त' },
+                                    { id: 'unequipped', label: '⚪ गणवेश अपेक्षित' },
+                                ].map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setMemberGanveshFilter(tab.id)}
+                                        className={`px-2.5 py-1 rounded-md font-medium transition ${
+                                            memberGanveshFilter === tab.id
+                                                ? 'bg-amber-600 text-white'
+                                                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                ))}
+
+                                {availableShakhas.length > 1 && (
+                                    <div className="ml-auto flex items-center space-x-1">
+                                        <span className="text-stone-500 font-medium">शाखा:</span>
+                                        <select
+                                            value={memberShakhaFilter}
+                                            onChange={(e) => setMemberShakhaFilter(e.target.value)}
+                                            className="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs focus:ring-1 focus:ring-amber-500"
+                                        >
+                                            <option value="all">सभी शाखाएं</option>
+                                            {availableShakhas.map((s) => (
+                                                <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Swayamsevaks List */}
+                        <div className="space-y-2">
+                            {filteredSwayamsevaks.length === 0 ? (
+                                <div className="bg-white rounded-xl p-8 text-center border border-dashed border-stone-300">
+                                    <Users className="w-12 h-12 text-stone-300 mx-auto mb-2" />
+                                    <p className="text-stone-600 font-medium">कोई स्वयंसेवक नहीं मिला।</p>
+                                    <p className="text-xs text-stone-400 mt-1">नया स्वयंसेवक जोड़ने के लिए ऊपर दिए गए बटन का प्रयोग करें।</p>
+                                </div>
+                            ) : (
+                                filteredSwayamsevaks.map((m) => (
+                                    <div
+                                        key={m.id}
+                                        className="bg-white p-3.5 rounded-xl border border-orange-100 shadow-xs hover:border-amber-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                                    >
+                                        {/* Member Info */}
+                                        <div className="space-y-1 min-w-0">
+                                            <div className="flex items-center space-x-2">
+                                                <h3 className="font-bold text-stone-900 text-base">{m.name}</h3>
+                                                {m.ganvesh ? (
+                                                    <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-0.5">
+                                                        <span>🟢</span>
+                                                        <span>गणवेश युक्त</span>
+                                                    </span>
+                                                ) : (
+                                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center space-x-0.5">
+                                                        <span>⚪</span>
+                                                        <span>गणवेश शेष</span>
+                                                    </span>
+                                                )}
+                                                {m.shikshan && (
+                                                    <span className="bg-stone-100 text-stone-700 text-[10px] font-medium px-1.5 py-0.5 rounded">
+                                                        {m.shikshan}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
+                                                {m.mobile && (
+                                                    <div className="flex items-center space-x-1">
+                                                        <Phone className="w-3.5 h-3.5 text-stone-400" />
+                                                        <a href={`tel:${m.mobile}`} className="text-amber-700 font-medium hover:underline">
+                                                            {m.mobile}
+                                                        </a>
+                                                        <button
+                                                            onClick={() => shareToWhatsApp(`नमस्ते ${m.name} जी, संघ गणवेश वितरण एवं टोली सूचना।`)}
+                                                            className="text-emerald-600 hover:text-emerald-700 ml-1"
+                                                            title="व्हाट्सएप संदेश भेजें"
+                                                        >
+                                                            <MessageCircle className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {m.address && (
+                                                    <div className="flex items-center space-x-1 truncate max-w-xs">
+                                                        <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                                        <span className="truncate">{m.address}</span>
+                                                    </div>
+                                                )}
+
+                                                {m.shakha_name && (
+                                                    <span className="text-[11px] text-stone-400">
+                                                        ({m.shakha_name})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center space-x-2 self-end sm:self-center shrink-0">
+                                            <button
+                                                onClick={() => handleOpenEditMember(m)}
+                                                className="bg-stone-50 hover:bg-amber-50 text-stone-700 hover:text-amber-800 p-2 rounded-lg border border-stone-200 hover:border-amber-300 transition text-xs flex items-center space-x-1"
+                                                title="संपादन करें"
+                                            >
+                                                <Edit3 className="w-3.5 h-3.5" />
+                                                <span className="hidden sm:inline">संपादित करें</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => handleDeleteMember(m)}
+                                                className="bg-stone-50 hover:bg-red-50 text-stone-500 hover:text-red-700 p-2 rounded-lg border border-stone-200 hover:border-red-300 transition text-xs"
+                                                title="हटाएं"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 2: गणवेश वितरण (UNIFORM PRODUCTS & FAST ORDERING) */}
+                {activeTab === 'distribution' && (
+                    <div className="space-y-4">
+                        {/* Instant Search Bar (Key up starts on 3 characters) */}
+                        <div className="bg-white p-3.5 rounded-xl border border-orange-100 shadow-xs space-y-1">
+                            <div className="relative">
+                                <Search className="w-5 h-5 text-amber-600 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={productSearch}
+                                    onChange={(e) => setProductSearch(e.target.value)}
+                                    placeholder="🔍 गणवेश उत्पाद खोजें... (कम से कम ३ अक्षर टाइप करें)"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-orange-50/50 border border-orange-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition"
+                                />
+                                {productSearch && (
+                                    <button
+                                        onClick={() => setProductSearch('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-semibold px-2 py-1 bg-stone-100 rounded"
+                                    >
+                                        हटाएं
+                                    </button>
+                                )}
+                            </div>
+                            <p className="text-[11px] text-stone-400 pl-1">
+                                {productSearch.length > 0 && productSearch.length < 3
+                                    ? 'कम से कम ३ अक्षर टाइप करें...'
+                                    : `उपलब्ध उत्पाद: ${filteredProducts.length}`}
+                            </p>
+                        </div>
+
+                        {/* Single-Column Row Product Listing with Small Left Images */}
+                        <div className="space-y-2">
+                            {filteredProducts.length === 0 ? (
+                                <div className="bg-white rounded-xl p-8 text-center border border-dashed border-stone-300">
+                                    <Shirt className="w-12 h-12 text-stone-300 mx-auto mb-2" />
+                                    <p className="text-stone-600 font-medium">कोई गणवेश उत्पाद नहीं मिला।</p>
+                                    <p className="text-xs text-stone-400 mt-1">खोज शब्द बदलकर पुनः प्रयास करें।</p>
+                                </div>
+                            ) : (
+                                filteredProducts.map((p) => {
+                                    const inStock = p.stock > 0;
+                                    return (
+                                        <div
+                                            key={p.id}
+                                            className="bg-white p-3 rounded-xl border border-orange-100 shadow-xs hover:border-amber-300 transition flex items-center space-x-3.5"
+                                        >
+                                            {/* Left Small Product Image */}
+                                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-stone-50 rounded-lg border border-stone-200 p-1 shrink-0 flex items-center justify-center overflow-hidden">
+                                                <img
+                                                    src={p.image_url}
+                                                    alt={p.name}
+                                                    className="w-full h-full object-contain"
+                                                    onError={(e) => {
+                                                        e.target.onerror = null;
+                                                        e.target.src = '/images/products/shirt.svg';
+                                                    }}
+                                                />
+                                            </div>
+
+                                            {/* Product Details */}
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-stone-900 text-sm sm:text-base leading-snug truncate">
+                                                    {p.name}
+                                                </h3>
+                                                {p.sku && (
+                                                    <p className="text-[11px] text-stone-400 truncate mt-0.5">
+                                                        कोड: {p.sku}
+                                                    </p>
+                                                )}
+                                                <div className="flex items-center space-x-2 mt-1">
+                                                    <span className="text-base sm:text-lg font-black text-amber-800">
+                                                        ₹{p.price}
+                                                    </span>
+                                                    {inStock ? (
+                                                        <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                                            उपलब्ध: {p.stock}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[11px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                                                            आउट ऑफ स्टॉक
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Order Action Button */}
+                                            <div className="shrink-0 pl-1">
+                                                <button
+                                                    onClick={() => handleOpenOrderModal(p)}
+                                                    disabled={!inStock}
+                                                    className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center space-x-1 ${
+                                                        inStock
+                                                            ? 'bg-amber-600 hover:bg-amber-700 text-white active:scale-95'
+                                                            : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                                                    }`}
+                                                >
+                                                    <span>ऑर्डर करें</span>
+                                                    <ChevronRight className="w-4 h-4 hidden sm:inline" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 3: टोली ऑर्डर्स (ORDERS TRACKING & MANAGEMENT) */}
+                {activeTab === 'orders' && (
+                    <div className="space-y-4">
+                        {/* Order Aggregate Statistics */}
+                        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                            <div className="bg-white p-2.5 rounded-xl border border-stone-200 text-center shadow-xs">
+                                <span className="text-[10px] text-stone-500 font-medium block">कुल ऑर्डर्स</span>
+                                <span className="text-xl font-black text-stone-800">{orderStats.total}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-emerald-200 text-center shadow-xs">
+                                <span className="text-[10px] text-emerald-700 font-medium block">पूर्ण भुगतान</span>
+                                <span className="text-xl font-black text-emerald-800">{orderStats.paid}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-amber-200 text-center shadow-xs">
+                                <span className="text-[10px] text-amber-700 font-medium block">भुगतान बाकी</span>
+                                <span className="text-xl font-black text-amber-800">{orderStats.payment_due}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-blue-200 text-center shadow-xs">
+                                <span className="text-[10px] text-blue-700 font-medium block">डिलीवर हुआ</span>
+                                <span className="text-xl font-black text-blue-800">{orderStats.delivered}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-purple-200 text-center shadow-xs">
+                                <span className="text-[10px] text-purple-700 font-medium block">पूर्ण (वितरित)</span>
+                                <span className="text-xl font-black text-purple-800">{orderStats.completed}</span>
+                            </div>
+                            <div className="bg-white p-2.5 rounded-xl border border-red-200 text-center shadow-xs">
+                                <span className="text-[10px] text-red-700 font-medium block">रद्द</span>
+                                <span className="text-xl font-black text-red-800">{orderStats.cancelled}</span>
+                            </div>
+                        </div>
+
+                        {/* Order Filters */}
+                        <div className="bg-white p-3 rounded-xl border border-orange-100 shadow-xs flex flex-wrap gap-2 items-center justify-between text-xs">
+                            <div className="flex flex-wrap gap-1.5 items-center">
+                                <span className="font-medium text-stone-500 mr-1">स्थिति:</span>
+                                {[
+                                    { id: 'all', label: 'सभी' },
+                                    { id: 'paid', label: 'पूर्ण भुगतान' },
+                                    { id: 'payment_due', label: 'बाकी भुगतान' },
+                                    { id: 'placed', label: 'दर्ज' },
+                                    { id: 'completed', label: 'पूर्ण' },
+                                    { id: 'cancelled', label: 'रद्द' },
+                                ].map((s) => (
+                                    <button
+                                        key={s.id}
+                                        onClick={() => setOrdersStatusFilter(s.id)}
+                                        className={`px-2.5 py-1 rounded-md font-medium transition ${
+                                            ordersStatusFilter === s.id
+                                                ? 'bg-amber-600 text-white'
+                                                : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
+                                        }`}
+                                    >
+                                        {s.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {availableShakhas.length > 1 && (
+                                <div className="flex items-center space-x-1 ml-auto">
+                                    <span className="text-stone-500 font-medium">उप-टोली:</span>
+                                    <select
+                                        value={ordersShakhaFilter}
+                                        onChange={(e) => setOrdersShakhaFilter(e.target.value)}
+                                        className="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs focus:ring-1 focus:ring-amber-500"
+                                    >
+                                        <option value="all">सभी उप-टोली</option>
+                                        {availableShakhas.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Orders List */}
+                        <div className="space-y-2.5">
+                            {filteredOrders.length === 0 ? (
+                                <div className="bg-white rounded-xl p-8 text-center border border-dashed border-stone-300">
+                                    <Package className="w-12 h-12 text-stone-300 mx-auto mb-2" />
+                                    <p className="text-stone-600 font-medium">कोई ऑर्डर नहीं मिला।</p>
+                                    <p className="text-xs text-stone-400 mt-1">गणवेश वितरण टैब से नया ऑर्डर दर्ज करें।</p>
+                                </div>
+                            ) : (
+                                filteredOrders.map((o) => {
+                                    const isPaid = o.order_status === 'paid' || o.payment_status === 'paid';
+                                    const isDue = o.order_status === 'payment_due' || o.payment_status === 'pending';
+                                    const isCompleted = o.order_status === 'completed';
+                                    const isCancelled = o.order_status === 'cancelled';
+
+                                    return (
+                                        <div
+                                            key={o.id}
+                                            className="bg-white p-3.5 rounded-xl border border-orange-100 shadow-xs space-y-2"
+                                        >
+                                            {/* Order Top Line */}
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="font-bold text-sm text-stone-800">#{o.order_number}</span>
+                                                    {o.is_toli_order && (
+                                                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                                            टोली ऑर्डर
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center space-x-1.5">
+                                                    {isPaid && (
+                                                        <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                                            🟢 पूर्ण भुगतान
+                                                        </span>
+                                                    )}
+                                                    {isDue && (
+                                                        <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                                            🟡 भुगतान बाकी
+                                                        </span>
+                                                    )}
+                                                    {isCompleted && (
+                                                        <span className="bg-purple-100 text-purple-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                                            🟣 पूर्ण
+                                                        </span>
+                                                    )}
+                                                    {isCancelled && (
+                                                        <span className="bg-red-100 text-red-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                                                            🔴 रद्द
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Order Items Info */}
+                                            <div className="bg-stone-50 p-2 rounded-lg space-y-1 text-xs">
+                                                {o.items.map((item, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center text-stone-700">
+                                                        <span className="font-medium truncate max-w-[240px]">
+                                                            {item.product_name} × {item.quantity}
+                                                        </span>
+                                                        <span className="font-semibold text-stone-900">
+                                                            ₹{item.subtotal}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                                <div className="border-t border-stone-200 pt-1 flex justify-between font-bold text-amber-900">
+                                                    <span>कुल राशि:</span>
+                                                    <span>₹{o.total_amount}</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Metadata: Placed At, Notes, Shakha */}
+                                            <div className="flex flex-wrap items-center justify-between text-xs text-stone-500 gap-y-1">
+                                                <div className="space-x-2">
+                                                    <span>📅 {o.placed_at}</span>
+                                                    {o.shakha_name && <span>• शाखा: {o.shakha_name}</span>}
+                                                    {o.notes && <span className="italic text-amber-800 font-medium">• {o.notes}</span>}
+                                                </div>
+
+                                                {/* Action Buttons for Toli Member */}
+                                                <div className="flex items-center space-x-1.5 ml-auto">
+                                                    {/* Change Status */}
+                                                    {!isCancelled && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setSelectedOrderForStatus(o);
+                                                                setNewOrderStatusValue(o.order_status);
+                                                            }}
+                                                            className="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 px-2 py-1 rounded font-medium transition"
+                                                        >
+                                                            स्थिति बदलें
+                                                        </button>
+                                                    )}
+
+                                                    {/* Cancel Order */}
+                                                    {o.can_cancel && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setOrderToCancel(o);
+                                                                setCancelReason('');
+                                                            }}
+                                                            className="text-xs bg-red-50 hover:bg-red-100 text-red-700 px-2 py-1 rounded font-medium transition"
+                                                        >
+                                                            रद्द करें
+                                                        </button>
+                                                    )}
+
+                                                    {/* Return Request */}
+                                                    {o.can_return && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setOrderToReturn(o);
+                                                                setReturnReason('आकार परिवर्तन हेतु');
+                                                                setReturnNotes('');
+                                                            }}
+                                                            className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-800 px-2 py-1 rounded font-medium transition"
+                                                        >
+                                                            वापसी अनुरोध
+                                                        </button>
+                                                    )}
+
+                                                    {o.return_request_status && (
+                                                        <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-semibold">
+                                                            वापसी: {o.return_request_status}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB 4: उप-इकाई लिंक (SUB-UNIT URLS & SHARING) */}
+                {activeTab === 'subunits' && (
+                    <div className="space-y-4">
+                        <div className="bg-white p-4 rounded-xl border border-orange-100 shadow-xs">
+                            <h2 className="text-base font-bold text-stone-900 flex items-center space-x-2">
+                                <Share2 className="w-5 h-5 text-amber-600" />
+                                <span>अधीनस्थ उप-इकाई पृष्ठ लिंक</span>
+                            </h2>
+                            <p className="text-xs text-stone-500 mt-1">
+                                नीचे दी गई उप-इकाई लिंक को संबंधित टोली सदस्यों के साथ व्हाट्सएप पर साझा करें या सीधे खोलें।
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            {subUnits.length === 0 ? (
+                                <div className="bg-white rounded-xl p-8 text-center border border-dashed border-stone-300">
+                                    <p className="text-stone-600 font-medium">कोई अधीनस्थ उप-इकाई नहीं है।</p>
+                                </div>
+                            ) : (
+                                subUnits.map((sub, idx) => (
+                                    <div
+                                        key={sub.id}
+                                        className={`bg-white p-3.5 rounded-xl border transition shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                                            sub.is_current ? 'border-amber-400 bg-amber-50/30' : 'border-orange-100 hover:border-amber-200'
+                                        }`}
+                                    >
+                                        <div className="space-y-1">
+                                            <div className="flex items-center space-x-2">
+                                                <h3 className="font-bold text-stone-900 text-sm sm:text-base">
+                                                    {sub.name}
+                                                </h3>
+                                                <span className="bg-stone-100 text-stone-600 text-[10px] font-semibold px-2 py-0.5 rounded">
+                                                    {sub.type_hindi}
+                                                </span>
+                                                {sub.is_current && (
+                                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                                        वर्तमान इकाई
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="text-xs text-stone-500 flex flex-wrap gap-x-3">
+                                                <span>👥 स्वयंसेवक: {sub.members_count ?? 0}</span>
+                                                <span>👕 गणवेश: {sub.ganvesh_count ?? 0}</span>
+                                                <span>✨ नया गणवेश: {sub.new_ganvesh ?? 0}</span>
+                                            </div>
+
+                                            <p className="text-[11px] text-stone-400 font-mono select-all truncate max-w-sm">
+                                                {sub.full_url}
+                                            </p>
+                                        </div>
+
+                                        <div className="flex items-center space-x-2 self-end sm:self-center shrink-0">
+                                            {/* Copy URL */}
+                                            <button
+                                                onClick={() => copyToClipboard(sub.full_url, idx)}
+                                                className="bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition"
+                                                title="लिंक कॉपी करें"
+                                            >
+                                                {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                                <span>{copiedIndex === idx ? 'कॉपी हुआ' : 'कॉपी'}</span>
+                                            </button>
+
+                                            {/* WhatsApp Share */}
+                                            <button
+                                                onClick={() => shareToWhatsApp(`🚩 ${sub.name} (${sub.type_hindi}) टोली पृष्ठ:\n${sub.full_url}`)}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 shadow-xs transition"
+                                                title="व्हाट्सएप पर शेयर करें"
+                                            >
+                                                <MessageCircle className="w-3.5 h-3.5" />
+                                                <span>व्हाट्सएप</span>
+                                            </button>
+
+                                            {/* Open Link */}
+                                            {!sub.is_current && (
+                                                <a
+                                                    href={sub.url}
+                                                    className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition flex items-center space-x-1"
+                                                >
+                                                    <span>खोलें</span>
+                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+            </main>
+
+            {/* ============================================================ */}
+            {/* MODALS */}
+            {/* ============================================================ */}
+
+            {/* 1. PASS CODE & AUTO-LOGIN MODAL */}
+            {showLoginModal && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-5 text-white text-center">
+                            <span className="text-3xl block mb-1">🚩</span>
+                            <h2 className="text-xl font-bold tracking-tight">टोली प्रवेश / पास कोड</h2>
+                            <p className="text-xs text-amber-100 mt-1">
+                                {unit?.name ? `${unit.name} (${unit.level_hindi}) टोली पृष्ठ` : 'टोली विशिष्ट पृष्ठ'}
+                            </p>
+                        </div>
+
+                        {/* Login Method Tabs */}
+                        <div className="flex border-b border-stone-200 bg-stone-50">
+                            <button
+                                onClick={() => { setLoginTab('passcode'); setLoginError(''); }}
+                                className={`flex-1 py-3 text-xs md:text-sm font-bold text-center transition ${
+                                    loginTab === 'passcode'
+                                        ? 'border-b-2 border-amber-600 text-amber-700 bg-white'
+                                        : 'text-stone-500 hover:text-stone-800'
+                                }`}
+                            >
+                                🔑 पास कोड द्वारा
+                            </button>
+                            <button
+                                onClick={() => { setLoginTab('credentials'); setLoginError(''); }}
+                                className={`flex-1 py-3 text-xs md:text-sm font-bold text-center transition ${
+                                    loginTab === 'credentials'
+                                        ? 'border-b-2 border-amber-600 text-amber-700 bg-white'
+                                        : 'text-stone-500 hover:text-stone-800'
+                                }`}
+                            >
+                                📱 मोबाइल व पासवर्ड
+                            </button>
+                        </div>
+
+                        {/* Form Body */}
+                        <form onSubmit={handleManualLogin} className="p-5 space-y-4">
+                            {loginError && (
+                                <div className="bg-red-50 text-red-700 p-3 rounded-lg text-xs font-medium border border-red-200 flex items-center space-x-2">
+                                    <AlertCircle className="w-4 h-4 shrink-0" />
+                                    <span>{loginError}</span>
+                                </div>
+                            )}
+
+                            {loginTab === 'passcode' ? (
+                                <div className="space-y-2">
+                                    <label className="block text-xs font-semibold text-stone-700">
+                                        टोली पास कोड (Pass Code)
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        value={passcodeInput}
+                                        onChange={(e) => setPasscodeInput(e.target.value)}
+                                        placeholder="यहाँ टोली पास कोड पेस्ट करें..."
+                                        className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                                        required
+                                    />
+                                    <p className="text-[11px] text-stone-400">
+                                        💡 यह पास कोड आपके ब्राउज़र में स्वतः सुरक्षित रहेगा ताकि आगे दोबारा न मांगना पड़े।
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-stone-700 mb-1">
+                                            मोबाइल नंबर या ईमेल
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={loginCredential}
+                                            onChange={(e) => setLoginCredential(e.target.value)}
+                                            placeholder="उदा. 9876543210"
+                                            className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-stone-700 mb-1">
+                                            पासवर्ड
+                                        </label>
+                                        <input
+                                            type="password"
+                                            value={loginPassword}
+                                            onChange={(e) => setLoginPassword(e.target.value)}
+                                            placeholder="पासवर्ड दर्ज करें"
+                                            className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={isAutoLoggingIn}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-sm shadow-md transition flex items-center justify-center space-x-1.5"
+                            >
+                                {isAutoLoggingIn ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        <span>सत्यापन जारी है...</span>
+                                    </>
+                                ) : (
+                                    <span>प्रवेश करें (Login)</span>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 2. PRODUCT VIEW & QUICK ORDER MODAL */}
+            {selectedProduct && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold flex items-center space-x-2">
+                                <Shirt className="w-5 h-5 text-amber-200" />
+                                <span>गणवेश वितरण ऑर्डर दर्ज करें</span>
+                            </h2>
+                            <button
+                                onClick={() => setSelectedProduct(null)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <form onSubmit={handlePlaceOrder} className="p-4 space-y-4">
+                            {/* Product Info Display */}
+                            <div className="flex items-center space-x-3 bg-orange-50/60 p-3 rounded-xl border border-orange-100">
+                                <div className="w-16 h-16 bg-white rounded-lg p-1 border border-stone-200 shrink-0 flex items-center justify-center">
+                                    <img
+                                        src={selectedProduct.image_url}
+                                        alt={selectedProduct.name}
+                                        className="w-full h-full object-contain"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-stone-900 text-sm">{selectedProduct.name}</h3>
+                                    <div className="flex items-center space-x-2 mt-1">
+                                        <span className="text-base font-black text-amber-900">₹{selectedProduct.price}</span>
+                                        <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-medium">
+                                            स्टॉक उपलब्ध: {selectedProduct.stock}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Quantity Stepper */}
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    मात्रा (संख्या)
+                                </label>
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
+                                        className="w-10 h-10 bg-stone-100 hover:bg-stone-200 rounded-lg text-lg font-bold flex items-center justify-center transition"
+                                    >
+                                        -
+                                    </button>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max={selectedProduct.stock}
+                                        value={orderQuantity}
+                                        onChange={(e) => setOrderQuantity(Math.min(selectedProduct.stock, Math.max(1, parseInt(e.target.value) || 1)))}
+                                        className="w-20 text-center py-2 bg-stone-50 border border-stone-300 rounded-lg text-base font-bold focus:ring-2 focus:ring-amber-500"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setOrderQuantity(Math.min(selectedProduct.stock, orderQuantity + 1))}
+                                        className="w-10 h-10 bg-stone-100 hover:bg-stone-200 rounded-lg text-lg font-bold flex items-center justify-center transition"
+                                    >
+                                        +
+                                    </button>
+                                    <div className="ml-auto text-right">
+                                        <span className="text-xs text-stone-500 block">कुल राशि</span>
+                                        <span className="text-lg font-black text-amber-800">
+                                            ₹{(selectedProduct.price * orderQuantity).toFixed(2)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Payment Status Selection */}
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                                    भुगतान स्थिति (Payment Status)
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {[
+                                        { id: 'paid', label: '🟢 पूर्ण भुगतान (Paid)', desc: 'नकद या पूर्ण अग्रिम प्राप्त' },
+                                        { id: 'payment_due', label: '🟡 भुगतान बाकी (Due)', desc: 'राशि बाद में देय' },
+                                        { id: 'placed', label: '🔵 ऑर्डर दर्ज (Placed)', desc: 'सामान्य ऑर्डर' },
+                                        { id: 'completed', label: '🟣 पूर्ण / वितरित (Completed)', desc: 'तुरंत गणवेश सुपुर्द' },
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => setOrderPaymentStatus(opt.id)}
+                                            className={`p-2.5 rounded-xl border text-left transition ${
+                                                orderPaymentStatus === opt.id
+                                                    ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 font-bold text-amber-950'
+                                                    : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
+                                            }`}
+                                        >
+                                            <div className="text-xs font-bold">{opt.label}</div>
+                                            <div className="text-[10px] text-stone-500 mt-0.5">{opt.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Shakha Assignment (if multiple) */}
+                            {availableShakhas.length > 1 && (
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                                        शाखा का चयन
+                                    </label>
+                                    <select
+                                        value={orderShakhaId}
+                                        onChange={(e) => setOrderShakhaId(e.target.value)}
+                                        className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                    >
+                                        {availableShakhas.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {/* Notes / Member Name */}
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    विवरण / स्वयंसेवक का नाम (वैकल्पिक)
+                                </label>
+                                <input
+                                    type="text"
+                                    value={orderNotes}
+                                    onChange={(e) => setOrderNotes(e.target.value)}
+                                    placeholder="उदा. रमेश जी के लिए 38 साइज"
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                />
+                            </div>
+
+                            {/* Address Skipped Notice */}
+                            <div className="text-[11px] text-stone-500 bg-stone-50 p-2 rounded-lg border border-stone-200">
+                                ℹ️ <strong>डिलीवरी पता छोड़ दिया गया है:</strong> यह ऑर्डर सीधे टोली गणवेश वितरण अंतर्गत इकाई ({unit?.name}) के खाते में दर्ज होगा।
+                            </div>
+
+                            {/* Submit */}
+                            <button
+                                type="submit"
+                                disabled={orderSubmitting}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-sm shadow-md transition flex items-center justify-center space-x-1.5"
+                            >
+                                {orderSubmitting ? (
+                                    <>
+                                        <RefreshCw className="w-4 h-4 animate-spin" />
+                                        <span>ऑर्डर दर्ज हो रहा है...</span>
+                                    </>
+                                ) : (
+                                    <span>ऑर्डर सुरक्षित दर्ज करें</span>
+                                )}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 3. POST-ORDER SUCCESS SCREEN (3 BUTTONS) */}
+            {showOrderSuccessModal && placedOrderDetails && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-emerald-300 overflow-hidden animate-scale-in text-center p-6 space-y-4">
+                        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                            <CheckCircle2 className="w-10 h-10" />
+                        </div>
+
+                        <div>
+                            <h2 className="text-xl font-black text-stone-900">ऑर्डर सफलतापूर्वक दर्ज हुआ!</h2>
+                            <p className="text-sm text-stone-600 mt-1">
+                                ऑर्डर क्रमांक: <strong className="text-amber-800">#{placedOrderDetails.order_number}</strong>
+                            </p>
+                        </div>
+
+                        <div className="bg-orange-50/70 p-3 rounded-xl border border-orange-100 text-xs text-left space-y-1">
+                            <div className="flex justify-between">
+                                <span className="text-stone-500">उत्पाद:</span>
+                                <span className="font-bold text-stone-800">{placedOrderDetails.product_name}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-stone-500">मात्रा:</span>
+                                <span className="font-bold text-stone-800">{placedOrderDetails.quantity}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-stone-500">कुल राशि:</span>
+                                <span className="font-bold text-amber-900">₹{placedOrderDetails.total_amount}</span>
+                            </div>
+                        </div>
+
+                        {/* EXACT 3 BUTTONS AS REQUESTED */}
+                        <div className="space-y-2 pt-2">
+                            {/* Button 1: Main Menu */}
+                            <button
+                                onClick={() => {
+                                    setShowOrderSuccessModal(false);
+                                    setActiveTab('members');
+                                }}
+                                className="w-full bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold py-2.5 rounded-xl text-sm transition"
+                            >
+                                🏠 मुख्य मेन्यू (Main Menu)
+                            </button>
+
+                            {/* Button 2: Place Another Order */}
+                            <button
+                                onClick={() => {
+                                    setShowOrderSuccessModal(false);
+                                    setActiveTab('distribution');
+                                }}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition"
+                            >
+                                ➕ दूसरा ऑर्डर करें (Place Another Order)
+                            </button>
+
+                            {/* Button 3: View Orders List */}
+                            <button
+                                onClick={() => {
+                                    setShowOrderSuccessModal(false);
+                                    setActiveTab('orders');
+                                }}
+                                className="w-full bg-stone-800 hover:bg-stone-900 text-white font-bold py-2.5 rounded-xl text-sm transition"
+                            >
+                                📋 सभी ऑर्डर्स देखें (View Orders List)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 4. PREDEFINED RSS REPORT (वृत्त) MODAL */}
+            {showReportModal && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold flex items-center space-x-2">
+                                <FileText className="w-5 h-5 text-amber-200" />
+                                <span>🚩 संघ वृत्त (रिपोर्ट)</span>
+                            </h2>
+                            <button
+                                onClick={() => setShowReportModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            <div className="bg-stone-50 p-4 rounded-xl border border-stone-200 font-mono text-xs text-stone-800 whitespace-pre-wrap leading-relaxed select-all">
+                                {reportText}
+                            </div>
+
+                            <div className="flex space-x-2 pt-1">
+                                <button
+                                    onClick={() => copyToClipboard(reportText)}
+                                    className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-800 font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-1.5 transition border border-stone-300"
+                                >
+                                    {copiedReport ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                                    <span>{copiedReport ? 'रिपोर्ट कॉपी हो गई!' : '📋 कॉपी करें'}</span>
+                                </button>
+
+                                <button
+                                    onClick={() => shareToWhatsApp(reportText)}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-1.5 shadow transition"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span>🟢 व्हाट्सएप पर भेजें</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 5. ADD / EDIT SWAYAMSEVAK MODAL */}
+            {showMemberModal && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold flex items-center space-x-2">
+                                <Users className="w-5 h-5 text-amber-200" />
+                                <span>{editingMember ? 'स्वयंसेवक विवरण संपादित करें' : 'नया स्वयंसेवक जोड़ें'}</span>
+                            </h2>
+                            <button
+                                onClick={() => setShowMemberModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveMember} className="p-4 space-y-3">
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    नाम <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={memberForm.name}
+                                    onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+                                    placeholder="स्वयंसेवक का पूरा नाम"
+                                    className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    मोबाइल नंबर
+                                </label>
+                                <input
+                                    type="tel"
+                                    value={memberForm.mobile}
+                                    onChange={(e) => setMemberForm({ ...memberForm, mobile: e.target.value })}
+                                    placeholder="10 अंकों का मोबाइल नंबर"
+                                    className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    निवास का पता
+                                </label>
+                                <textarea
+                                    rows={2}
+                                    value={memberForm.address}
+                                    onChange={(e) => setMemberForm({ ...memberForm, address: e.target.value })}
+                                    placeholder="मोहल्ला, गली या पूरा पता"
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                />
+                            </div>
+
+                            {availableShakhas.length > 1 && (
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                                        शाखा
+                                    </label>
+                                    <select
+                                        value={memberForm.shakha_id}
+                                        onChange={(e) => setMemberForm({ ...memberForm, shakha_id: e.target.value })}
+                                        className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                    >
+                                        {availableShakhas.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                                    गणवेश उपलब्धता
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <button
+                                        type="button"
+                                        onClick={() => setMemberForm({ ...memberForm, ganvesh: true })}
+                                        className={`p-2 rounded-lg border font-bold transition flex items-center justify-center space-x-1 ${
+                                            memberForm.ganvesh
+                                                ? 'bg-emerald-100 text-emerald-800 border-emerald-400 ring-2 ring-emerald-300'
+                                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                                        }`}
+                                    >
+                                        <span>🟢 हाँ (गणवेश युक्त)</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => setMemberForm({ ...memberForm, ganvesh: false })}
+                                        className={`p-2 rounded-lg border font-bold transition flex items-center justify-center space-x-1 ${
+                                            !memberForm.ganvesh
+                                                ? 'bg-amber-100 text-amber-800 border-amber-400 ring-2 ring-amber-300'
+                                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                                        }`}
+                                    >
+                                        <span>⚪ नहीं (गणवेश शेष)</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    संघ शिक्षण
+                                </label>
+                                <select
+                                    value={memberForm.shikshan}
+                                    onChange={(e) => setMemberForm({ ...memberForm, shikshan: e.target.value })}
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                >
+                                    {shikshanOptions.map((opt) => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={memberFormSubmitting}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition mt-2"
+                            >
+                                {memberFormSubmitting ? 'सुरक्षित हो रहा है...' : (editingMember ? 'अपडेट करें' : 'सुरक्षित करें')}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 6. CSV BULK IMPORT MODAL */}
+            {showImportModal && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold flex items-center space-x-2">
+                                <FileSpreadsheet className="w-5 h-5 text-amber-200" />
+                                <span>स्वयंसेवक CSV / एक्सेल आयात</span>
+                            </h2>
+                            <button
+                                onClick={() => setShowImportModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleImportSubmit} className="p-4 space-y-3 text-xs">
+                            <div className="bg-stone-50 p-3 rounded-lg border border-stone-200 space-y-1">
+                                <p className="font-semibold text-stone-800">CSV फ़ाइल के कॉलम:</p>
+                                <p className="text-stone-500 font-mono">name, mobile, address, ganvesh, shikshan</p>
+                                <a
+                                    href="/toli/members/template"
+                                    download
+                                    className="text-amber-700 hover:underline font-bold block pt-1"
+                                >
+                                    📄 नमूना CSV फ़ाइल यहाँ से डाउनलोड करें
+                                </a>
+                            </div>
+
+                            {availableShakhas.length > 1 && (
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                                        लक्षित शाखा (शाखा से सम्बद्ध करें)
+                                    </label>
+                                    <select
+                                        value={importShakhaId}
+                                        onChange={(e) => setImportShakhaId(e.target.value)}
+                                        className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                        required
+                                    >
+                                        {availableShakhas.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    CSV फ़ाइल चुनें
+                                </label>
+                                <input
+                                    type="file"
+                                    accept=".csv,text/csv"
+                                    onChange={(e) => setImportFile(e.target.files[0] || null)}
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={importSubmitting || !importFile}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition mt-2"
+                            >
+                                {importSubmitting ? 'आयात जारी है...' : 'अपलोड एवं आयात करें'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 7. UPDATE NEW GANVESH MODAL */}
+            {showNewGanveshModal && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold flex items-center space-x-1.5">
+                                <Sparkles className="w-5 h-5 text-amber-200" />
+                                <span>नया गणवेश आंकड़ा अपडेट</span>
+                            </h2>
+                            <button
+                                onClick={() => setShowNewGanveshModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleUpdateNewGanvesh} className="p-4 space-y-3">
+                            {unit?.level !== 'shakha' && availableShakhas.length > 0 && (
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-700 mb-1">
+                                        शाखा चुनें
+                                    </label>
+                                    <select
+                                        value={selectedShakhaForNewGanvesh}
+                                        onChange={(e) => {
+                                            setSelectedShakhaForNewGanvesh(e.target.value);
+                                            const matched = availableShakhas.find((s) => String(s.id) === String(e.target.value));
+                                            if (matched) setNewGanveshValue(matched.new_ganvesh ?? 0);
+                                        }}
+                                        className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                    >
+                                        {availableShakhas.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    नया गणवेश संख्या (संख्या)
+                                </label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    value={newGanveshValue}
+                                    onChange={(e) => setNewGanveshValue(e.target.value)}
+                                    className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-base font-bold text-center focus:ring-2 focus:ring-amber-500"
+                                    required
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={newGanveshSubmitting}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition"
+                            >
+                                {newGanveshSubmitting ? 'अपडेट जारी है...' : 'नया गणवेश संख्या सहेजें'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 8. ORDER STATUS UPDATE MODAL */}
+            {selectedOrderForStatus && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold">ऑर्डर स्थिति अपडेट</h2>
+                            <button
+                                onClick={() => setSelectedOrderForStatus(null)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleUpdateOrderStatus} className="p-4 space-y-3">
+                            <p className="text-xs text-stone-600">
+                                ऑर्डर क्रमांक: <strong>#{selectedOrderForStatus.order_number}</strong>
+                            </p>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    नई स्थिति चुनें
+                                </label>
+                                <select
+                                    value={newOrderStatusValue}
+                                    onChange={(e) => setNewOrderStatusValue(e.target.value)}
+                                    className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-semibold"
+                                >
+                                    <option value="paid">🟢 पूर्ण भुगतान (Paid)</option>
+                                    <option value="payment_due">🟡 भुगतान बाकी (Payment Due)</option>
+                                    <option value="placed">🔵 ऑर्डर दर्ज (Placed)</option>
+                                    <option value="completed">🟣 पूर्ण / सुपुर्द (Completed)</option>
+                                    <option value="delivered">📦 डिलीवर हुआ (Delivered)</option>
+                                </select>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={statusUpdateSubmitting}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition"
+                            >
+                                {statusUpdateSubmitting ? 'अपडेट जारी है...' : 'स्थिति सहेजें'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 9. CANCEL ORDER MODAL */}
+            {orderToCancel && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-red-200 overflow-hidden animate-scale-in">
+                        <div className="bg-red-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold">ऑर्डर रद्द करें</h2>
+                            <button
+                                onClick={() => setOrderToCancel(null)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCancelOrder} className="p-4 space-y-3">
+                            <p className="text-xs text-stone-600">
+                                क्या आप ऑर्डर <strong>#{orderToCancel.order_number}</strong> को रद्द करना चाहते हैं? उत्पाद स्टॉक पुनः गोदाम में जोड़ दिया जाएगा।
+                            </p>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    रद्द करने का कारण
+                                </label>
+                                <input
+                                    type="text"
+                                    value={cancelReason}
+                                    onChange={(e) => setCancelReason(e.target.value)}
+                                    placeholder="उदा. गलत आकार चुना गया"
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={cancelSubmitting}
+                                className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition"
+                            >
+                                {cancelSubmitting ? 'रद्द हो रहा है...' : 'हाँ, ऑर्डर रद्द करें'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 10. RETURN REQUEST MODAL */}
+            {orderToReturn && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-amber-200 overflow-hidden animate-scale-in">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold">वापसी अनुरोध दर्ज करें</h2>
+                            <button
+                                onClick={() => setOrderToReturn(null)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleReturnOrder} className="p-4 space-y-3">
+                            <p className="text-xs text-stone-600">
+                                ऑर्डर <strong>#{orderToReturn.order_number}</strong>
+                            </p>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    वापसी का कारण
+                                </label>
+                                <select
+                                    value={returnReason}
+                                    onChange={(e) => setReturnReason(e.target.value)}
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium"
+                                >
+                                    <option value="आकार परिवर्तन हेतु">आकार परिवर्तन (Size Exchange)</option>
+                                    <option value="दोषपूर्ण उत्पाद">दोषपूर्ण उत्पाद (Defective)</option>
+                                    <option value="गलत सामग्री प्राप्त हुई">गलत सामग्री प्राप्त हुई</option>
+                                    <option value="अन्य कारण">अन्य कारण</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    अतिरिक्त टिप्पणी (वैकल्पिक)
+                                </label>
+                                <textarea
+                                    rows={2}
+                                    value={returnNotes}
+                                    onChange={(e) => setReturnNotes(e.target.value)}
+                                    placeholder="टिप्पणी दर्ज करें..."
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                />
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={returnSubmitting}
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition"
+                            >
+                                {returnSubmitting ? 'अनुरोध दर्ज हो रहा है...' : 'वापसी अनुरोध भेजें'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 11. PASS CODE SHARE MODAL (For logged in toli members) */}
+            {showPassCodeShareModal && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
+                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
+                            <h2 className="text-base font-bold flex items-center space-x-1.5">
+                                <Key className="w-5 h-5 text-amber-200" />
+                                <span>टोली पास कोड (Pass Code)</span>
+                            </h2>
+                            <button
+                                onClick={() => setShowPassCodeShareModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-3">
+                            <p className="text-xs text-stone-600">
+                                यह आपका सुरक्षित टोली पास कोड है। आप इसे कॉपी करके अन्य टोली सदस्यों को भेज सकते हैं ताकि वे बिना पासवर्ड टाइप किए तुरंत इस पृष्ठ में प्रवेश कर सकें।
+                            </p>
+
+                            <div className="bg-stone-50 p-3 rounded-xl border border-stone-300 font-mono text-xs break-all select-all text-amber-900 font-semibold">
+                                {storedPasscode || 'पास कोड उपलब्ध नहीं है (पुनः लॉगिन करें)।'}
+                            </div>
+
+                            <div className="flex space-x-2 pt-1">
+                                <button
+                                    onClick={() => copyToClipboard(storedPasscode)}
+                                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-1.5 shadow transition"
+                                >
+                                    <Copy className="w-4 h-4" />
+                                    <span>पास कोड कॉपी करें</span>
+                                </button>
+
+                                <button
+                                    onClick={() => shareToWhatsApp(`🚩 ${unit?.name} टोली पास कोड:\n${storedPasscode}\n\nइस लिंक पर पेस्ट करके लॉगिन करें:\n${window.location.href}`)}
+                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-1.5 shadow transition"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span>व्हाट्सएप</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}

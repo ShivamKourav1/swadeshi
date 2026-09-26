@@ -24,6 +24,11 @@ class Order extends Model
         'payment_status',
         'delivery_status',
         'order_status',
+        'is_toli_order',
+        'shakha_id',
+        'nagar_id',
+        'jila_id',
+        'vibhag_id',
         'notes',
         'cancellation_reason',
         'cancellation_stage',
@@ -55,6 +60,26 @@ class Order extends Model
     public function deliveryLocation(): BelongsTo
     {
         return $this->belongsTo(DeliveryLocation::class);
+    }
+
+    public function shakha(): BelongsTo
+    {
+        return $this->belongsTo(Shakha::class);
+    }
+
+    public function nagar(): BelongsTo
+    {
+        return $this->belongsTo(Nagar::class);
+    }
+
+    public function jila(): BelongsTo
+    {
+        return $this->belongsTo(Jila::class);
+    }
+
+    public function vibhag(): BelongsTo
+    {
+        return $this->belongsTo(Vibhag::class);
     }
 
     public function deliveryPartner(): BelongsTo

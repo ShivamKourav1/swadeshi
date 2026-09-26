@@ -17,16 +17,23 @@ class Shakha extends Model
         'shakha_name',
         'aayu_varg',
         'type',
+        'new_ganvesh',
         'toli',
         'status',
     ];
 
     protected $casts = [
         'toli' => 'array',
+        'new_ganvesh' => 'integer',
     ];
 
     public function nagar(): BelongsTo
     {
         return $this->belongsTo(Nagar::class);
+    }
+
+    public function swayamsevaks()
+    {
+        return $this->hasMany(Swayamsevak::class);
     }
 }
