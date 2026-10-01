@@ -44,6 +44,8 @@ class HandleInertiaRequests extends Middleware
                     'is_toli_admin' => $user->isToliAdmin(),
                     'belongs_to_toli' => $user->belongsToToli(),
                     'toli_jurisdiction' => $user->getToliJurisdiction(),
+                    'toli_url' => $user->getToliUrl(),
+                    'can_manage_inventory_scope' => $user->canManageToliInventoryScope(),
                     'is_karyakarta' => $user->isKaryakarta(),
                     'is_dealer' => $user->isDealer(),
                     'is_delivery_partner' => $user->isDeliveryPartner(),

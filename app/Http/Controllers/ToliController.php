@@ -10,9 +10,11 @@ use App\Models\OrderItem;
 use App\Models\DeliveryLog;
 use App\Models\Prant;
 use App\Models\Product;
+use App\Models\ProductDemand;
 use App\Models\ReturnRequest;
 use App\Models\Shakha;
 use App\Models\Swayamsevak;
+use App\Models\ToliInventoryScope;
 use App\Models\User;
 use App\Services\ToliEncryptionService;
 use Carbon\Carbon;
@@ -32,11 +34,22 @@ class ToliController extends Controller
      */
     public function show(Request $request, $kshetra, $vibhag = null, $jila = null, $nagar = null, $shakha = null)
     {
-        $kshetraId = (int) $kshetra;
-        $vibhagId = $vibhag !== null ? (int) $vibhag : null;
-        $jilaId = $jila !== null ? (int) $jila : null;
-        $nagarId = $nagar !== null ? (int) $nagar : null;
-        $shakhaId = $shakha !== null ? (int) $shakha : null;
+        $hasNumeric = is_numeric($kshetra);
+        $kshetraId = ToliEncryptionService::decryptId($kshetra) ?? (is_numeric($kshetra) ? (int) $kshetra : null);
+        $vibhagId = $vibhag !== null ? (ToliEncryptionService::decryptId($vibhag) ?? (is_numeric($vibhag) ? (int) $vibhag : null)) : null;
+        $jilaId = $jila !== null ? (ToliEncryptionService::decryptId($jila) ?? (is_numeric($jila) ? (int) $jila : null)) : null;
+        $nagarId = $nagar !== null ? (ToliEncryptionService::decryptId($nagar) ?? (is_numeric($nagar) ? (int) $nagar : null)) : null;
+        $shakhaId = $shakha !== null ? (ToliEncryptionService::decryptId($shakha) ?? (is_numeric($shakha) ? (int) $shakha : null)) : null;
+
+        // If any provided segment failed to decrypt or is not a valid integer ID
+        if (!$kshetraId || ($vibhag !== null && !$vibhagId) || ($jila !== null && !$jilaId) || ($nagar !== null && !$nagarId) || ($shakha !== null && !$shakhaId)) {
+            abort(404, 'संगठन इकाई नहीं मिली (Organizational unit not found).');
+        }
+
+        // If accessed with unencrypted numeric IDs, redirect to canonical encrypted URL
+        if ($hasNumeric) {
+            return redirect()->to(ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $shakhaId));
+        }
 
         // Resolve unit level and hierarchy
         $hierarchy = $this->resolveHierarchy($kshetraId, $vibhagId, $jilaId, $nagarId, $shakhaId);
@@ -93,21 +106,8 @@ class ToliController extends Controller
             ->select('id', 'shakha_name', 'nagar_id', 'new_ganvesh')
             ->get();
 
-        // Products for Ganvesh Distribution (single row view, small left image, price, stock)
-        $products = Product::where('status', 'active')
-            ->select('id', 'name', 'price', 'stock', 'image_url', 'sku')
-            ->orderBy('name')
-            ->get()
-            ->map(function ($p) {
-                return [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'price' => (float) $p->price,
-                    'stock' => (int) $p->stock,
-                    'image_url' => $p->image_url ?: '/images/products/shirt.svg',
-                    'sku' => $p->sku,
-                ];
-            });
+        // Products for Ganvesh Distribution (filtered based on Toli Inventory Scope rules)
+        $products = $this->getVisibleProducts($hierarchy);
 
         // Orders placed under this unit scope
         $ordersQuery = Order::query();
@@ -123,6 +123,7 @@ class ToliController extends Controller
 
         $orders = $ordersQuery->with([
             'customer:id,name,phone',
+            'swayamsevak:id,name,mobile',
             'shakha:id,shakha_name',
             'nagar:id,nagar_name',
             'items.product:id,name,image_url',
@@ -137,6 +138,9 @@ class ToliController extends Controller
                 'order_number' => $order->order_number,
                 'customer_name' => $order->customer?->name ?? 'अज्ञात',
                 'customer_phone' => $order->customer?->phone ?? '',
+                'swayamsevak_id' => $order->swayamsevak_id,
+                'swayamsevak_name' => $order->swayamsevak?->name,
+                'swayamsevak_mobile' => $order->swayamsevak?->mobile,
                 'total_amount' => (float) $order->total_amount,
                 'order_status' => $order->order_status,
                 'payment_status' => $order->payment_status,
@@ -216,6 +220,8 @@ class ToliController extends Controller
                 'nagar_id' => $nagarId,
                 'shakha_id' => $shakhaId,
                 'new_ganvesh' => $targetNewGanvesh,
+                'url' => ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $shakhaId),
+                'full_url' => url(ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $shakhaId)),
             ],
             'subUnits' => $hierarchy['sub_units'],
             'swayamsevaks' => $swayamsevaks,
@@ -257,13 +263,51 @@ class ToliController extends Controller
             $nagar = $shakha->nagar;
             $jila = $nagar?->jila;
             $vibhag = $jila?->vibhag;
+            $prant = $vibhag?->prant;
+            $kshetra = $prant?->kshetra;
+
+            // Validate that the unit belongs to the specified parent hierarchy
+            if ($nagarId !== null && (int) $shakha->nagar_id !== (int) $nagarId) {
+                return null;
+            }
+            if ($jilaId !== null && (int) ($nagar?->jila_id) !== (int) $jilaId) {
+                return null;
+            }
+            if ($vibhagId !== null && (int) ($jila?->vibhag_id) !== (int) $vibhagId) {
+                return null;
+            }
+            if ($kshetraId !== null && (int) ($prant?->kshetra_id) !== (int) $kshetraId) {
+                return null;
+            }
 
             $parents = [];
+            $ancestors = [];
             if ($nagar) {
-                $parents[] = ['level' => 'nagar', 'name' => $nagar->nagar_name, 'id' => $nagar->id];
+                $ancestors[] = ['level' => 'nagar', 'id' => $nagar->id];
+                $parents[] = [
+                    'level' => 'nagar',
+                    'name' => $nagar->nagar_name,
+                    'id' => $nagar->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagar->id),
+                ];
             }
             if ($jila) {
-                $parents[] = ['level' => 'jila', 'name' => $jila->jila_name, 'id' => $jila->id];
+                $ancestors[] = ['level' => 'jila', 'id' => $jila->id];
+                $parents[] = [
+                    'level' => 'jila',
+                    'name' => $jila->jila_name,
+                    'id' => $jila->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jila->id),
+                ];
+            }
+            if ($vibhag) {
+                $ancestors[] = ['level' => 'vibhag', 'id' => $vibhag->id];
+            }
+            if ($prant) {
+                $ancestors[] = ['level' => 'prant', 'id' => $prant->id];
+            }
+            if ($kshetra) {
+                $ancestors[] = ['level' => 'kshetra', 'id' => $kshetra->id];
             }
 
             // Sub-units: sibling shakhas in the same nagar
@@ -271,7 +315,7 @@ class ToliController extends Controller
             if ($nagar) {
                 $siblings = Shakha::where('nagar_id', $nagar->id)->get();
                 foreach ($siblings as $sibling) {
-                    $url = "/{$kshetraId}/{$vibhagId}/{$jilaId}/{$nagarId}/{$sibling->id}";
+                    $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $sibling->id);
                     $subUnits[] = [
                         'id' => $sibling->id,
                         'name' => $sibling->shakha_name,
@@ -292,6 +336,7 @@ class ToliController extends Controller
                 'target' => $shakha,
                 'target_name' => $shakha->shakha_name,
                 'parents' => $parents,
+                'ancestors' => $ancestors,
                 'sub_units' => $subUnits,
                 'shakha_ids' => [$shakha->id],
             ];
@@ -305,19 +350,50 @@ class ToliController extends Controller
             }
             $jila = $nagar->jila;
             $vibhag = $jila?->vibhag;
+            $prant = $vibhag?->prant;
+            $kshetra = $prant?->kshetra;
+
+            if ($jilaId !== null && (int) $nagar->jila_id !== (int) $jilaId) {
+                return null;
+            }
+            if ($vibhagId !== null && (int) ($jila?->vibhag_id) !== (int) $vibhagId) {
+                return null;
+            }
+            if ($kshetraId !== null && (int) ($prant?->kshetra_id) !== (int) $kshetraId) {
+                return null;
+            }
 
             $parents = [];
+            $ancestors = [];
             if ($jila) {
-                $parents[] = ['level' => 'jila', 'name' => $jila->jila_name, 'id' => $jila->id];
+                $ancestors[] = ['level' => 'jila', 'id' => $jila->id];
+                $parents[] = [
+                    'level' => 'jila',
+                    'name' => $jila->jila_name,
+                    'id' => $jila->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jila->id),
+                ];
             }
             if ($vibhag) {
-                $parents[] = ['level' => 'vibhag', 'name' => $vibhag->vibhag_name, 'id' => $vibhag->id];
+                $ancestors[] = ['level' => 'vibhag', 'id' => $vibhag->id];
+                $parents[] = [
+                    'level' => 'vibhag',
+                    'name' => $vibhag->vibhag_name,
+                    'id' => $vibhag->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId, $vibhag->id),
+                ];
+            }
+            if ($prant) {
+                $ancestors[] = ['level' => 'prant', 'id' => $prant->id];
+            }
+            if ($kshetra) {
+                $ancestors[] = ['level' => 'kshetra', 'id' => $kshetra->id];
             }
 
             // Sub-units: shakhas under this nagar
             $subUnits = [];
             foreach ($nagar->shakhas as $s) {
-                $url = "/{$kshetraId}/{$vibhagId}/{$jilaId}/{$nagarId}/{$s->id}";
+                $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $s->id);
                 $subUnits[] = [
                     'id' => $s->id,
                     'name' => $s->shakha_name,
@@ -337,6 +413,7 @@ class ToliController extends Controller
                 'target' => $nagar,
                 'target_name' => $nagar->nagar_name,
                 'parents' => $parents,
+                'ancestors' => $ancestors,
                 'sub_units' => $subUnits,
                 'shakha_ids' => $nagar->shakhas->pluck('id')->toArray(),
             ];
@@ -350,20 +427,44 @@ class ToliController extends Controller
             }
             $vibhag = $jila->vibhag;
             $prant = $vibhag?->prant;
+            $kshetra = $prant?->kshetra;
+
+            if ($vibhagId !== null && (int) $jila->vibhag_id !== (int) $vibhagId) {
+                return null;
+            }
+            if ($kshetraId !== null && (int) ($prant?->kshetra_id) !== (int) $kshetraId) {
+                return null;
+            }
 
             $parents = [];
+            $ancestors = [];
             if ($vibhag) {
-                $parents[] = ['level' => 'vibhag', 'name' => $vibhag->vibhag_name, 'id' => $vibhag->id];
+                $ancestors[] = ['level' => 'vibhag', 'id' => $vibhag->id];
+                $parents[] = [
+                    'level' => 'vibhag',
+                    'name' => $vibhag->vibhag_name,
+                    'id' => $vibhag->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId, $vibhag->id),
+                ];
             }
             if ($prant) {
-                $parents[] = ['level' => 'prant', 'name' => $prant->prant_name, 'id' => $prant->id];
+                $ancestors[] = ['level' => 'prant', 'id' => $prant->id];
+                $parents[] = [
+                    'level' => 'prant',
+                    'name' => $prant->prant_name,
+                    'id' => $prant->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId),
+                ];
+            }
+            if ($kshetra) {
+                $ancestors[] = ['level' => 'kshetra', 'id' => $kshetra->id];
             }
 
             $shakhaIds = [];
             $subUnits = [];
             foreach ($jila->nagars as $n) {
                 $shakhaIds = array_merge($shakhaIds, $n->shakhas->pluck('id')->toArray());
-                $url = "/{$kshetraId}/{$vibhagId}/{$jilaId}/{$n->id}";
+                $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $n->id);
                 $subUnits[] = [
                     'id' => $n->id,
                     'name' => $n->nagar_name,
@@ -384,6 +485,7 @@ class ToliController extends Controller
                 'target' => $jila,
                 'target_name' => $jila->jila_name,
                 'parents' => $parents,
+                'ancestors' => $ancestors,
                 'sub_units' => $subUnits,
                 'shakha_ids' => $shakhaIds,
             ];
@@ -397,12 +499,29 @@ class ToliController extends Controller
             }
             $prant = $vibhag->prant;
 
+            if ($kshetraId !== null && (int) ($prant?->kshetra_id) !== (int) $kshetraId) {
+                return null;
+            }
+
             $parents = [];
+            $ancestors = [];
             if ($prant) {
-                $parents[] = ['level' => 'prant', 'name' => $prant->prant_name, 'id' => $prant->id];
+                $ancestors[] = ['level' => 'prant', 'id' => $prant->id];
+                $parents[] = [
+                    'level' => 'prant',
+                    'name' => $prant->prant_name,
+                    'id' => $prant->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId),
+                ];
             }
             if ($prant?->kshetra) {
-                $parents[] = ['level' => 'kshetra', 'name' => $prant->kshetra->kshetra_name, 'id' => $prant->kshetra->id];
+                $ancestors[] = ['level' => 'kshetra', 'id' => $prant->kshetra->id];
+                $parents[] = [
+                    'level' => 'kshetra',
+                    'name' => $prant->kshetra->kshetra_name,
+                    'id' => $prant->kshetra->id,
+                    'url' => ToliEncryptionService::buildToliUrl($kshetraId),
+                ];
             }
 
             $shakhaIds = [];
@@ -410,7 +529,7 @@ class ToliController extends Controller
             foreach ($vibhag->jilas as $j) {
                 $jilaShakhas = $j->nagars->flatMap(fn($n) => $n->shakhas)->pluck('id')->toArray();
                 $shakhaIds = array_merge($shakhaIds, $jilaShakhas);
-                $url = "/{$kshetraId}/{$vibhagId}/{$j->id}";
+                $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $j->id);
                 $subUnits[] = [
                     'id' => $j->id,
                     'name' => $j->jila_name,
@@ -431,6 +550,7 @@ class ToliController extends Controller
                 'target' => $vibhag,
                 'target_name' => $vibhag->vibhag_name,
                 'parents' => $parents,
+                'ancestors' => $ancestors,
                 'sub_units' => $subUnits,
                 'shakha_ids' => $shakhaIds,
             ];
@@ -444,7 +564,7 @@ class ToliController extends Controller
             foreach ($prant->vibhags as $v) {
                 $vibhagShakhas = $v->jilas->flatMap(fn($j) => $j->nagars)->flatMap(fn($n) => $n->shakhas)->pluck('id')->toArray();
                 $shakhaIds = array_merge($shakhaIds, $vibhagShakhas);
-                $url = "/{$kshetraId}/{$v->id}";
+                $url = ToliEncryptionService::buildToliUrl($kshetraId, $v->id);
                 $subUnits[] = [
                     'id' => $v->id,
                     'name' => $v->vibhag_name,
@@ -465,9 +585,124 @@ class ToliController extends Controller
             'target' => $kshetra,
             'target_name' => $kshetra->kshetra_name,
             'parents' => [],
+            'ancestors' => [],
             'sub_units' => $subUnits,
             'shakha_ids' => $shakhaIds,
         ];
+    }
+
+    /**
+     * Resolve active products visible on this toli page based on Toli Inventory Scope rules.
+     */
+    protected function getVisibleProducts(array $hierarchy)
+    {
+        $currentLevel = $hierarchy['level'];
+        $currentId = (int) $hierarchy['target']->id;
+
+        // Current unit itself is always authorized for its own toli page
+        $authorizedUnits = [
+            [
+                'level' => $currentLevel,
+                'id' => $currentId,
+            ],
+        ];
+
+        // Check ancestors: if an ancestor configured ToliInventoryScope and includes currentLevel in visible_sub_units
+        $ancestors = $hierarchy['ancestors'] ?? [];
+        foreach ($ancestors as $ancestor) {
+            $scope = ToliInventoryScope::where('unit_type', $ancestor['level'])
+                ->where('unit_id', $ancestor['id'])
+                ->first();
+
+            if ($scope && is_array($scope->visible_sub_units) && in_array($currentLevel, $scope->visible_sub_units, true)) {
+                $authorizedUnits[] = [
+                    'level' => $ancestor['level'],
+                    'id' => (int) $ancestor['id'],
+                ];
+            }
+        }
+
+        return Product::where('status', 'active')
+            ->where(function ($query) use ($authorizedUnits) {
+                foreach ($authorizedUnits as $unit) {
+                    $uLevel = $unit['level'];
+                    $uId = $unit['id'];
+
+                    $query->orWhereHas('dealer.profile', function ($profQ) use ($uLevel, $uId) {
+                        if ($uLevel === 'shakha') {
+                            $profQ->where('shakha_id', $uId);
+                        } elseif ($uLevel === 'nagar') {
+                            $profQ->where('nagar_id', $uId)
+                                  ->where(function ($q) {
+                                      $q->whereNull('shakha_id')->orWhere('shakha_id', 0);
+                                  });
+                        } elseif ($uLevel === 'jila') {
+                            $profQ->where('jila_id', $uId)
+                                  ->where(function ($q) {
+                                      $q->whereNull('nagar_id')->orWhere('nagar_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('shakha_id')->orWhere('shakha_id', 0);
+                                  });
+                        } elseif ($uLevel === 'vibhag') {
+                            $profQ->where('vibhag_id', $uId)
+                                  ->where(function ($q) {
+                                      $q->whereNull('jila_id')->orWhere('jila_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('nagar_id')->orWhere('nagar_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('shakha_id')->orWhere('shakha_id', 0);
+                                  });
+                        } elseif ($uLevel === 'prant') {
+                            $profQ->where('prant_id', $uId)
+                                  ->where(function ($q) {
+                                      $q->whereNull('vibhag_id')->orWhere('vibhag_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('jila_id')->orWhere('jila_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('nagar_id')->orWhere('nagar_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('shakha_id')->orWhere('shakha_id', 0);
+                                  });
+                        } elseif ($uLevel === 'kshetra') {
+                            $profQ->where('kshetra_id', $uId)
+                                  ->where(function ($q) {
+                                      $q->whereNull('prant_id')->orWhere('prant_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('vibhag_id')->orWhere('vibhag_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('jila_id')->orWhere('jila_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('nagar_id')->orWhere('nagar_id', 0);
+                                  })
+                                  ->where(function ($q) {
+                                      $q->whereNull('shakha_id')->orWhere('shakha_id', 0);
+                                  });
+                        }
+                    });
+                }
+            })
+            ->select('id', 'name', 'price', 'stock', 'image_url', 'sku')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'price' => (float) $p->price,
+                    'stock' => (int) $p->stock,
+                    'image_url' => $p->image_url ?: '/images/products/shirt.svg',
+                    'sku' => $p->sku,
+                ];
+            });
     }
 
     /**
@@ -528,36 +763,7 @@ class ToliController extends Controller
     }
 
     /**
-     * Auto-login endpoint using encrypted symmetric pass code token.
-     */
-    public function autoLogin(Request $request): JsonResponse
-    {
-        $request->validate([
-            'passcode' => 'required|string',
-        ]);
-
-        $user = ToliEncryptionService::decryptAndAuthenticate($request->passcode);
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'अमान्य या पुराना पास कोड। कृपया पुनः लॉगिन करें।',
-            ], 401);
-        }
-
-        return response()->json([
-            'success' => true,
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'phone' => $user->phone,
-                'role' => $user->role,
-            ],
-            'message' => 'स्वतः लॉगिन सफल हुआ।',
-        ]);
-    }
-
-    /**
-     * Login endpoint with credentials or direct encrypted passcode.
+     * Login endpoint with credentials (mobile/email and password).
      */
     public function login(Request $request): JsonResponse
     {
@@ -568,22 +774,6 @@ class ToliController extends Controller
 
         $login = trim($request->input('login'));
         $password = $request->input('password');
-
-        // Allow entering encrypted token directly in password or login field
-        if (strlen($login) > 40 && !str_contains($login, ' ') && !str_contains($login, '@')) {
-            $userFromToken = ToliEncryptionService::decryptAndAuthenticate($login);
-            if ($userFromToken) {
-                return response()->json([
-                    'success' => true,
-                    'passcode' => $login,
-                    'user' => [
-                        'id' => $userFromToken->id,
-                        'name' => $userFromToken->name,
-                        'phone' => $userFromToken->phone,
-                    ],
-                ]);
-            }
-        }
 
         // Standard credential login (by email or phone)
         $user = User::where('email', $login)
@@ -606,16 +796,13 @@ class ToliController extends Controller
 
         Auth::login($user, true);
 
-        // Generate encrypted symmetric token
-        $passcode = ToliEncryptionService::encrypt($user->id, $password);
-
         return response()->json([
             'success' => true,
-            'passcode' => $passcode,
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'phone' => $user->phone,
+                'role' => $user->role,
             ],
             'message' => 'लॉगिन सफल हुआ।',
         ]);
@@ -818,6 +1005,7 @@ class ToliController extends Controller
             'quantity' => 'required|integer|min:1|max:500',
             'payment_status' => 'required|in:paid,payment_due,placed,completed',
             'notes' => 'nullable|string|max:500',
+            'swayamsevak_id' => 'nullable|exists:swayamsevaks,id',
             'shakha_id' => 'nullable|exists:shakhas,id',
             'nagar_id' => 'nullable|exists:nagars,id',
             'jila_id' => 'nullable|exists:jilas,id',
@@ -874,6 +1062,7 @@ class ToliController extends Controller
                 'delivery_status' => $deliveryStatus,
                 'order_status' => $paymentStatusInput,
                 'is_toli_order' => true,
+                'swayamsevak_id' => $request->input('swayamsevak_id'),
                 'shakha_id' => $request->input('shakha_id'),
                 'nagar_id' => $request->input('nagar_id'),
                 'jila_id' => $request->input('jila_id'),
@@ -910,6 +1099,7 @@ class ToliController extends Controller
                         'order_number' => $order->order_number,
                         'total_amount' => (float) $order->total_amount,
                         'order_status' => $order->order_status,
+                        'swayamsevak_id' => $order->swayamsevak_id,
                         'product_name' => $product->name,
                         'quantity' => $quantity,
                     ],
@@ -991,7 +1181,7 @@ class ToliController extends Controller
             // Restock items
             foreach ($order->items as $item) {
                 if ($item->product) {
-                    $item->product->increment('stock', $item->quantity);
+                    $item->product->restock($item->quantity);
                 }
             }
 
@@ -1033,5 +1223,51 @@ class ToliController extends Controller
         ]);
 
         return back()->with('success', "ऑर्डर #{$order->order_number} का वापसी अनुरोध दर्ज किया गया।");
+    }
+
+    /**
+     * Store product demand in toli module (for out of stock items).
+     */
+    public function storeDemand(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'मांग दर्ज करने के लिए कृपया पहले लॉगिन करें।',
+            ], 401);
+        }
+
+        $validated = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'required|integer|min:1',
+            'swayamsevak_id' => 'nullable|exists:swayamsevaks,id',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $product = Product::findOrFail($validated['product_id']);
+
+        if ($product->stock > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'मांग केवल 0 स्टॉक वाले उत्पादों के लिए ही दर्ज की जा सकती है। यह उत्पाद अभी स्टॉक में उपलब्ध है।',
+            ], 422);
+        }
+
+        $demand = ProductDemand::create([
+            'product_id' => $product->id,
+            'customer_id' => $user->id,
+            'swayamsevak_id' => $validated['swayamsevak_id'] ?? null,
+            'quantity' => (int) $validated['quantity'],
+            'original_quantity' => (int) $validated['quantity'],
+            'status' => 'pending',
+            'notes' => $validated['notes'] ?? null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'मांग सफलतापूर्वक दर्ज की गई! जब डीलर द्वारा स्टॉक बढ़ाया जाएगा, आपकी मांग के अनुपात में पूर्ति की जाएगी।',
+            'demand' => $demand->load('product', 'swayamsevak'),
+        ]);
     }
 }

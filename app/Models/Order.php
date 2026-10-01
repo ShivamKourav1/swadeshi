@@ -25,6 +25,7 @@ class Order extends Model
         'delivery_status',
         'order_status',
         'is_toli_order',
+        'swayamsevak_id',
         'shakha_id',
         'nagar_id',
         'jila_id',
@@ -55,6 +56,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'customer_id');
+    }
+
+    public function swayamsevak(): BelongsTo
+    {
+        return $this->belongsTo(Swayamsevak::class);
     }
 
     public function deliveryLocation(): BelongsTo

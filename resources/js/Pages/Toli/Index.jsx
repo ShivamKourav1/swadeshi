@@ -32,7 +32,8 @@ import {
     Sparkles,
     Shield,
     MessageCircle,
-    CornerDownRight
+    CornerDownRight,
+    ClipboardList,
 } from 'lucide-react';
 
 export default function ToliIndex({
@@ -58,16 +59,12 @@ export default function ToliIndex({
     const [toastMessage, setToastMessage] = useState(flash?.success || flash?.error || null);
     const [toastType, setToastType] = useState(flash?.error ? 'error' : 'success');
 
-    // Auto-login & Pass Code state
+    // Login Modal state (main application credentials only)
     const [showLoginModal, setShowLoginModal] = useState(!isAuthenticated);
-    const [isAutoLoggingIn, setIsAutoLoggingIn] = useState(false);
-    const [loginTab, setLoginTab] = useState('passcode'); // 'passcode' or 'credentials'
-    const [passcodeInput, setPasscodeInput] = useState('');
     const [loginCredential, setLoginCredential] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [loginError, setLoginError] = useState('');
-    const [showPassCodeShareModal, setShowPassCodeShareModal] = useState(false);
-    const [storedPasscode, setStoredPasscode] = useState('');
+    const [loginSubmitting, setLoginSubmitting] = useState(false);
 
     // Member search & filter
     const [memberSearch, setMemberSearch] = useState('');
@@ -105,7 +102,8 @@ export default function ToliIndex({
     const [orderQuantity, setOrderQuantity] = useState(1);
     const [orderPaymentStatus, setOrderPaymentStatus] = useState('paid'); // 'paid', 'payment_due', 'placed', 'completed'
     const [orderNotes, setOrderNotes] = useState('');
-    const [orderShakhaId, setOrderShakhaId] = useState(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+    const [orderShakhaId, setOrderShakhaId] = useState(unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '');
+    const [orderSwayamsevakId, setOrderSwayamsevakId] = useState('');
     const [orderSubmitting, setOrderSubmitting] = useState(false);
 
     // Post-Order Success Screen (3 buttons)
@@ -144,77 +142,29 @@ export default function ToliIndex({
         }
     }, [toastMessage]);
 
-    // Check localStorage for toli passcode on mount
-    useEffect(() => {
-        const savedPasscode = localStorage.getItem('toli_passcode');
-        if (savedPasscode) {
-            setStoredPasscode(savedPasscode);
-            setPasscodeInput(savedPasscode);
-        }
-
-        // If not authenticated and passcode exists, try auto-login seamlessly
-        if (!isAuthenticated && savedPasscode) {
-            handleAutoLogin(savedPasscode);
-        }
-    }, [isAuthenticated]);
-
     const showToast = (message, type = 'success') => {
         setToastMessage(message);
         setToastType(type);
     };
 
-    // Auto-login handler using encrypted token
-    const handleAutoLogin = async (passcodeToTry) => {
-        setIsAutoLoggingIn(true);
-        setLoginError('');
-        try {
-            const res = await axios.post('/toli/auto-login', { passcode: passcodeToTry });
-            if (res.data?.success) {
-                localStorage.setItem('toli_passcode', passcodeToTry);
-                setStoredPasscode(passcodeToTry);
-                setShowLoginModal(false);
-                showToast('स्वतः लॉगिन सफल हुआ!', 'success');
-                router.reload();
-            }
-        } catch (err) {
-            console.warn('Auto login failed:', err);
-            // Stored pass code might be expired or altered
-            localStorage.removeItem('toli_passcode');
-            setStoredPasscode('');
-            setShowLoginModal(true);
-        } finally {
-            setIsAutoLoggingIn(false);
-        }
-    };
-
-    // Manual Login handler (either with credentials or direct passcode token)
+    // Manual Login handler (main application mobile/email and password)
     const handleManualLogin = async (e) => {
         e.preventDefault();
         setLoginError('');
-
-        if (loginTab === 'passcode') {
-            if (!passcodeInput.trim()) {
-                setLoginError('कृपया पास कोड दर्ज करें।');
-                return;
-            }
-            handleAutoLogin(passcodeInput.trim());
-            return;
-        }
 
         if (!loginCredential.trim() || !loginPassword.trim()) {
             setLoginError('कृपया मोबाइल/ईमेल एवं पासवर्ड दर्ज करें।');
             return;
         }
 
+        setLoginSubmitting(true);
         try {
             const res = await axios.post('/toli/login', {
                 login: loginCredential.trim(),
                 password: loginPassword.trim()
             });
 
-            if (res.data?.success && res.data?.passcode) {
-                localStorage.setItem('toli_passcode', res.data.passcode);
-                setStoredPasscode(res.data.passcode);
+            if (res.data?.success) {
                 setShowLoginModal(false);
                 showToast('लॉगिन सफल हुआ!', 'success');
                 router.reload();
@@ -223,6 +173,8 @@ export default function ToliIndex({
             }
         } catch (err) {
             setLoginError(err.response?.data?.message || 'गलत मोबाइल/ईमेल या पासवर्ड।');
+        } finally {
+            setLoginSubmitting(false);
         }
     };
 
@@ -230,8 +182,6 @@ export default function ToliIndex({
     const handleLogout = async () => {
         try {
             await axios.post('/toli/logout');
-            localStorage.removeItem('toli_passcode');
-            setStoredPasscode('');
             setShowLoginModal(true);
             showToast('सफलतापूर्वक लॉग आउट किया गया।', 'success');
             router.reload();
@@ -393,14 +343,40 @@ export default function ToliIndex({
         setOrderQuantity(1);
         setOrderPaymentStatus('paid');
         setOrderNotes('');
-        setOrderShakhaId(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+        const initialShakha = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '';
+        setOrderShakhaId(initialShakha);
+        setOrderSwayamsevakId('');
         setShowOrderSuccessModal(false);
     };
+
+    // Open Quick Demand Modal for an out of stock product
+    const handleOpenDemandModal = (product) => {
+        setSelectedProduct(product);
+        setOrderQuantity(1);
+        setOrderNotes('');
+        const initialShakha = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '';
+        setOrderShakhaId(initialShakha);
+        setOrderSwayamsevakId('');
+        setShowOrderSuccessModal(false);
+    };
+
+    const effectiveOrderShakhaId = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id) : orderShakhaId;
+
+    // Available swayamsevaks for order dropdown (populated only after selecting shakha, or automatically on shakha-level page)
+    const availableMembersForOrder = useMemo(() => {
+        if (!effectiveOrderShakhaId) return [];
+        return swayamsevaks.filter((s) => String(s.shakha_id) === String(effectiveOrderShakhaId));
+    }, [swayamsevaks, effectiveOrderShakhaId]);
 
     // Place Fast Toli Order
     const handlePlaceOrder = async (e) => {
         e.preventDefault();
         if (!selectedProduct) return;
+
+        if (unit?.level !== 'shakha' && !effectiveOrderShakhaId) {
+            showToast('कृपया पहले शाखा का चयन करें।', 'error');
+            return;
+        }
 
         setOrderSubmitting(true);
         try {
@@ -409,7 +385,8 @@ export default function ToliIndex({
                 quantity: parseInt(orderQuantity) || 1,
                 payment_status: orderPaymentStatus,
                 notes: orderNotes.trim() || null,
-                shakha_id: orderShakhaId || unit?.shakha_id || null,
+                swayamsevak_id: orderSwayamsevakId ? parseInt(orderSwayamsevakId) : null,
+                shakha_id: effectiveOrderShakhaId || null,
                 nagar_id: unit?.nagar_id || null,
                 jila_id: unit?.jila_id || null,
                 vibhag_id: unit?.vibhag_id || null
@@ -417,11 +394,13 @@ export default function ToliIndex({
 
             const res = await axios.post('/toli/orders', payload);
             if (res.data?.success) {
+                const matchedMember = swayamsevaks.find((s) => String(s.id) === String(orderSwayamsevakId));
                 setPlacedOrderDetails({
                     ...res.data.order,
                     product_name: selectedProduct.name,
                     quantity: orderQuantity,
                     payment_status: orderPaymentStatus,
+                    swayamsevak_name: matchedMember ? matchedMember.name : null,
                     total_amount: selectedProduct.price * orderQuantity
                 });
                 setSelectedProduct(null); // Close order form
@@ -435,6 +414,41 @@ export default function ToliIndex({
             showToast(err.response?.data?.message || 'ऑर्डर दर्ज करने में त्रुटि हुई।', 'error');
         } finally {
             setOrderSubmitting(false);
+        }
+    };
+
+    const [demandSubmitting, setDemandSubmitting] = useState(false);
+
+    // Place Fast Toli Demand (for zero-stock items)
+    const handlePlaceDemand = async (e) => {
+        e.preventDefault();
+        if (!selectedProduct) return;
+
+        if (unit?.level !== 'shakha' && !effectiveOrderShakhaId) {
+            showToast('कृपया पहले शाखा का चयन करें।', 'error');
+            return;
+        }
+
+        setDemandSubmitting(true);
+        try {
+            const payload = {
+                product_id: selectedProduct.id,
+                quantity: parseInt(orderQuantity) || 1,
+                swayamsevak_id: orderSwayamsevakId || null,
+                notes: orderNotes.trim() || null,
+            };
+
+            const res = await axios.post('/toli/demands', payload);
+            if (res.data?.success) {
+                setSelectedProduct(null); // Close demand form
+                showToast(res.data.message || 'मांग सफलतापूर्वक दर्ज की गई!', 'success');
+            } else {
+                showToast(res.data?.message || 'मांग दर्ज नहीं हो सकी।', 'error');
+            }
+        } catch (err) {
+            showToast(err.response?.data?.message || 'मांग दर्ज करने में त्रुटि हुई।', 'error');
+        } finally {
+            setDemandSubmitting(false);
         }
     };
 
@@ -562,12 +576,30 @@ export default function ToliIndex({
                         <div className="flex items-center space-x-1.5 text-xs text-amber-200 font-medium tracking-wide">
                             <span>🚩</span>
                             <span>{unit?.level_hindi || 'इकाई'} पृष्ठ</span>
-                            {parentSubtitle && (
+                            {unit?.parents && unit.parents.length > 0 ? (
+                                <>
+                                    <span>•</span>
+                                    <span className="truncate max-w-[260px] inline-flex items-center space-x-1">
+                                        {unit.parents.map((p, idx) => (
+                                            <span key={p.id || idx} className="inline-flex items-center">
+                                                {idx > 0 && <span className="mx-1 opacity-60">/</span>}
+                                                {p.url ? (
+                                                    <a href={p.url} className="hover:underline hover:text-white transition" title={`${p.name} (${p.level})`}>
+                                                        {p.name}
+                                                    </a>
+                                                ) : (
+                                                    <span>{p.name}</span>
+                                                )}
+                                            </span>
+                                        ))}
+                                    </span>
+                                </>
+                            ) : parentSubtitle ? (
                                 <>
                                     <span>•</span>
                                     <span className="truncate max-w-[200px]">{parentSubtitle}</span>
                                 </>
-                            )}
+                            ) : null}
                         </div>
                         <h1 className="text-xl md:text-2xl font-bold truncate text-white tracking-tight flex items-center space-x-1.5 mt-0.5">
                             <span>{unit?.name}</span>
@@ -585,18 +617,6 @@ export default function ToliIndex({
                             <FileText className="w-4 h-4 text-amber-300" />
                             <span className="hidden sm:inline">वृत्त</span>
                         </button>
-
-                        {/* Stored Pass Code Modal Trigger */}
-                        {isAuthenticated && (
-                            <button
-                                onClick={() => setShowPassCodeShareModal(true)}
-                                className="bg-amber-500/30 hover:bg-amber-500/50 text-white px-2.5 py-1.5 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-1 transition border border-amber-400/30"
-                                title="टोली पास कोड देखें"
-                            >
-                                <Key className="w-4 h-4 text-amber-200" />
-                                <span className="hidden md:inline">पास कोड</span>
-                            </button>
-                        )}
 
                         {/* Auth Status / Login / Logout */}
                         {isAuthenticated ? (
@@ -997,20 +1017,26 @@ export default function ToliIndex({
                                                 </div>
                                             </div>
 
-                                            {/* Order Action Button */}
+                                            {/* Order or Demand Action Button */}
                                             <div className="shrink-0 pl-1">
-                                                <button
-                                                    onClick={() => handleOpenOrderModal(p)}
-                                                    disabled={!inStock}
-                                                    className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center space-x-1 ${
-                                                        inStock
-                                                            ? 'bg-amber-600 hover:bg-amber-700 text-white active:scale-95'
-                                                            : 'bg-stone-200 text-stone-400 cursor-not-allowed'
-                                                    }`}
-                                                >
-                                                    <span>ऑर्डर करें</span>
-                                                    <ChevronRight className="w-4 h-4 hidden sm:inline" />
-                                                </button>
+                                                {inStock ? (
+                                                    <button
+                                                        onClick={() => handleOpenOrderModal(p)}
+                                                        className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center space-x-1 bg-amber-600 hover:bg-amber-700 text-white active:scale-95 cursor-pointer"
+                                                    >
+                                                        <span>ऑर्डर करें</span>
+                                                        <ChevronRight className="w-4 h-4 hidden sm:inline" />
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleOpenDemandModal(p)}
+                                                        className="px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center space-x-1 bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white active:scale-95 cursor-pointer"
+                                                    >
+                                                        <ClipboardList className="w-3.5 h-3.5 mr-0.5" />
+                                                        <span>मांग दर्ज करें</span>
+                                                        <ChevronRight className="w-4 h-4 hidden sm:inline" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     );
@@ -1166,12 +1192,22 @@ export default function ToliIndex({
                                                 </div>
                                             </div>
 
-                                            {/* Metadata: Placed At, Notes, Shakha */}
+                                            {/* Metadata: Placed At, Notes, Shakha, Intended Swayamsevak */}
                                             <div className="flex flex-wrap items-center justify-between text-xs text-stone-500 gap-y-1">
-                                                <div className="space-x-2">
-                                                    <span>📅 {o.placed_at}</span>
-                                                    {o.shakha_name && <span>• शाखा: {o.shakha_name}</span>}
-                                                    {o.notes && <span className="italic text-amber-800 font-medium">• {o.notes}</span>}
+                                                <div className="space-y-1">
+                                                    <div className="space-x-2">
+                                                        <span>📅 {o.placed_at}</span>
+                                                        {o.shakha_name && <span>• शाखा: {o.shakha_name}</span>}
+                                                        <span className="text-stone-400">• दर्जकर्ता: {o.customer_name}</span>
+                                                        {o.notes && <span className="italic text-amber-800 font-medium">• {o.notes}</span>}
+                                                    </div>
+                                                    {o.swayamsevak_name && (
+                                                        <div className="flex items-center space-x-1 pt-0.5">
+                                                            <span className="inline-flex items-center bg-amber-50 text-amber-900 border border-amber-200/90 px-2 py-0.5 rounded-md text-xs font-semibold">
+                                                                👤 अभिप्रेत स्वयंसेवक: {o.swayamsevak_name} {o.swayamsevak_mobile ? `(${o.swayamsevak_mobile})` : ''}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {/* Action Buttons for Toli Member */}
@@ -1327,45 +1363,33 @@ export default function ToliIndex({
             {/* MODALS */}
             {/* ============================================================ */}
 
-            {/* 1. PASS CODE & AUTO-LOGIN MODAL */}
-            {showLoginModal && (
+            {/* 1. SECURE CREDENTIAL LOGIN MODAL */}
+            {showLoginModal && !isAuthenticated && (
                 <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
                     <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
                         {/* Header */}
-                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-5 text-white text-center">
+                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-5 text-white text-center relative">
+                            <button
+                                type="button"
+                                onClick={() => setShowLoginModal(false)}
+                                className="absolute right-3 top-3 text-white/80 hover:text-white p-1 rounded-lg"
+                                title="बंद करें"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                             <span className="text-3xl block mb-1">🚩</span>
-                            <h2 className="text-xl font-bold tracking-tight">टोली प्रवेश / पास कोड</h2>
+                            <h2 className="text-xl font-bold tracking-tight">टोली प्रवेश / लॉगिन</h2>
                             <p className="text-xs text-amber-100 mt-1">
                                 {unit?.name ? `${unit.name} (${unit.level_hindi}) टोली पृष्ठ` : 'टोली विशिष्ट पृष्ठ'}
                             </p>
                         </div>
 
-                        {/* Login Method Tabs */}
-                        <div className="flex border-b border-stone-200 bg-stone-50">
-                            <button
-                                onClick={() => { setLoginTab('passcode'); setLoginError(''); }}
-                                className={`flex-1 py-3 text-xs md:text-sm font-bold text-center transition ${
-                                    loginTab === 'passcode'
-                                        ? 'border-b-2 border-amber-600 text-amber-700 bg-white'
-                                        : 'text-stone-500 hover:text-stone-800'
-                                }`}
-                            >
-                                🔑 पास कोड द्वारा
-                            </button>
-                            <button
-                                onClick={() => { setLoginTab('credentials'); setLoginError(''); }}
-                                className={`flex-1 py-3 text-xs md:text-sm font-bold text-center transition ${
-                                    loginTab === 'credentials'
-                                        ? 'border-b-2 border-amber-600 text-amber-700 bg-white'
-                                        : 'text-stone-500 hover:text-stone-800'
-                                }`}
-                            >
-                                📱 मोबाइल व पासवर्ड
-                            </button>
-                        </div>
-
                         {/* Form Body */}
                         <form onSubmit={handleManualLogin} className="p-5 space-y-4">
+                            <p className="text-xs text-stone-600">
+                                टोली में गणवेश वितरण एवं ऑर्डर दर्ज करने हेतु मुख्य पोर्टल के लॉगिन विवरण (मोबाइल नंबर / ईमेल एवं पासवर्ड) से प्रवेश करें।
+                            </p>
+
                             {loginError && (
                                 <div className="bg-red-50 text-red-700 p-3 rounded-lg text-xs font-medium border border-red-200 flex items-center space-x-2">
                                     <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1373,60 +1397,41 @@ export default function ToliIndex({
                                 </div>
                             )}
 
-                            {loginTab === 'passcode' ? (
-                                <div className="space-y-2">
-                                    <label className="block text-xs font-semibold text-stone-700">
-                                        टोली पास कोड (Pass Code)
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                                        मोबाइल नंबर या ईमेल
                                     </label>
-                                    <textarea
-                                        rows={3}
-                                        value={passcodeInput}
-                                        onChange={(e) => setPasscodeInput(e.target.value)}
-                                        placeholder="यहाँ टोली पास कोड पेस्ट करें..."
-                                        className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                                    <input
+                                        type="text"
+                                        value={loginCredential}
+                                        onChange={(e) => setLoginCredential(e.target.value)}
+                                        placeholder="उदा. 9876543210"
+                                        className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
                                         required
                                     />
-                                    <p className="text-[11px] text-stone-400">
-                                        💡 यह पास कोड आपके ब्राउज़र में स्वतः सुरक्षित रहेगा ताकि आगे दोबारा न मांगना पड़े।
-                                    </p>
                                 </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-stone-700 mb-1">
-                                            मोबाइल नंबर या ईमेल
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={loginCredential}
-                                            onChange={(e) => setLoginCredential(e.target.value)}
-                                            placeholder="उदा. 9876543210"
-                                            className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-semibold text-stone-700 mb-1">
-                                            पासवर्ड
-                                        </label>
-                                        <input
-                                            type="password"
-                                            value={loginPassword}
-                                            onChange={(e) => setLoginPassword(e.target.value)}
-                                            placeholder="पासवर्ड दर्ज करें"
-                                            className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
-                                            required
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-xs font-semibold text-stone-700 mb-1">
+                                        पासवर्ड
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={loginPassword}
+                                        onChange={(e) => setLoginPassword(e.target.value)}
+                                        placeholder="पासवर्ड दर्ज करें"
+                                        className="w-full p-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                                        required
+                                    />
                                 </div>
-                            )}
+                            </div>
 
                             <button
                                 type="submit"
-                                disabled={isAutoLoggingIn}
+                                disabled={loginSubmitting}
                                 className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-sm shadow-md transition flex items-center justify-center space-x-1.5"
                             >
-                                {isAutoLoggingIn ? (
+                                {loginSubmitting ? (
                                     <>
                                         <RefreshCw className="w-4 h-4 animate-spin" />
                                         <span>सत्यापन जारी है...</span>
@@ -1440,26 +1445,35 @@ export default function ToliIndex({
                 </div>
             )}
 
-            {/* 2. PRODUCT VIEW & QUICK ORDER MODAL */}
+            {/* 2. PRODUCT VIEW & QUICK ORDER / DEMAND MODAL */}
             {selectedProduct && (
                 <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
                     <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
                         {/* Header */}
                         <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
                             <h2 className="text-base font-bold flex items-center space-x-2">
-                                <Shirt className="w-5 h-5 text-amber-200" />
-                                <span>गणवेश वितरण ऑर्डर दर्ज करें</span>
+                                {selectedProduct.stock > 0 ? (
+                                    <>
+                                        <Shirt className="w-5 h-5 text-amber-200" />
+                                        <span>गणवेश वितरण ऑर्डर दर्ज करें</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <ClipboardList className="w-5 h-5 text-amber-200" />
+                                        <span>उत्पाद मांग दर्ज करें (Product Demand)</span>
+                                    </>
+                                )}
                             </h2>
                             <button
                                 onClick={() => setSelectedProduct(null)}
-                                className="text-white/80 hover:text-white p-1 rounded-lg"
+                                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
                             >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         {/* Modal Body */}
-                        <form onSubmit={handlePlaceOrder} className="p-4 space-y-4">
+                        <form onSubmit={selectedProduct.stock > 0 ? handlePlaceOrder : handlePlaceDemand} className="p-4 space-y-4">
                             {/* Product Info Display */}
                             <div className="flex items-center space-x-3 bg-orange-50/60 p-3 rounded-xl border border-orange-100">
                                 <div className="w-16 h-16 bg-white rounded-lg p-1 border border-stone-200 shrink-0 flex items-center justify-center">
@@ -1473,12 +1487,25 @@ export default function ToliIndex({
                                     <h3 className="font-bold text-stone-900 text-sm">{selectedProduct.name}</h3>
                                     <div className="flex items-center space-x-2 mt-1">
                                         <span className="text-base font-black text-amber-900">₹{selectedProduct.price}</span>
-                                        <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-medium">
-                                            स्टॉक उपलब्ध: {selectedProduct.stock}
-                                        </span>
+                                        {selectedProduct.stock > 0 ? (
+                                            <span className="text-xs text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-medium">
+                                                स्टॉक उपलब्ध: {selectedProduct.stock}
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-rose-700 bg-rose-100 px-2 py-0.5 rounded-full font-bold">
+                                                वर्तमान स्टॉक: 0 (आउट ऑफ स्टॉक)
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Info note for Demand form */}
+                            {selectedProduct.stock <= 0 && (
+                                <div className="text-[11px] text-amber-800 bg-amber-50 p-2.5 rounded-lg border border-amber-200 leading-relaxed">
+                                    ℹ️ यह उत्पाद वर्तमान में स्टॉक में नहीं है। टोली मांग दर्ज कर रही है ताकि डीलर आवश्यकतानुसार स्टॉक तैयार/उपलब्ध करा सके।
+                                </div>
+                            )}
 
                             {/* Quantity Stepper */}
                             <div>
@@ -1489,22 +1516,31 @@ export default function ToliIndex({
                                     <button
                                         type="button"
                                         onClick={() => setOrderQuantity(Math.max(1, orderQuantity - 1))}
-                                        className="w-10 h-10 bg-stone-100 hover:bg-stone-200 rounded-lg text-lg font-bold flex items-center justify-center transition"
+                                        className="w-10 h-10 bg-stone-100 hover:bg-stone-200 rounded-lg text-lg font-bold flex items-center justify-center transition cursor-pointer"
                                     >
                                         -
                                     </button>
                                     <input
                                         type="number"
                                         min="1"
-                                        max={selectedProduct.stock}
+                                        max={selectedProduct.stock > 0 ? selectedProduct.stock : undefined}
                                         value={orderQuantity}
-                                        onChange={(e) => setOrderQuantity(Math.min(selectedProduct.stock, Math.max(1, parseInt(e.target.value) || 1)))}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 1;
+                                            setOrderQuantity(selectedProduct.stock > 0 ? Math.min(selectedProduct.stock, Math.max(1, val)) : Math.max(1, val));
+                                        }}
                                         className="w-20 text-center py-2 bg-stone-50 border border-stone-300 rounded-lg text-base font-bold focus:ring-2 focus:ring-amber-500"
                                     />
                                     <button
                                         type="button"
-                                        onClick={() => setOrderQuantity(Math.min(selectedProduct.stock, orderQuantity + 1))}
-                                        className="w-10 h-10 bg-stone-100 hover:bg-stone-200 rounded-lg text-lg font-bold flex items-center justify-center transition"
+                                        onClick={() => {
+                                            if (selectedProduct.stock > 0) {
+                                                setOrderQuantity(Math.min(selectedProduct.stock, orderQuantity + 1));
+                                            } else {
+                                                setOrderQuantity(orderQuantity + 1);
+                                            }
+                                        }}
+                                        className="w-10 h-10 bg-stone-100 hover:bg-stone-200 rounded-lg text-lg font-bold flex items-center justify-center transition cursor-pointer"
                                     >
                                         +
                                     </button>
@@ -1517,46 +1553,53 @@ export default function ToliIndex({
                                 </div>
                             </div>
 
-                            {/* Payment Status Selection */}
-                            <div>
-                                <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                                    भुगतान स्थिति (Payment Status)
-                                </label>
-                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                    {[
-                                        { id: 'paid', label: '🟢 पूर्ण भुगतान (Paid)', desc: 'नकद या पूर्ण अग्रिम प्राप्त' },
-                                        { id: 'payment_due', label: '🟡 भुगतान बाकी (Due)', desc: 'राशि बाद में देय' },
-                                        { id: 'placed', label: '🔵 ऑर्डर दर्ज (Placed)', desc: 'सामान्य ऑर्डर' },
-                                        { id: 'completed', label: '🟣 पूर्ण / वितरित (Completed)', desc: 'तुरंत गणवेश सुपुर्द' },
-                                    ].map((opt) => (
-                                        <button
-                                            key={opt.id}
-                                            type="button"
-                                            onClick={() => setOrderPaymentStatus(opt.id)}
-                                            className={`p-2.5 rounded-xl border text-left transition ${
-                                                orderPaymentStatus === opt.id
-                                                    ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 font-bold text-amber-950'
-                                                    : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
-                                            }`}
-                                        >
-                                            <div className="text-xs font-bold">{opt.label}</div>
-                                            <div className="text-[10px] text-stone-500 mt-0.5">{opt.desc}</div>
-                                        </button>
-                                    ))}
+                            {/* Payment Status Selection (Absent in Demand form) */}
+                            {selectedProduct.stock > 0 && (
+                                <div>
+                                    <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                                        भुगतान स्थिति (Payment Status)
+                                    </label>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        {[
+                                            { id: 'paid', label: '🟢 पूर्ण भुगतान (Paid)', desc: 'नकद या पूर्ण अग्रिम प्राप्त' },
+                                            { id: 'payment_due', label: '🟡 भुगतान बाकी (Due)', desc: 'राशि बाद में देय' },
+                                            { id: 'placed', label: '🔵 ऑर्डर दर्ज (Placed)', desc: 'सामान्य ऑर्डर' },
+                                            { id: 'completed', label: '🟣 पूर्ण / वितरित (Completed)', desc: 'तुरंत गणवेश सुपुर्द' },
+                                        ].map((opt) => (
+                                            <button
+                                                key={opt.id}
+                                                type="button"
+                                                onClick={() => setOrderPaymentStatus(opt.id)}
+                                                className={`p-2.5 rounded-xl border text-left transition ${
+                                                    orderPaymentStatus === opt.id
+                                                        ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-400 font-bold text-amber-950'
+                                                        : 'bg-white border-stone-200 text-stone-700 hover:bg-stone-50'
+                                                }`}
+                                            >
+                                                <div className="text-xs font-bold">{opt.label}</div>
+                                                <div className="text-[10px] text-stone-500 mt-0.5">{opt.desc}</div>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Shakha Assignment (if multiple) */}
-                            {availableShakhas.length > 1 && (
+                            {/* Shakha Assignment (if not at shakha level) */}
+                            {unit?.level !== 'shakha' && (
                                 <div>
                                     <label className="block text-xs font-bold text-stone-700 mb-1">
-                                        शाखा का चयन
+                                        शाखा का चयन <span className="text-red-500">*</span>
                                     </label>
                                     <select
                                         value={orderShakhaId}
-                                        onChange={(e) => setOrderShakhaId(e.target.value)}
-                                        className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
+                                        onChange={(e) => {
+                                            setOrderShakhaId(e.target.value);
+                                            setOrderSwayamsevakId('');
+                                        }}
+                                        required
+                                        className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-amber-500"
                                     >
+                                        <option value="">-- कृपया शाखा का चयन करें --</option>
                                         {availableShakhas.map((s) => (
                                             <option key={s.id} value={s.id}>{s.shakha_name}</option>
                                         ))}
@@ -1564,38 +1607,89 @@ export default function ToliIndex({
                                 </div>
                             )}
 
-                            {/* Notes / Member Name */}
+                            {/* Swayamsevak (Member) Dropdown - Populated only after Shakha selection, or auto-populated on Shakha page */}
                             <div>
                                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                                    विवरण / स्वयंसेवक का नाम (वैकल्पिक)
+                                    अभिप्रेत स्वयंसेवक / सदस्य (वैकल्पिक)
+                                </label>
+                                <select
+                                    value={orderSwayamsevakId}
+                                    onChange={(e) => setOrderSwayamsevakId(e.target.value)}
+                                    disabled={!effectiveOrderShakhaId}
+                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-amber-500 disabled:bg-stone-100 disabled:text-stone-400"
+                                >
+                                    {!effectiveOrderShakhaId ? (
+                                        <option value="">-- पहले शाखा का चयन करें --</option>
+                                    ) : (
+                                        <>
+                                            <option value="">-- कोई नहीं / सामान्य वितरण (वैकल्पिक) --</option>
+                                            {availableMembersForOrder.map((m) => (
+                                                <option key={m.id} value={m.id}>
+                                                    {m.name} {m.mobile ? `(${m.mobile})` : ''} {m.ganvesh ? '• (गणवेश युक्त)' : '• (गणवेश अपेक्षित)'}
+                                                </option>
+                                            ))}
+                                        </>
+                                    )}
+                                </select>
+                                {effectiveOrderShakhaId && availableMembersForOrder.length === 0 && (
+                                    <p className="text-[11px] text-amber-700 mt-1">
+                                        इस शाखा में कोई स्वयंसेवक पंजीकृत नहीं है। आप सीधे सामान्य {selectedProduct.stock > 0 ? 'ऑर्डर' : 'मांग'} दे सकते हैं।
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Notes */}
+                            <div>
+                                <label className="block text-xs font-bold text-stone-700 mb-1">
+                                    टिप्पणी / विवरण (वैकल्पिक)
                                 </label>
                                 <input
                                     type="text"
                                     value={orderNotes}
                                     onChange={(e) => setOrderNotes(e.target.value)}
-                                    placeholder="उदा. रमेश जी के लिए 38 साइज"
+                                    placeholder="उदा. 38 साइज, विशेष निर्देश"
                                     className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
                                 />
                             </div>
 
-                            {/* Address Skipped Notice */}
-                            <div className="text-[11px] text-stone-500 bg-stone-50 p-2 rounded-lg border border-stone-200">
-                                ℹ️ <strong>डिलीवरी पता छोड़ दिया गया है:</strong> यह ऑर्डर सीधे टोली गणवेश वितरण अंतर्गत इकाई ({unit?.name}) के खाते में दर्ज होगा।
-                            </div>
+                            {/* Address Skipped Notice (Absent in Demand form) */}
+                            {selectedProduct.stock > 0 && (
+                                <div className="text-[11px] text-stone-500 bg-stone-50 p-2 rounded-lg border border-stone-200">
+                                    ℹ️ <strong>डिलीवरी पता छोड़ दिया गया है:</strong> यह ऑर्डर सीधे टोली गणवेश वितरण अंतर्गत इकाई ({unit?.name}) के खाते में दर्ज होगा।
+                                </div>
+                            )}
 
                             {/* Submit */}
                             <button
                                 type="submit"
-                                disabled={orderSubmitting}
-                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl text-sm shadow-md transition flex items-center justify-center space-x-1.5"
+                                disabled={selectedProduct.stock > 0 ? orderSubmitting : demandSubmitting}
+                                className={`w-full font-bold py-3 rounded-xl text-sm shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                                    selectedProduct.stock > 0
+                                        ? 'bg-amber-600 hover:bg-amber-700 text-white'
+                                        : 'bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-700 hover:to-orange-700 text-white'
+                                }`}
                             >
-                                {orderSubmitting ? (
-                                    <>
-                                        <RefreshCw className="w-4 h-4 animate-spin" />
-                                        <span>ऑर्डर दर्ज हो रहा है...</span>
-                                    </>
+                                {selectedProduct.stock > 0 ? (
+                                    orderSubmitting ? (
+                                        <>
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            <span>ऑर्डर दर्ज हो रहा है...</span>
+                                        </>
+                                    ) : (
+                                        <span>ऑर्डर सुरक्षित दर्ज करें</span>
+                                    )
                                 ) : (
-                                    <span>ऑर्डर सुरक्षित दर्ज करें</span>
+                                    demandSubmitting ? (
+                                        <>
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            <span>मांग दर्ज हो रही है...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <ClipboardList className="w-4 h-4" />
+                                            <span>मांग दर्ज करें</span>
+                                        </>
+                                    )
                                 )}
                             </button>
                         </form>
@@ -1631,6 +1725,12 @@ export default function ToliIndex({
                                 <span className="text-stone-500">कुल राशि:</span>
                                 <span className="font-bold text-amber-900">₹{placedOrderDetails.total_amount}</span>
                             </div>
+                            {placedOrderDetails.swayamsevak_name && (
+                                <div className="flex justify-between border-t border-orange-200/60 pt-1">
+                                    <span className="text-stone-500">अभिप्रेत स्वयंसेवक:</span>
+                                    <span className="font-bold text-amber-900">👤 {placedOrderDetails.swayamsevak_name}</span>
+                                </div>
+                            )}
                         </div>
 
                         {/* EXACT 3 BUTTONS AS REQUESTED */}
@@ -2139,53 +2239,6 @@ export default function ToliIndex({
                 </div>
             )}
 
-            {/* 11. PASS CODE SHARE MODAL (For logged in toli members) */}
-            {showPassCodeShareModal && (
-                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3">
-                    <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-orange-200 overflow-hidden animate-scale-in">
-                        <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 text-white flex items-center justify-between">
-                            <h2 className="text-base font-bold flex items-center space-x-1.5">
-                                <Key className="w-5 h-5 text-amber-200" />
-                                <span>टोली पास कोड (Pass Code)</span>
-                            </h2>
-                            <button
-                                onClick={() => setShowPassCodeShareModal(false)}
-                                className="text-white/80 hover:text-white p-1 rounded-lg"
-                            >
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="p-4 space-y-3">
-                            <p className="text-xs text-stone-600">
-                                यह आपका सुरक्षित टोली पास कोड है। आप इसे कॉपी करके अन्य टोली सदस्यों को भेज सकते हैं ताकि वे बिना पासवर्ड टाइप किए तुरंत इस पृष्ठ में प्रवेश कर सकें।
-                            </p>
-
-                            <div className="bg-stone-50 p-3 rounded-xl border border-stone-300 font-mono text-xs break-all select-all text-amber-900 font-semibold">
-                                {storedPasscode || 'पास कोड उपलब्ध नहीं है (पुनः लॉगिन करें)।'}
-                            </div>
-
-                            <div className="flex space-x-2 pt-1">
-                                <button
-                                    onClick={() => copyToClipboard(storedPasscode)}
-                                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-1.5 shadow transition"
-                                >
-                                    <Copy className="w-4 h-4" />
-                                    <span>पास कोड कॉपी करें</span>
-                                </button>
-
-                                <button
-                                    onClick={() => shareToWhatsApp(`🚩 ${unit?.name} टोली पास कोड:\n${storedPasscode}\n\nइस लिंक पर पेस्ट करके लॉगिन करें:\n${window.location.href}`)}
-                                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs sm:text-sm flex items-center justify-center space-x-1.5 shadow transition"
-                                >
-                                    <MessageCircle className="w-4 h-4" />
-                                    <span>व्हाट्सएप</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

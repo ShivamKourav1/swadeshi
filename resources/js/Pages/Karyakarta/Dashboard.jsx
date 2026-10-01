@@ -17,9 +17,10 @@ import {
     Building2,
     Users,
     XCircle,
+    Boxes,
 } from 'lucide-react';
 
-export default function Dashboard({ scope, metrics, orders, filters, filterOptions }) {
+export default function Dashboard({ scope, metrics, orders, filters, filterOptions, toli_url, can_manage_inventory_scope }) {
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters?.delivery_status || '');
     const [selectedJila, setSelectedJila] = useState(filters?.jila_id || '');
@@ -128,7 +129,26 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                         <div className="text-[11px] text-amber-100 mt-0.5">
                             Role: <strong className="uppercase">{scope.level} Level Officer</strong>
                         </div>
-                        <div className="pt-2">
+                        <div className="pt-2 flex flex-wrap items-center justify-end gap-2">
+                            {toli_url && (
+                                <a
+                                    href={toli_url}
+                                    className="inline-flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-black px-3.5 py-1.5 rounded-xl shadow-xs transition border border-orange-300/40"
+                                >
+                                    <span>🚩</span>
+                                    <span>टोली पृष्ठ (Toli Page)</span>
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                            )}
+                            {can_manage_inventory_scope && (
+                                <Link
+                                    href={route('karyakarta.inventory-scope.index')}
+                                    className="inline-flex items-center space-x-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-black px-3.5 py-1.5 rounded-xl shadow-xs transition border border-orange-300/40"
+                                >
+                                    <Boxes className="w-3.5 h-3.5" />
+                                    <span>टोली स्तरीय वस्तु भंडार इकाई प्रबंधन</span>
+                                </Link>
+                            )}
                             <Link
                                 href={route('karyakarta.units.index')}
                                 className="inline-flex items-center space-x-1 bg-white text-amber-900 hover:bg-amber-100 text-xs font-black px-3 py-1.5 rounded-xl shadow-xs transition"
@@ -139,6 +159,32 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                         </div>
                     </div>
                 </div>
+
+                {/* Toli Inventory Scope Management Card (For Karyakarta + Admin) */}
+                {can_manage_inventory_scope && (
+                    <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-100/70 border border-amber-200/80 rounded-3xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div className="flex items-center space-x-3.5">
+                            <div className="p-3 bg-amber-600 text-white rounded-2xl shadow-xs shrink-0">
+                                <Boxes className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-base font-black text-amber-950">
+                                    टोली स्तरीय वस्तु भंडार इकाई प्रबंधन (Toli Level Inventory Scope Management)
+                                </h2>
+                                <p className="text-xs text-stone-600 mt-0.5 max-w-2xl leading-relaxed">
+                                    अपने अधिकार क्षेत्र ({scope.name}) के अंतर्गत आने वाली अधीनस्थ इकाइयों (जैसे नगर, शाखा) के टोली पृष्ठों पर वस्तु भंडार व गणवेश उत्पादों की दृश्यता नियंत्रित करें।
+                                </p>
+                            </div>
+                        </div>
+                        <Link
+                            href={route('karyakarta.inventory-scope.index')}
+                            className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-xs font-black px-5 py-2.5 rounded-2xl shadow-xs transition shrink-0"
+                        >
+                            <span>प्रबंधन खोलें</span>
+                            <ChevronRight className="w-4 h-4" />
+                        </Link>
+                    </div>
+                )}
 
                 {/* Metrics Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -351,7 +397,7 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                                     </div>
                                                 </td>
 
-                                                {/* Customer */}
+                                                {/* Customer & Intended Swayamsevak */}
                                                 <td className="p-4">
                                                     <div className="font-bold text-gray-900">
                                                         {order.customer?.name || loc?.recipient_name}
@@ -359,6 +405,13 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                                     <div className="text-gray-500 text-[11px]">
                                                         {order.customer?.phone || loc?.phone || 'No Phone'}
                                                     </div>
+                                                    {order.swayamsevak && (
+                                                        <div className="mt-1">
+                                                            <span className="inline-flex items-center text-[11px] font-semibold text-amber-900 bg-amber-50 border border-amber-200/90 px-2 py-0.5 rounded-md">
+                                                                👤 स्वयंसेवक: {order.swayamsevak.name}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </td>
 
                                                 {/* Organizational Hierarchy Tag */}
@@ -374,6 +427,13 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                                                     Age Group: <strong>{loc.shakha.aayu_varg}</strong> ({loc.shakha.type})
                                                                 </div>
                                                             )}
+                                                        </div>
+                                                    ) : order.is_toli_order ? (
+                                                        <div className="space-y-1">
+                                                            <div className="inline-flex items-center space-x-1 bg-orange-50 text-orange-900 border border-orange-200 font-bold px-2.5 py-1 rounded-lg text-[11px]">
+                                                                <Building2 className="w-3 h-3 text-orange-700 mr-1 flex-shrink-0" />
+                                                                <span>टोली: {[order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ') || 'इकाई वितरण'}</span>
+                                                            </div>
                                                         </div>
                                                     ) : (
                                                         <span className="text-gray-400 italic text-[11px]">

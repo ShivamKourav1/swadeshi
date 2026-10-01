@@ -403,11 +403,11 @@ export default function Show({ order }) {
 
                 {/* Delivery Tracking & Delivery Partner Box */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Delivery Address */}
+                    {/* Delivery Destination & Recipient */}
                     <div className="bg-white p-6 rounded-3xl border border-amber-100 shadow-sm">
                         <h3 className="font-bold text-gray-900 text-sm flex items-center space-x-2 border-b border-gray-100 pb-3 mb-3">
                             <MapPin className="w-4 h-4 text-amber-600" />
-                            <span>Delivery Destination</span>
+                            <span>Delivery Destination & Recipient</span>
                         </h3>
                         {order.delivery_location ? (
                             <div className="text-xs text-gray-700 space-y-1">
@@ -422,8 +422,43 @@ export default function Show({ order }) {
                                 <div>{order.delivery_location.city}, {order.delivery_location.state} {order.delivery_location.postal_code}</div>
                                 <div className="text-gray-400 pt-1">Phone: {order.delivery_location.phone}</div>
                             </div>
+                        ) : order.is_toli_order ? (
+                            <div className="text-xs text-gray-700 space-y-2">
+                                <div className="inline-block bg-orange-100 text-orange-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                                    टोली प्रत्यक्ष वितरण (Toli Direct Distribution)
+                                </div>
+                                {(order.shakha || order.nagar || order.jila) && (
+                                    <div className="text-gray-600 font-medium">
+                                        📍 {[order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ')}
+                                    </div>
+                                )}
+                            </div>
                         ) : (
                             <div className="text-xs text-gray-400">Address detail unavailable.</div>
+                        )}
+
+                        {/* Intended Swayamsevak (Member) */}
+                        {order.swayamsevak && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                                <div className="p-3 bg-amber-50/80 border border-amber-200/90 rounded-2xl">
+                                    <div className="text-[11px] font-bold text-amber-900 uppercase tracking-wide">
+                                        अभिप्रेत स्वयंसेवक / सदस्य (Intended Recipient):
+                                    </div>
+                                    <div className="font-bold text-sm text-gray-900 mt-1 flex items-center space-x-1">
+                                        <span>👤 {order.swayamsevak.name}</span>
+                                    </div>
+                                    {order.swayamsevak.mobile && (
+                                        <div className="text-xs text-gray-600 mt-0.5">मो: {order.swayamsevak.mobile}</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Orderer (de jure) info */}
+                        {order.customer && (
+                            <div className="mt-2 text-[11px] text-gray-400">
+                                दर्जकर्ता (Order Placed By): <span className="font-semibold text-gray-600">{order.customer.name}</span>
+                            </div>
                         )}
                     </div>
 

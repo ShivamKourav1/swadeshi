@@ -184,7 +184,7 @@ class ReturnRequestController extends Controller
             foreach ($order->items as $item) {
                 if ($isAdmin || $item->dealer_id === $user->id) {
                     if ($item->product) {
-                        $item->product->increment('stock', $item->quantity);
+                        $item->product->restock($item->quantity);
                     }
                 }
             }

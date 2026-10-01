@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ToliEncryptionService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -59,6 +60,11 @@ class User extends Authenticatable
     public function deliveryAssignments(): HasMany
     {
         return $this->hasMany(Order::class, 'delivery_partner_id');
+    }
+
+    public function demands(): HasMany
+    {
+        return $this->hasMany(ProductDemand::class, 'customer_id');
     }
 
     public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
@@ -410,6 +416,42 @@ class User extends Authenticatable
         }
 
         return null;
+    }
+
+    /**
+     * Resolve the encrypted toli URL corresponding to this user's jurisdiction scope.
+     * Returns null if user has no assigned jurisdiction scope.
+     */
+    public function getToliUrl(): ?string
+    {
+        $jurisdiction = $this->getToliJurisdiction();
+        if (!$jurisdiction || empty($jurisdiction['level']) || empty($jurisdiction['id'])) {
+            return null;
+        }
+
+        return ToliEncryptionService::getToliUrlForScope($jurisdiction['level'], (int) $jurisdiction['id']);
+    }
+
+    /**
+     * Determine if this user has rights to configure Toli Level Inventory Scope Management.
+     * Requires roles karyakarta + admin, and an assigned organizational jurisdiction scope.
+     */
+    public function canManageToliInventoryScope(): bool
+    {
+        if (!$this->isKaryakarta()) {
+            return false;
+        }
+
+        if (!$this->isAdmin()) {
+            return false;
+        }
+
+        $jurisdiction = $this->getToliJurisdiction();
+        if (!$jurisdiction) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

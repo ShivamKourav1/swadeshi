@@ -5,14 +5,17 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\DealerCategoryController;
+use App\Http\Controllers\DealerDemandController;
 use App\Http\Controllers\DealerOrderController;
 use App\Http\Controllers\DeliveryLocationController;
 use App\Http\Controllers\DeliveryPartnerController;
 use App\Http\Controllers\Karyakarta\KaryakartaDashboardController;
 use App\Http\Controllers\Karyakarta\OrganizationUnitController;
+use App\Http\Controllers\Karyakarta\ToliInventoryScopeController;
 use App\Http\Controllers\LanguageController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductDemandController;
 use App\Http\Controllers\ToliController;
 use Illuminate\Support\Facades\Route;
 
@@ -59,6 +62,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
     Route::post('/orders/{order}/return-request', [\App\Http\Controllers\ReturnRequestController::class, 'store'])->name('orders.return_request.store');
 
+    // Product Demand Routes (Storefront)
+    Route::post('/demands', [ProductDemandController::class, 'store'])->name('demands.store');
+    Route::get('/api/swayamsevaks', [ProductDemandController::class, 'getSwayamsevaks'])->name('api.swayamsevaks');
+
     // Dealer Routes
     Route::prefix('dealer')->group(function () {
         Route::get('/products', [ProductController::class, 'dealerIndex'])->name('dealer.products.index');
@@ -81,6 +88,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/categories', [DealerCategoryController::class, 'store'])->name('dealer.categories.store');
         Route::put('/categories/{category}', [DealerCategoryController::class, 'update'])->name('dealer.categories.update');
         Route::delete('/categories/{category}', [DealerCategoryController::class, 'destroy'])->name('dealer.categories.destroy');
+
+        // Product Demands
+        Route::get('/demands', [DealerDemandController::class, 'index'])->name('dealer.demands.index');
+        Route::post('/demands/{product}/quick-restock', [DealerDemandController::class, 'quickRestock'])->name('dealer.demands.quick_restock');
     });
 
     // Delivery Partner Routes
@@ -100,6 +111,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/units/{unitType}', [OrganizationUnitController::class, 'store'])->name('karyakarta.units.store');
         Route::put('/units/{unitType}/{id}', [OrganizationUnitController::class, 'update'])->name('karyakarta.units.update');
         Route::delete('/units/{unitType}/{id}', [OrganizationUnitController::class, 'destroy'])->name('karyakarta.units.destroy');
+
+        // Toli Level Inventory Scope Management
+        Route::get('/inventory-scope', [ToliInventoryScopeController::class, 'index'])->name('karyakarta.inventory-scope.index');
+        Route::post('/inventory-scope', [ToliInventoryScopeController::class, 'update'])->name('karyakarta.inventory-scope.update');
     });
 
     // Admin Routes
@@ -124,7 +139,6 @@ Route::middleware('auth')->group(function () {
 });
 
 // Toli Module Public API routes
-Route::post('/toli/auto-login', [ToliController::class, 'autoLogin'])->name('toli.auto_login');
 Route::post('/toli/login', [ToliController::class, 'login'])->name('toli.login');
 Route::post('/toli/logout', [ToliController::class, 'logout'])->name('toli.logout');
 Route::get('/toli/members/template', [ToliController::class, 'downloadTemplate'])->name('toli.members.template');
@@ -140,9 +154,16 @@ Route::middleware('auth')->group(function () {
     Route::put('/toli/orders/{order}/status', [ToliController::class, 'updateOrderStatus'])->name('toli.orders.status');
     Route::post('/toli/orders/{order}/cancel', [ToliController::class, 'cancelOrder'])->name('toli.orders.cancel');
     Route::post('/toli/orders/{order}/return', [ToliController::class, 'returnOrder'])->name('toli.orders.return');
+    Route::post('/toli/demands', [ToliController::class, 'storeDemand'])->name('toli.demands.store');
 });
 
 // Toli Hierarchy SPA Route (Matches /{kshetra}/{vibhag?}/{jila?}/{nagar?}/{shakha?})
 Route::get('/{kshetra}/{vibhag?}/{jila?}/{nagar?}/{shakha?}', [ToliController::class, 'show'])
-    ->whereNumber(['kshetra', 'vibhag', 'jila', 'nagar', 'shakha'])
+    ->where([
+        'kshetra' => '[a-zA-Z0-9_\-]+',
+        'vibhag' => '[a-zA-Z0-9_\-]+',
+        'jila' => '[a-zA-Z0-9_\-]+',
+        'nagar' => '[a-zA-Z0-9_\-]+',
+        'shakha' => '[a-zA-Z0-9_\-]+',
+    ])
     ->name('toli.page');

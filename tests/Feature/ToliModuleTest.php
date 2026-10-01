@@ -77,11 +77,17 @@ class ToliModuleTest extends TestCase
         ]);
     }
 
-    public function test_toli_page_renders_with_hierarchy_units(): void
+    public function test_toli_page_renders_with_hierarchy_units_using_encrypted_url(): void
     {
-        $url = "/{$this->kshetra->id}/{$this->vibhag->id}/{$this->jila->id}/{$this->nagar->id}/{$this->shakha->id}";
+        $encryptedUrl = ToliEncryptionService::buildToliUrl(
+            $this->kshetra->id,
+            $this->vibhag->id,
+            $this->jila->id,
+            $this->nagar->id,
+            $this->shakha->id
+        );
 
-        $response = $this->actingAs($this->toliMember)->get($url);
+        $response = $this->actingAs($this->toliMember)->get($encryptedUrl);
         $response->assertStatus(200);
         $response->assertInertia(fn ($page) =>
             $page->component('Toli/Index')
@@ -91,7 +97,106 @@ class ToliModuleTest extends TestCase
         );
     }
 
-    public function test_toli_login_and_symmetric_encryption_passcode(): void
+    public function test_toli_page_redirects_unencrypted_numeric_urls_to_encrypted_urls(): void
+    {
+        $numericUrl = "/{$this->kshetra->id}/{$this->vibhag->id}/{$this->jila->id}/{$this->nagar->id}/{$this->shakha->id}";
+        $expectedEncryptedUrl = ToliEncryptionService::buildToliUrl(
+            $this->kshetra->id,
+            $this->vibhag->id,
+            $this->jila->id,
+            $this->nagar->id,
+            $this->shakha->id
+        );
+
+        $response = $this->actingAs($this->toliMember)->get($numericUrl);
+        $response->assertRedirect($expectedEncryptedUrl);
+    }
+
+    public function test_toli_page_renders_jila_level_with_encrypted_url(): void
+    {
+        $jilaEncryptedUrl = ToliEncryptionService::buildToliUrl(
+            $this->kshetra->id,
+            $this->vibhag->id,
+            $this->jila->id
+        );
+
+        $response = $this->actingAs($this->toliMember)->get($jilaEncryptedUrl);
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) =>
+            $page->component('Toli/Index')
+                ->where('unit.name', 'Badrinath Jila')
+                ->where('unit.level', 'jila')
+        );
+    }
+
+    public function test_toli_page_renders_nagar_level_with_encrypted_url(): void
+    {
+        $nagarEncryptedUrl = ToliEncryptionService::buildToliUrl(
+            $this->kshetra->id,
+            $this->vibhag->id,
+            $this->jila->id,
+            $this->nagar->id
+        );
+
+        $response = $this->actingAs($this->toliMember)->get($nagarEncryptedUrl);
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) =>
+            $page->component('Toli/Index')
+                ->where('unit.name', 'Madhav Nagar')
+                ->where('unit.level', 'nagar')
+        );
+    }
+
+    public function test_toli_page_aborts_on_invalid_or_tampered_encrypted_id(): void
+    {
+        $tamperedUrl = "/invalid-token-12345/{$this->vibhag->id}/{$this->jila->id}";
+        $response = $this->actingAs($this->toliMember)->get($tamperedUrl);
+        $response->assertStatus(404);
+    }
+
+    public function test_karyakarta_dashboard_provides_toli_navigation_option_when_scope_is_assigned(): void
+    {
+        $karyakartaWithScope = User::factory()->create([
+            'role' => 'karyakarta',
+            'status' => 'active',
+        ]);
+        UserProfile::create([
+            'user_id' => $karyakartaWithScope->id,
+            'shakha_id' => $this->shakha->id,
+        ]);
+
+        $this->assertNotNull($karyakartaWithScope->getToliUrl());
+
+        $response = $this->actingAs($karyakartaWithScope)->get(route('karyakarta.dashboard'));
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) =>
+            $page->component('Karyakarta/Dashboard')
+                ->where('toli_url', $karyakartaWithScope->getToliUrl())
+        );
+    }
+
+    public function test_karyakarta_dashboard_hides_toli_navigation_option_when_no_scope_is_assigned(): void
+    {
+        $karyakartaNoScope = User::factory()->create([
+            'role' => 'karyakarta',
+            'status' => 'active',
+        ]);
+        UserProfile::create([
+            'user_id' => $karyakartaNoScope->id,
+            // No shakha_id, nagar_id, jila_id, vibhag_id, prant_id, kshetra_id
+        ]);
+
+        $this->assertNull($karyakartaNoScope->getToliUrl());
+
+        $response = $this->actingAs($karyakartaNoScope)->get(route('karyakarta.dashboard'));
+        $response->assertStatus(200);
+        $response->assertInertia(fn ($page) =>
+            $page->component('Karyakarta/Dashboard')
+                ->where('toli_url', null)
+        );
+    }
+
+    public function test_toli_credential_login(): void
     {
         $response = $this->postJson('/toli/login', [
             'login' => '9876543210',
@@ -99,17 +204,13 @@ class ToliModuleTest extends TestCase
         ]);
 
         $response->assertStatus(200);
-        $response->assertJson(['success' => true]);
-        $passcode = $response->json('passcode');
-        $this->assertNotEmpty($passcode);
-
-        // Auto-login using generated token
-        $this->post('/logout'); // Log out first
-        $this->assertGuest();
-
-        $autoResponse = $this->postJson('/toli/auto-login', ['passcode' => $passcode]);
-        $autoResponse->assertStatus(200);
-        $autoResponse->assertJson(['success' => true]);
+        $response->assertJson([
+            'success' => true,
+            'user' => [
+                'id' => $this->toliMember->id,
+                'phone' => '9876543210',
+            ],
+        ]);
         $this->assertAuthenticatedAs($this->toliMember);
     }
 
@@ -199,11 +300,19 @@ class ToliModuleTest extends TestCase
 
     public function test_place_toli_order_skips_delivery_address_and_auto_tags_unit(): void
     {
+        $member = Swayamsevak::create([
+            'name' => 'राकेश शर्मा',
+            'mobile' => '9876500099',
+            'shakha_id' => $this->shakha->id,
+            'ganvesh' => false,
+        ]);
+
         $orderData = [
             'product_id' => $this->product->id,
             'quantity' => 2,
             'payment_status' => 'paid',
-            'notes' => 'सुरेश जी के लिए 2 टोपियां',
+            'notes' => 'राकेश जी के लिए 2 टोपियां',
+            'swayamsevak_id' => $member->id,
             'shakha_id' => $this->shakha->id,
             'nagar_id' => $this->nagar->id,
             'jila_id' => $this->jila->id,
@@ -212,11 +321,17 @@ class ToliModuleTest extends TestCase
 
         $response = $this->actingAs($this->toliMember)->postJson('/toli/orders', $orderData);
         $response->assertStatus(200);
-        $response->assertJson(['success' => true]);
+        $response->assertJson([
+            'success' => true,
+            'order' => [
+                'swayamsevak_id' => $member->id,
+            ],
+        ]);
 
         $this->assertDatabaseHas('orders', [
             'is_toli_order' => true,
             'customer_id' => $this->toliMember->id,
+            'swayamsevak_id' => $member->id,
             'delivery_location_id' => null,
             'shakha_id' => $this->shakha->id,
             'nagar_id' => $this->nagar->id,
@@ -227,6 +342,47 @@ class ToliModuleTest extends TestCase
         // Product stock decremented
         $this->product->refresh();
         $this->assertEquals(48, $this->product->stock);
+    }
+
+    public function test_intended_swayamsevak_is_displayed_in_order_view_and_toli_page(): void
+    {
+        $member = Swayamsevak::create([
+            'name' => 'गोपाल वर्मा',
+            'mobile' => '9988776655',
+            'shakha_id' => $this->shakha->id,
+            'ganvesh' => false,
+        ]);
+
+        $order = Order::create([
+            'order_number' => Order::generateOrderNumber(),
+            'customer_id' => $this->toliMember->id,
+            'swayamsevak_id' => $member->id,
+            'delivery_location_id' => null,
+            'subtotal' => 80.00,
+            'delivery_fee' => 0.00,
+            'total_amount' => 80.00,
+            'order_status' => 'paid',
+            'payment_status' => 'paid',
+            'is_toli_order' => true,
+            'shakha_id' => $this->shakha->id,
+        ]);
+
+        // Main app show route
+        $showResponse = $this->actingAs($this->toliMember)->get(route('orders.show', $order->id));
+        $showResponse->assertStatus(200);
+        $showResponse->assertInertia(fn ($page) =>
+            $page->component('Orders/Show')
+                ->where('order.swayamsevak.name', 'गोपाल वर्मा')
+        );
+
+        // Toli page
+        $toliUrl = ToliEncryptionService::buildToliUrl($this->kshetra->id, $this->vibhag->id, $this->jila->id, $this->nagar->id, $this->shakha->id);
+        $toliResponse = $this->actingAs($this->toliMember)->get($toliUrl);
+        $toliResponse->assertStatus(200);
+        $toliResponse->assertInertia(fn ($page) =>
+            $page->component('Toli/Index')
+                ->where('orders.0.swayamsevak_name', 'गोपाल वर्मा')
+        );
     }
 
     public function test_toli_order_status_update_cancellation_and_return(): void

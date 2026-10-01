@@ -115,7 +115,12 @@ export default function Orders({ orderItems, filters }) {
                                                     </Link>
                                                 </td>
                                                 <td className="p-3.5 font-bold text-amber-800">{item.product_name}</td>
-                                                <td className="p-3.5 text-gray-700">{order?.customer?.name}</td>
+                                                <td className="p-3.5 text-gray-700">
+                                                    <div className="font-semibold text-gray-900">{order?.customer?.name}</div>
+                                                    {order?.swayamsevak && (
+                                                        <div className="text-[11px] text-amber-800 font-medium">👤 {order.swayamsevak.name}</div>
+                                                    )}
+                                                </td>
                                                 <td className="p-3.5 font-bold text-gray-900">{item.quantity}</td>
                                                 <td className="p-3.5">₹{item.unit_price}</td>
                                                 <td className="p-3.5 font-black text-emerald-700 text-sm">₹{item.subtotal}</td>

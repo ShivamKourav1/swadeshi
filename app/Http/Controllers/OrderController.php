@@ -163,7 +163,20 @@ class OrderController extends Controller
         $user = $request->user();
 
         $orders = Order::where('customer_id', $user->id)
-            ->with(['deliveryLocation.kshetra', 'deliveryLocation.prant', 'deliveryLocation.vibhag', 'deliveryLocation.jila', 'deliveryLocation.nagar', 'deliveryLocation.shakha', 'items', 'returnRequest'])
+            ->with([
+                'swayamsevak:id,name,mobile',
+                'shakha:id,shakha_name',
+                'nagar:id,nagar_name',
+                'jila:id,jila_name',
+                'deliveryLocation.kshetra',
+                'deliveryLocation.prant',
+                'deliveryLocation.vibhag',
+                'deliveryLocation.jila',
+                'deliveryLocation.nagar',
+                'deliveryLocation.shakha',
+                'items',
+                'returnRequest',
+            ])
             ->latest()
             ->paginate(10);
 
@@ -182,6 +195,10 @@ class OrderController extends Controller
 
         $order->load([
             'customer',
+            'swayamsevak',
+            'shakha',
+            'nagar',
+            'jila',
             'deliveryLocation.kshetra',
             'deliveryLocation.prant',
             'deliveryLocation.vibhag',
@@ -239,7 +256,7 @@ class OrderController extends Controller
                 // Stock is restored immediately because items are still at the dealer / not dispatched
                 foreach ($order->items as $item) {
                     if ($item->product) {
-                        $item->product->increment('stock', $item->quantity);
+                        $item->product->restock($item->quantity);
                     }
                 }
 

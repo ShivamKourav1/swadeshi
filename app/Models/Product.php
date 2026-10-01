@@ -89,6 +89,30 @@ class Product extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function demands(): HasMany
+    {
+        return $this->hasMany(ProductDemand::class);
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(function ($product) {
+            if ($product->wasChanged('stock')) {
+                $oldStock = (int) $product->getOriginal('stock');
+                $newStock = (int) $product->stock;
+                if ($newStock > $oldStock) {
+                    ProductDemand::reduceDemandOnStockIncrease($product->id, $newStock - $oldStock);
+                }
+            }
+        });
+    }
+
+    public function restock(int $quantity): void
+    {
+        $this->increment('stock', $quantity);
+        ProductDemand::reduceDemandOnStockIncrease($this->id, $quantity);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', 'active');

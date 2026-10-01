@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     Building2,
@@ -17,6 +17,7 @@ import {
     XCircle,
     Package,
     ArrowLeft,
+    ExternalLink,
 } from 'lucide-react';
 
 /**
@@ -59,6 +60,7 @@ export default function Index({
     permissions = {},
     is_admin = false,
 }) {
+    const { auth } = usePage().props;
     const [currentTab, setCurrentTab] = useState(initialTab || 'shakhas');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUnit, setEditingUnit] = useState(null);
@@ -396,6 +398,16 @@ export default function Index({
                     </div>
 
                     <div className="flex items-center space-x-3 w-full sm:w-auto">
+                        {auth?.user?.toli_url && (
+                            <a
+                                href={auth.user.toli_url}
+                                className="px-4 py-3 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold rounded-2xl text-xs transition shadow-xs flex items-center space-x-1.5 cursor-pointer border border-orange-300/40"
+                            >
+                                <span>🚩</span>
+                                <span>टोली पृष्ठ (Toli Page)</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                        )}
                         <Link
                             href={route('karyakarta.dashboard')}
                             className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs transition flex items-center space-x-1 cursor-pointer"

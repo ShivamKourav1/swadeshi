@@ -28,6 +28,7 @@ export const translations = {
         account: 'मेरा खाता',
         org_belonging: 'संगठनात्मक संबद्धता',
         org_units: 'संगठनात्मक इकाइयां',
+        toli_inventory_scope: 'टोली स्तरीय वस्तु भंडार इकाई प्रबंधन',
         kshetra: 'क्षेत्र (Kshetra)',
         prant: 'प्रान्त (Prant)',
         vibhag: 'विभाग (Vibhag)',
@@ -124,8 +125,10 @@ export const translations = {
 
         // Dealer Panel
         dealer_sales_dashboard: 'डीलर बिक्री और ऑर्डर डैशबोर्ड',
+        dealer_demands: 'उत्पाद मांग (Demands)',
         catalog_revenue: 'कुल बिक्री आय',
         add_new_product: '+ नया उत्पाद जोड़ें',
+        create_demand: 'मांग दर्ज करें',
 
         // Language Switcher
         switch_to_hindi: '🇮🇳 हिंदी',
@@ -140,6 +143,8 @@ export const translations = {
         dealer_inventory: 'Dealer Inventory',
         dealer_categories: 'Categories',
         dealer_orders: 'Dealer Orders',
+        dealer_demands: 'Product Demands',
+        create_demand: 'Create Demand',
         delivery_panel: 'Delivery Agent Panel',
         karyakarta_panel: 'Karyakarta Panel',
         admin_panel: 'Admin Panel',
@@ -160,6 +165,7 @@ export const translations = {
         account: 'My Account',
         org_belonging: 'Organizational Belonging',
         org_units: 'Organizational Units',
+        toli_inventory_scope: 'Toli Inventory Scope Management',
         kshetra: 'Kshetra',
         prant: 'Prant',
         vibhag: 'Vibhag',

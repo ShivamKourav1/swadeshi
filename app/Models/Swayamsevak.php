@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Swayamsevak extends Model
 {
@@ -37,6 +38,16 @@ class Swayamsevak extends Model
     public function shakha(): BelongsTo
     {
         return $this->belongsTo(Shakha::class);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function demands(): HasMany
+    {
+        return $this->hasMany(ProductDemand::class);
     }
 
     /**

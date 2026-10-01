@@ -87,9 +87,19 @@ export default function Index({ orders }) {
                                         <span>•</span>
                                         <span>Items: <strong>{order.items.length}</strong></span>
                                     </div>
-                                    {order.delivery_location && (
+                                    {order.delivery_location ? (
                                         <div className="text-xs text-gray-600 mt-2">
                                             📍 Deliver to: {order.delivery_location.recipient_name}, {order.delivery_location.city}
+                                        </div>
+                                    ) : order.is_toli_order ? (
+                                        <div className="text-xs text-orange-800 mt-2 font-medium">
+                                            🚩 टोली गणवेश वितरण: {[order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ') || 'प्रत्यक्ष वितरण'}
+                                        </div>
+                                    ) : null}
+                                    {order.swayamsevak && (
+                                        <div className="text-xs text-amber-800 font-semibold mt-1 flex items-center space-x-1">
+                                            <span>👤 अभिप्रेत स्वयंसेवक (Recipient): {order.swayamsevak.name}</span>
+                                            {order.swayamsevak.mobile && <span className="text-gray-500 font-normal">({order.swayamsevak.mobile})</span>}
                                         </div>
                                     )}
                                 </div>

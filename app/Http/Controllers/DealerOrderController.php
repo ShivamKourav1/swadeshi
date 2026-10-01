@@ -23,7 +23,7 @@ class DealerOrderController extends Controller
 
         $search = $request->input('search');
 
-        $query = OrderItem::with(['order.customer', 'order.deliveryLocation', 'order.cancelledByUser', 'order.restockedByUser', 'order.returnRequest', 'order.returnRequests', 'product']);
+        $query = OrderItem::with(['order.customer', 'order.swayamsevak', 'order.deliveryLocation', 'order.cancelledByUser', 'order.restockedByUser', 'order.returnRequest', 'order.returnRequests', 'product']);
 
         if (!$user->isAdmin()) {
             $query->where('dealer_id', $user->id);
@@ -86,7 +86,7 @@ class DealerOrderController extends Controller
                 // If dealer, only increment their own products; if admin, all products
                 if ($user->isAdmin() || $item->dealer_id === $user->id) {
                     if ($item->product) {
-                        $item->product->increment('stock', $item->quantity);
+                        $item->product->restock($item->quantity);
                     }
                 }
             }

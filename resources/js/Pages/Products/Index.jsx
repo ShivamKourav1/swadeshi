@@ -14,13 +14,17 @@ import {
     RotateCcw,
     X,
     Loader2,
+    ClipboardList,
+    AlertCircle,
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/translations';
+import DemandModal from '@/Components/DemandModal';
 
 export default function Index({ products, categories, filters, orgUnits, userUnit }) {
-    const { locale, cartCount } = usePage().props;
+    const { auth, locale, cartCount } = usePage().props;
     const { t } = useTranslation(locale || 'hi');
 
+    const [demandProduct, setDemandProduct] = useState(null);
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [selectedCategory, setSelectedCategory] = useState(filters.category_id || '');
     const [unitType, setUnitType] = useState(filters.org_unit_type || '');
@@ -650,24 +654,37 @@ export default function Index({ products, categories, filters, orgUnits, userUni
                                     <div className="pt-3 border-t border-gray-100 flex items-center justify-between mt-auto">
                                         <div>
                                             <div className="text-xl font-black text-gray-900">₹{product.price}</div>
-                                            <div className="text-xs text-emerald-600 font-medium flex items-center mt-0.5">
-                                                <CheckCircle className="w-3 h-3 mr-1" /> {t('stock')}: {product.stock}
-                                            </div>
+                                            {product.stock > 0 ? (
+                                                <div className="text-xs text-emerald-600 font-medium flex items-center mt-0.5">
+                                                    <CheckCircle className="w-3 h-3 mr-1" /> {t('stock')}: {product.stock}
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-rose-600 font-semibold flex items-center mt-0.5">
+                                                    <AlertCircle className="w-3 h-3 mr-1" /> आउट ऑफ स्टॉक
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="flex items-center space-x-1.5">
-                                            <button
-                                                onClick={() => addToCart(product.id)}
-                                                disabled={product.stock <= 0}
-                                                className={`p-2.5 rounded-xl transition flex items-center justify-center cursor-pointer ${
-                                                    product.stock > 0
-                                                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-sm'
-                                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                }`}
-                                                title={product.stock > 0 ? t('add_to_cart') : t('out_of_stock')}
-                                            >
-                                                <ShoppingCart className="w-4 h-4" />
-                                            </button>
+                                            {product.stock > 0 ? (
+                                                <button
+                                                    onClick={() => addToCart(product.id)}
+                                                    className="p-2.5 rounded-xl transition flex items-center justify-center cursor-pointer bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-sm"
+                                                    title={t('add_to_cart')}
+                                                >
+                                                    <ShoppingCart className="w-4 h-4" />
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDemandProduct(product)}
+                                                    className="px-2.5 py-1.5 rounded-xl transition flex items-center space-x-1 cursor-pointer bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-xs text-xs font-bold active:scale-95"
+                                                    title="मांग दर्ज करें"
+                                                >
+                                                    <ClipboardList className="w-3.5 h-3.5" />
+                                                    <span className="hidden sm:inline">मांग दर्ज करें</span>
+                                                </button>
+                                            )}
 
                                             <Link
                                                 href={route('cart.index')}
@@ -717,6 +734,16 @@ export default function Index({ products, categories, filters, orgUnits, userUni
                         )}
                     </div>
                 </>
+            )}
+
+            {/* Demand Modal (for zero stock products) */}
+            {demandProduct && (
+                <DemandModal
+                    product={demandProduct}
+                    isOpen={Boolean(demandProduct)}
+                    onClose={() => setDemandProduct(null)}
+                    user={auth?.user}
+                />
             )}
         </AuthenticatedLayout>
     );

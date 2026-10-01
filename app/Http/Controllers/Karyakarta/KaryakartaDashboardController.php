@@ -63,6 +63,10 @@ class KaryakartaDashboardController extends Controller
         // Base Orders Query constrained by Karyakarta's organizational scope
         $query = Order::query()->with([
             'customer',
+            'swayamsevak:id,name,mobile',
+            'shakha:id,shakha_name',
+            'nagar:id,nagar_name',
+            'jila:id,jila_name',
             'deliveryLocation.kshetra',
             'deliveryLocation.prant',
             'deliveryLocation.vibhag',
@@ -73,21 +77,34 @@ class KaryakartaDashboardController extends Controller
             'items',
         ]);
 
-        // Enforce organizational boundary based on user profile
-        $query->whereHas('deliveryLocation', function ($q) use ($profile, $scopeLevel) {
-            if ($scopeLevel === 'shakha') {
-                $q->where('shakha_id', $profile->shakha_id);
-            } elseif ($scopeLevel === 'nagar') {
-                $q->where('nagar_id', $profile->nagar_id);
-            } elseif ($scopeLevel === 'jila') {
-                $q->where('jila_id', $profile->jila_id);
-            } elseif ($scopeLevel === 'vibhag') {
-                $q->where('vibhag_id', $profile->vibhag_id);
-            } elseif ($scopeLevel === 'prant') {
-                $q->where('prant_id', $profile->prant_id);
-            } elseif ($scopeLevel === 'kshetra') {
-                $q->where('kshetra_id', $profile->kshetra_id);
-            }
+        // Enforce organizational boundary based on user profile (supporting both regular delivery locations and toli orders)
+        $query->where(function ($scopedQ) use ($profile, $scopeLevel) {
+            $scopedQ->whereHas('deliveryLocation', function ($q) use ($profile, $scopeLevel) {
+                if ($scopeLevel === 'shakha') {
+                    $q->where('shakha_id', $profile->shakha_id);
+                } elseif ($scopeLevel === 'nagar') {
+                    $q->where('nagar_id', $profile->nagar_id);
+                } elseif ($scopeLevel === 'jila') {
+                    $q->where('jila_id', $profile->jila_id);
+                } elseif ($scopeLevel === 'vibhag') {
+                    $q->where('vibhag_id', $profile->vibhag_id);
+                } elseif ($scopeLevel === 'prant') {
+                    $q->where('prant_id', $profile->prant_id);
+                } elseif ($scopeLevel === 'kshetra') {
+                    $q->where('kshetra_id', $profile->kshetra_id);
+                }
+            })->orWhere(function ($toliQ) use ($profile, $scopeLevel) {
+                $toliQ->where('is_toli_order', true);
+                if ($scopeLevel === 'shakha') {
+                    $toliQ->where('shakha_id', $profile->shakha_id);
+                } elseif ($scopeLevel === 'nagar') {
+                    $toliQ->where('nagar_id', $profile->nagar_id);
+                } elseif ($scopeLevel === 'jila') {
+                    $toliQ->where('jila_id', $profile->jila_id);
+                } elseif ($scopeLevel === 'vibhag') {
+                    $toliQ->where('vibhag_id', $profile->vibhag_id);
+                }
+            });
         });
 
         // Calculate Overview Statistics within Scope (before specific search filters)
@@ -113,6 +130,10 @@ class KaryakartaDashboardController extends Controller
                             ->orWhere('email', 'like', "%{$search}%")
                             ->orWhere('phone', 'like', "%{$search}%");
                     })
+                    ->orWhereHas('swayamsevak', function ($sq) use ($search) {
+                        $sq->where('name', 'like', "%{$search}%")
+                            ->orWhere('mobile', 'like', "%{$search}%");
+                    })
                     ->orWhereHas('deliveryLocation', function ($lq) use ($search) {
                         $lq->where('recipient_name', 'like', "%{$search}%")
                             ->orWhere('city', 'like', "%{$search}%")
@@ -126,15 +147,24 @@ class KaryakartaDashboardController extends Controller
         }
 
         if ($jilaFilter) {
-            $query->whereHas('deliveryLocation', fn($q) => $q->where('jila_id', $jilaFilter));
+            $query->where(function ($q) use ($jilaFilter) {
+                $q->whereHas('deliveryLocation', fn($lq) => $lq->where('jila_id', $jilaFilter))
+                    ->orWhere('jila_id', $jilaFilter);
+            });
         }
 
         if ($nagarFilter) {
-            $query->whereHas('deliveryLocation', fn($q) => $q->where('nagar_id', $nagarFilter));
+            $query->where(function ($q) use ($nagarFilter) {
+                $q->whereHas('deliveryLocation', fn($lq) => $lq->where('nagar_id', $nagarFilter))
+                    ->orWhere('nagar_id', $nagarFilter);
+            });
         }
 
         if ($shakhaFilter) {
-            $query->whereHas('deliveryLocation', fn($q) => $q->where('shakha_id', $shakhaFilter));
+            $query->where(function ($q) use ($shakhaFilter) {
+                $q->whereHas('deliveryLocation', fn($lq) => $lq->where('shakha_id', $shakhaFilter))
+                    ->orWhere('shakha_id', $shakhaFilter);
+            });
         }
 
         $orders = $query->latest()->paginate(15)->withQueryString();
@@ -148,6 +178,8 @@ class KaryakartaDashboardController extends Controller
                 'name' => $scopeName,
                 'details' => $scopeData,
             ],
+            'toli_url' => $user->getToliUrl(),
+            'can_manage_inventory_scope' => $user->canManageToliInventoryScope(),
             'metrics' => [
                 'total_orders' => $scopeTotalOrders,
                 'total_revenue' => round($scopeTotalRevenue, 2),
@@ -194,6 +226,12 @@ class KaryakartaDashboardController extends Controller
                     elseif ($level === 'prant' && (int)$location->prant_id === $id) $allowed = true;
                     elseif ($level === 'kshetra' && (int)$location->kshetra_id === $id) $allowed = true;
                 }
+                if (!$allowed && $order->is_toli_order) {
+                    if ($level === 'shakha' && (int)$order->shakha_id === $id) $allowed = true;
+                    elseif ($level === 'nagar' && (int)$order->nagar_id === $id) $allowed = true;
+                    elseif ($level === 'jila' && (int)$order->jila_id === $id) $allowed = true;
+                    elseif ($level === 'vibhag' && (int)$order->vibhag_id === $id) $allowed = true;
+                }
                 if (!$allowed) {
                     abort(403, 'Unauthorized. Order is outside your assigned toli jurisdiction.');
                 }
@@ -202,6 +240,10 @@ class KaryakartaDashboardController extends Controller
 
         $order->load([
             'customer',
+            'swayamsevak',
+            'shakha',
+            'nagar',
+            'jila',
             'deliveryLocation.kshetra',
             'deliveryLocation.prant',
             'deliveryLocation.vibhag',

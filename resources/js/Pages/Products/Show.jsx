@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { ShoppingCart, ArrowLeft, Store, ShieldCheck, Truck, Check, MapPin } from 'lucide-react';
+import { ShoppingCart, ArrowLeft, Store, ShieldCheck, Truck, Check, MapPin, ClipboardList } from 'lucide-react';
 import { useTranslation } from '@/i18n/translations';
+import DemandModal from '@/Components/DemandModal';
 
 export default function Show({ product }) {
-    const { locale } = usePage().props;
+    const { auth, locale } = usePage().props;
     const { t } = useTranslation(locale || 'hi');
     const [quantity, setQuantity] = useState(1);
+    const [showDemandModal, setShowDemandModal] = useState(false);
 
     const handleAddToCart = () => {
         router.post(route('cart.add', product.id), { quantity }, { preserveScroll: true });
@@ -107,34 +109,42 @@ export default function Show({ product }) {
 
                         {/* Actions */}
                         <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center gap-4">
-                            <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden bg-white">
-                                <button
-                                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                    className="px-3.5 py-2 text-gray-600 hover:bg-amber-50 hover:text-amber-700 font-bold transition cursor-pointer"
-                                >
-                                    -
-                                </button>
-                                <span className="px-4 py-2 text-sm font-extrabold text-gray-900">{quantity}</span>
-                                <button
-                                    onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                                    className="px-3.5 py-2 text-gray-600 hover:bg-amber-50 hover:text-amber-700 font-bold transition cursor-pointer"
-                                >
-                                    +
-                                </button>
-                            </div>
+                            {product.stock > 0 ? (
+                                <>
+                                    <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden bg-white">
+                                        <button
+                                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                            className="px-3.5 py-2 text-gray-600 hover:bg-amber-50 hover:text-amber-700 font-bold transition cursor-pointer"
+                                        >
+                                            -
+                                        </button>
+                                        <span className="px-4 py-2 text-sm font-extrabold text-gray-900">{quantity}</span>
+                                        <button
+                                            onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                                            className="px-3.5 py-2 text-gray-600 hover:bg-amber-50 hover:text-amber-700 font-bold transition cursor-pointer"
+                                        >
+                                            +
+                                        </button>
+                                    </div>
 
-                            <button
-                                onClick={handleAddToCart}
-                                disabled={product.stock <= 0}
-                                className={`flex-1 w-full sm:w-auto py-3.5 px-6 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center space-x-2 cursor-pointer ${
-                                    product.stock > 0
-                                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-amber-500/20'
-                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                }`}
-                            >
-                                <ShoppingCart className="w-5 h-5" />
-                                <span>{product.stock > 0 ? t('add_to_cart') : t('out_of_stock')}</span>
-                            </button>
+                                    <button
+                                        onClick={handleAddToCart}
+                                        className="flex-1 w-full sm:w-auto py-3.5 px-6 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center space-x-2 cursor-pointer bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white shadow-amber-500/20"
+                                    >
+                                        <ShoppingCart className="w-5 h-5" />
+                                        <span>{t('add_to_cart')}</span>
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDemandModal(true)}
+                                    className="flex-1 w-full sm:w-auto py-3.5 px-6 rounded-xl font-bold text-sm shadow-md transition flex items-center justify-center space-x-2 cursor-pointer bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 hover:from-amber-700 hover:to-orange-700 text-white shadow-amber-500/20 active:scale-98"
+                                >
+                                    <ClipboardList className="w-5 h-5" />
+                                    <span>मांग दर्ज करें</span>
+                                </button>
+                            )}
 
                             <Link
                                 href={route('cart.index')}
@@ -147,6 +157,16 @@ export default function Show({ product }) {
                     </div>
                 </div>
             </div>
+
+            {/* Demand Modal (only when stock <= 0) */}
+            {product.stock <= 0 && (
+                <DemandModal
+                    product={product}
+                    isOpen={showDemandModal}
+                    onClose={() => setShowDemandModal(false)}
+                    user={auth?.user}
+                />
+            )}
         </AuthenticatedLayout>
     );
 }

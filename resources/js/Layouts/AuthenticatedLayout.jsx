@@ -19,6 +19,9 @@ import {
     ChevronDown,
     Menu,
     X,
+    ExternalLink,
+    ClipboardList,
+    Boxes,
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/translations';
 
@@ -252,6 +255,14 @@ export default function AuthenticatedLayout({ children, title }) {
                                                 <ShoppingCart className="w-4 h-4 text-amber-600" />
                                                 <span>{t('dealer_orders')}</span>
                                             </Link>
+                                            <Link
+                                                href={route('dealer.demands.index')}
+                                                onClick={() => setOpenDropdown(null)}
+                                                className="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-amber-700 hover:bg-amber-50 transition"
+                                            >
+                                                <ClipboardList className="w-4 h-4 text-amber-600" />
+                                                <span>{t('dealer_demands')}</span>
+                                            </Link>
                                         </div>
                                     )}
                                 </div>
@@ -292,6 +303,27 @@ export default function AuthenticatedLayout({ children, title }) {
                                                 <Building2 className="w-4 h-4 text-orange-600" />
                                                 <span>{t('org_units')}</span>
                                             </Link>
+                                            {user?.can_manage_inventory_scope && (
+                                                <Link
+                                                    href={route('karyakarta.inventory-scope.index')}
+                                                    onClick={() => setOpenDropdown(null)}
+                                                    className="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-orange-700 hover:bg-orange-50 transition"
+                                                >
+                                                    <Boxes className="w-4 h-4 text-orange-600" />
+                                                    <span>{t('toli_inventory_scope')}</span>
+                                                </Link>
+                                            )}
+                                            {user?.toli_url && (
+                                                <a
+                                                    href={user.toli_url}
+                                                    onClick={() => setOpenDropdown(null)}
+                                                    className="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold text-orange-800 bg-orange-50/70 hover:bg-orange-100 transition mt-1 border border-orange-200/60"
+                                                >
+                                                    <span className="text-sm">🚩</span>
+                                                    <span className="flex-1">टोली पृष्ठ (Toli Page)</span>
+                                                    <ExternalLink className="w-3.5 h-3.5 text-orange-500" />
+                                                </a>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -717,6 +749,27 @@ export default function AuthenticatedLayout({ children, title }) {
                                 <Building2 className="w-4 h-4 text-orange-700" />
                                 <span>{t('org_units')}</span>
                             </Link>
+                            {user?.can_manage_inventory_scope && (
+                                <Link
+                                    href={route('karyakarta.inventory-scope.index')}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-bold text-orange-900 hover:bg-orange-50 transition"
+                                >
+                                    <Boxes className="w-4 h-4 text-orange-700" />
+                                    <span>{t('toli_inventory_scope')}</span>
+                                </Link>
+                            )}
+                            {user?.toli_url && (
+                                <a
+                                    href={user.toli_url}
+                                    onClick={() => setMobileMenuOpen(false)}
+                                    className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-bold text-orange-900 bg-orange-50 hover:bg-orange-100 transition border border-orange-200"
+                                >
+                                    <span className="text-base">🚩</span>
+                                    <span>टोली पृष्ठ (Toli Page)</span>
+                                    <ExternalLink className="w-4 h-4 text-orange-600 ml-auto" />
+                                </a>
+                            )}
                         </div>
                     )}
 
@@ -750,6 +803,14 @@ export default function AuthenticatedLayout({ children, title }) {
                             >
                                 <ShoppingCart className="w-4 h-4 text-amber-700" />
                                 <span>{t('dealer_orders')}</span>
+                            </Link>
+                            <Link
+                                href={route('dealer.demands.index')}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-900 hover:bg-amber-50 transition"
+                            >
+                                <ClipboardList className="w-4 h-4 text-amber-700" />
+                                <span>{t('dealer_demands')}</span>
                             </Link>
                         </div>
                     )}
