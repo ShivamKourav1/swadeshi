@@ -1,9 +1,12 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { ArrowLeft, Save, Edit3 } from 'lucide-react';
 
 export default function Edit({ product, categories }) {
+    const { auth } = usePage().props;
+    const isKaryakartaDealer = Boolean(auth?.user?.is_karyakarta_dealer);
+
     const { data, setData, put, processing, errors } = useForm({
         name: product.name,
         sku: product.sku,
@@ -26,7 +29,7 @@ export default function Edit({ product, categories }) {
 
             <div className="max-w-3xl mx-auto space-y-6">
                 <Link href={route('dealer.products.index')} className="inline-flex items-center text-sm text-gray-500 hover:text-amber-600 font-bold transition">
-                    <ArrowLeft className="w-4 h-4 mr-1 text-amber-600" /> Back to Dealer Inventory
+                    <ArrowLeft className="w-4 h-4 mr-1 text-amber-600" /> {isKaryakartaDealer ? 'वस्तु भंडार पर वापस जाएं' : 'Back to Dealer Inventory'}
                 </Link>
 
                 <div className="bg-white rounded-3xl border border-amber-100 p-6 sm:p-8 shadow-sm">

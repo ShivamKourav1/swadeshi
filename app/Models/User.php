@@ -107,6 +107,11 @@ class User extends Authenticatable
         return $this->role === 'karyakarta' || $this->hasRole('karyakarta') || str_contains($this->role, 'karyakarta') || $this->hasRole(['kshetra_karyakarta', 'prant_karyakarta', 'vibhag_karyakarta', 'jila_karyakarta', 'nagar_karyakarta', 'shakha_karyakarta']);
     }
 
+    public function isKaryakartaDealer(): bool
+    {
+        return $this->isKaryakarta() && ($this->isDealer() || $this->hasPermission('manage_products'));
+    }
+
     public function hasRole(string|array $roles): bool
     {
         if (is_string($roles)) {

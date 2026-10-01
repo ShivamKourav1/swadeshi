@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { DollarSign, Package, Search, CheckCircle2, RotateCcw, XCircle, AlertCircle, ExternalLink } from 'lucide-react';
 
 export default function Orders({ orderItems, filters }) {
+    const { auth } = usePage().props;
+    const user = auth?.user;
+    const isKaryakartaDealer = Boolean(user?.is_karyakarta_dealer);
+
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [selectedOrderToRestock, setSelectedOrderToRestock] = useState(null);
     const [isRestocking, setIsRestocking] = useState(false);
@@ -32,14 +36,14 @@ export default function Orders({ orderItems, filters }) {
 
     return (
         <AuthenticatedLayout>
-            <Head title="Dealer Orders & Revenue" />
+            <Head title={isKaryakartaDealer ? "ऑर्डर्स (Orders)" : "Dealer Orders & Revenue"} />
 
             <div className="max-w-7xl mx-auto space-y-6">
                 <div className="bg-gradient-to-r from-emerald-600 via-emerald-700 to-teal-700 rounded-3xl p-8 text-white shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-extrabold flex items-center space-x-2">
                             <DollarSign className="w-8 h-8" />
-                            <span>Dealer Sales & Order Dashboard</span>
+                            <span>{isKaryakartaDealer ? 'ऑर्डर्स (Orders)' : 'Dealer Sales & Order Dashboard'}</span>
                         </h1>
                         <p className="text-emerald-100 text-sm mt-1">
                             Real-time order line item breakdown, cancellation returns, and inventory restock management.

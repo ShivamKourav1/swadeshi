@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Store, Plus, Edit3, Trash2, Tag, AlertCircle, FolderTree, Sparkles, Search } from 'lucide-react';
 
@@ -10,6 +10,10 @@ export default function Index({
     standard_products_count = 0,
     standard_products_total = 23
 }) {
+    const { auth } = usePage().props;
+    const user = auth?.user;
+    const isKaryakartaDealer = Boolean(user?.is_karyakarta_dealer);
+
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const perPage = filters.per_page || 50;
 
@@ -30,7 +34,7 @@ export default function Index({
 
     return (
         <AuthenticatedLayout>
-            <Head title="Dealer Inventory Management" />
+            <Head title={isKaryakartaDealer ? "वस्तु भंडार (Vastu Bhandar)" : "Dealer Inventory Management"} />
 
             <div className="max-w-6xl mx-auto space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 sm:p-8 rounded-3xl border border-amber-100 shadow-sm">
@@ -39,7 +43,7 @@ export default function Index({
                             <div className="p-2 bg-amber-50 text-amber-600 rounded-2xl">
                                 <Store className="w-6 h-6" />
                             </div>
-                            <span>Dealer Product Inventory</span>
+                            <span>{isKaryakartaDealer ? 'वस्तु भंडार (Vastu Bhandar)' : 'Dealer Product Inventory'}</span>
                         </h1>
                         <p className="text-xs text-gray-500 mt-1">
                             Manage your catalog, prices, and stock inventory. Total Products: <strong className="text-amber-700">{products.total || 0}</strong>

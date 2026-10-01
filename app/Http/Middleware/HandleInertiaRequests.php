@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
                     'can_manage_inventory_scope' => $user->canManageToliInventoryScope(),
                     'is_karyakarta' => $user->isKaryakarta(),
                     'is_dealer' => $user->isDealer(),
+                    'is_karyakarta_dealer' => $user->isKaryakartaDealer(),
                     'is_delivery_partner' => $user->isDeliveryPartner(),
                     'phone' => $user->phone,
                     'status' => $user->status,

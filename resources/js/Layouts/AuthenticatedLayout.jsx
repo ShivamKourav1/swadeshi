@@ -89,6 +89,11 @@ export default function AuthenticatedLayout({ children, title }) {
     const isKaryakarta = Boolean(isAdmin || user?.is_karyakarta || user?.role === 'karyakarta' || user?.role?.includes('karyakarta'));
     const isDelivery = Boolean(isAdmin || user?.is_delivery_partner || user?.role === 'delivery_partner');
     const isCustomerOnly = Boolean(user && !isDealer && !isAdmin && !isKaryakarta && !isDelivery);
+    const isKaryakartaDealer = Boolean(user?.is_karyakarta_dealer ?? (user?.is_karyakarta && (user?.is_dealer || user?.role === 'dealer')));
+
+    const dealerNavLabel = isKaryakartaDealer ? t('vastu_bhandar_pramukh') : t('dealer');
+    const dealerInventoryNavLabel = isKaryakartaDealer ? t('vastu_bhandar') : t('dealer_inventory');
+    const dealerOrdersNavLabel = isKaryakartaDealer ? t('orders_plain') : t('dealer_orders');
 
     // Active link helpers
     const isStorefrontActive = url === '/' || (url.startsWith('/products') && !url.startsWith('/dealer/products'));
@@ -110,6 +115,9 @@ export default function AuthenticatedLayout({ children, title }) {
         }
         if (user.is_admin || user.role === 'admin') {
             return { label: t('admin'), color: 'bg-purple-100 text-purple-800 border-purple-200' };
+        }
+        if (isKaryakartaDealer) {
+            return { label: t('vastu_bhandar_pramukh'), color: 'bg-amber-100 text-amber-800 border-amber-200' };
         }
         if (user.is_karyakarta || user.role === 'karyakarta') {
             return { label: t('karyakarta'), color: 'bg-amber-100 text-amber-800 border-amber-200' };
@@ -225,7 +233,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                         }`}
                                     >
                                         <Package className="w-3.5 h-3.5 text-amber-700" />
-                                        <span>{t('dealer')}</span>
+                                        <span>{dealerNavLabel}</span>
                                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${openDropdown === 'dealer' ? 'rotate-180' : ''}`} />
                                     </button>
 
@@ -237,7 +245,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                                 className="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-amber-700 hover:bg-amber-50 transition"
                                             >
                                                 <Package className="w-4 h-4 text-amber-600" />
-                                                <span>{t('dealer_inventory')}</span>
+                                                <span>{dealerInventoryNavLabel}</span>
                                             </Link>
                                             <Link
                                                 href={route('dealer.categories.index')}
@@ -253,7 +261,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                                 className="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-xs font-bold text-gray-700 hover:text-amber-700 hover:bg-amber-50 transition"
                                             >
                                                 <ShoppingCart className="w-4 h-4 text-amber-600" />
-                                                <span>{t('dealer_orders')}</span>
+                                                <span>{dealerOrdersNavLabel}</span>
                                             </Link>
                                             <Link
                                                 href={route('dealer.demands.index')}
@@ -778,7 +786,7 @@ export default function AuthenticatedLayout({ children, title }) {
                         <div className="space-y-1 pt-2 border-t border-gray-100">
                             <div className="text-[11px] font-black uppercase tracking-wider text-amber-700 px-3 py-1 flex items-center space-x-1.5">
                                 <Package className="w-3.5 h-3.5 text-amber-700" />
-                                <span>{t('dealer')}</span>
+                                <span>{dealerNavLabel}</span>
                             </div>
                             <Link
                                 href={route('dealer.products.index')}
@@ -786,7 +794,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-900 hover:bg-amber-50 transition"
                             >
                                 <Package className="w-4 h-4 text-amber-700" />
-                                <span>{t('dealer_inventory')}</span>
+                                <span>{dealerInventoryNavLabel}</span>
                             </Link>
                             <Link
                                 href={route('dealer.categories.index')}
@@ -802,7 +810,7 @@ export default function AuthenticatedLayout({ children, title }) {
                                 className="flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-bold text-amber-900 hover:bg-amber-50 transition"
                             >
                                 <ShoppingCart className="w-4 h-4 text-amber-700" />
-                                <span>{t('dealer_orders')}</span>
+                                <span>{dealerOrdersNavLabel}</span>
                             </Link>
                             <Link
                                 href={route('dealer.demands.index')}

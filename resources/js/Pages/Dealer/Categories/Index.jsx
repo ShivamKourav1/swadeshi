@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { FolderTree, Plus, Edit3, Trash2, Search, Image, CheckCircle, XCircle, Package, ArrowLeft, ExternalLink } from 'lucide-react';
 
 export default function Index({ categories, filters }) {
+    const { auth } = usePage().props;
+    const isKaryakartaDealer = Boolean(auth?.user?.is_karyakarta_dealer);
+
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
@@ -91,7 +94,7 @@ export default function Index({ categories, filters }) {
 
     return (
         <AuthenticatedLayout>
-            <Head title="Category Management - Dealer Dashboard" />
+            <Head title={isKaryakartaDealer ? "Category Management - Vastu Bhandar Pramukh" : "Category Management - Dealer Dashboard"} />
 
             <div className="max-w-6xl mx-auto space-y-6">
                 {/* Header Card */}
@@ -99,7 +102,7 @@ export default function Index({ categories, filters }) {
                     <div>
                         <div className="flex items-center space-x-2 text-amber-700 text-xs font-bold uppercase tracking-wider mb-1">
                             <FolderTree className="w-4 h-4" />
-                            <span>Dealer Catalog Control</span>
+                            <span>{isKaryakartaDealer ? 'Vastu Bhandar Catalog Control' : 'Dealer Catalog Control'}</span>
                         </div>
                         <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 flex items-center space-x-2.5">
                             <span>Category Management (श्रेणी प्रबंधन)</span>
@@ -115,7 +118,7 @@ export default function Index({ categories, filters }) {
                             className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-2xl text-xs transition flex items-center space-x-1 cursor-pointer"
                         >
                             <Package className="w-4 h-4 mr-1 text-gray-500" />
-                            <span>View Inventory</span>
+                            <span>{isKaryakartaDealer ? 'वस्तु भंडार देखें' : 'View Inventory'}</span>
                         </Link>
                         <button
                             onClick={openAddModal}

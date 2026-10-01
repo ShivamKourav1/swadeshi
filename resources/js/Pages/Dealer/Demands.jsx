@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     ClipboardList,
@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 
 export default function Demands({ products, categories, summary, filters }) {
+    const { auth } = usePage().props;
+    const isKaryakartaDealer = Boolean(auth?.user?.is_karyakarta_dealer);
+
     const [search, setSearch] = useState(filters.search || '');
     const [categoryId, setCategoryId] = useState(filters.category_id || '');
     const [expandedProducts, setExpandedProducts] = useState({});
@@ -82,8 +85,8 @@ export default function Demands({ products, categories, summary, filters }) {
     };
 
     return (
-        <AuthenticatedLayout title="उत्पाद मांग (Product Demands) - डीलर">
-            <Head title="उत्पाद मांग (Product Demands) - डीलर डैशबोर्ड" />
+        <AuthenticatedLayout title={isKaryakartaDealer ? "उत्पाद मांग (Product Demands) - वस्तु भंडार प्रमुख" : "उत्पाद मांग (Product Demands) - डीलर"}>
+            <Head title={isKaryakartaDealer ? "उत्पाद मांग (Product Demands) - वस्तु भंडार प्रमुख" : "उत्पाद मांग (Product Demands) - डीलर डैशबोर्ड"} />
 
             <div className="py-6 sm:py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
                 {/* Header Banner */}
