@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Basti;
 use App\Models\Jila;
 use App\Models\Kshetra;
 use App\Models\Nagar;
@@ -182,19 +183,20 @@ class ToliEncryptionService
     public static function getToliUrlForScope(string $level, int $id): ?string
     {
         switch ($level) {
+            case 'basti':
             case 'shakha':
-                $shakha = Shakha::with('nagar.jila.vibhag.prant')->find($id);
-                if (!$shakha) {
+                $basti = Basti::with('nagar.jila.vibhag.prant')->find($id);
+                if (!$basti) {
                     return null;
                 }
-                $nagar = $shakha->nagar;
+                $nagar = $basti->nagar;
                 $jila = $nagar?->jila;
                 $vibhag = $jila?->vibhag;
                 $kshetraId = $vibhag?->prant?->kshetra_id;
                 if (!$kshetraId || !$vibhag || !$jila || !$nagar) {
                     return null;
                 }
-                return self::buildToliUrl($kshetraId, $vibhag->id, $jila->id, $nagar->id, $shakha->id);
+                return self::buildToliUrl($kshetraId, $vibhag->id, $jila->id, $nagar->id, $basti->id);
 
             case 'nagar':
                 $nagar = Nagar::with('jila.vibhag.prant')->find($id);

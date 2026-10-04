@@ -95,7 +95,8 @@ export default function Index({ users, roles = [], filters, can_manage_roles = f
 
     const getJurisdictionLabel = (profile) => {
         if (!profile) return 'Global (No limit)';
-        if (profile.shakha) return `Shakha: ${profile.shakha.shakha_name}`;
+        if (profile.basti) return `Basti: ${profile.basti.basti_name || profile.basti.shakha_name}`;
+        if (profile.shakha) return `Basti: ${profile.shakha.basti_name || profile.shakha.shakha_name}`;
         if (profile.nagar) return `Nagar: ${profile.nagar.nagar_name}`;
         if (profile.jila) return `Jila: ${profile.jila.jila_name}`;
         if (profile.vibhag) return `Vibhag: ${profile.vibhag.vibhag_name}`;
@@ -370,7 +371,7 @@ export default function Index({ users, roles = [], filters, can_manage_roles = f
                                 <span>Template Structure & Guidelines:</span>
                             </div>
                             <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-800 ml-1">
-                                <li><strong>Required Columns:</strong> <code>name</code>, <code>mobile</code>, <code>Is Shakha Toli Member</code>, <code>Is Nagar Toli Member</code>, <code>Is Jila Toli Member</code></li>
+                                <li><strong>Required Columns:</strong> <code>name</code>, <code>mobile</code>, <code>Is Basti Toli Member</code>, <code>Is Nagar Toli Member</code>, <code>Is Jila Toli Member</code></li>
                                 <li><strong>Default Password:</strong> Set automatically to the user's <strong>mobile number</strong>.</li>
                                 <li><strong>Toli Flags:</strong> Value should be <code>Yes</code> / <code>No</code> (or <code>1</code> / <code>0</code>).</li>
                             </ul>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\CheckoutRequest;
+use App\Models\Basti;
 use App\Models\DeliveryLocation;
 use App\Models\DeliveryLog;
 use App\Models\Jila;
@@ -34,7 +35,7 @@ class OrderController extends Controller
         }
 
         $locations = DeliveryLocation::where('user_id', $user->id)
-            ->with(['kshetra', 'prant', 'vibhag', 'jila', 'nagar', 'shakha'])
+            ->with(['kshetra', 'prant', 'vibhag', 'jila', 'nagar', 'basti', 'shakha'])
             ->get();
             
         $subtotal = 0;
@@ -43,13 +44,16 @@ class OrderController extends Controller
             $subtotal += $item['price'] * $item['quantity'];
         }
 
+        $bastis = Basti::where('status', 'Active')->get(['id', 'nagar_id', 'basti_name', 'aayu_varg', 'type']);
+
         $orgData = [
             'kshetras' => Kshetra::all(['id', 'kshetra_name']),
             'prants' => Prant::all(['id', 'kshetra_id', 'prant_name']),
             'vibhags' => Vibhag::all(['id', 'prant_id', 'vibhag_name']),
             'jilas' => Jila::all(['id', 'vibhag_id', 'jila_name']),
             'nagars' => Nagar::all(['id', 'jila_id', 'nagar_name']),
-            'shakhas' => Shakha::where('status', 'Active')->get(['id', 'nagar_id', 'shakha_name', 'aayu_varg', 'type']),
+            'bastis' => $bastis,
+            'shakhas' => $bastis,
         ];
 
         return Inertia::render('Checkout/Index', [
@@ -165,7 +169,8 @@ class OrderController extends Controller
         $orders = Order::where('customer_id', $user->id)
             ->with([
                 'swayamsevak:id,name,mobile',
-                'shakha:id,shakha_name',
+                'basti:id,basti_name',
+                'shakha:id,basti_name',
                 'nagar:id,nagar_name',
                 'jila:id,jila_name',
                 'deliveryLocation.kshetra',
@@ -173,6 +178,7 @@ class OrderController extends Controller
                 'deliveryLocation.vibhag',
                 'deliveryLocation.jila',
                 'deliveryLocation.nagar',
+                'deliveryLocation.basti',
                 'deliveryLocation.shakha',
                 'items',
                 'returnRequest',
@@ -196,6 +202,7 @@ class OrderController extends Controller
         $order->load([
             'customer',
             'swayamsevak',
+            'basti',
             'shakha',
             'nagar',
             'jila',
@@ -204,6 +211,7 @@ class OrderController extends Controller
             'deliveryLocation.vibhag',
             'deliveryLocation.jila',
             'deliveryLocation.nagar',
+            'deliveryLocation.basti',
             'deliveryLocation.shakha',
             'deliveryPartner',
             'cancelledByUser',

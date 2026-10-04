@@ -34,8 +34,13 @@ class Jila extends Model
         return $this->hasMany(Nagar::class);
     }
 
+    public function bastis(): HasManyThrough
+    {
+        return $this->hasManyThrough(Basti::class, Nagar::class);
+    }
+
     public function shakhas(): HasManyThrough
     {
-        return $this->hasManyThrough(Shakha::class, Nagar::class);
+        return $this->bastis();
     }
 }

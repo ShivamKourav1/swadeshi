@@ -189,9 +189,10 @@ export default function Index({ products, categories, filters, orgUnits, userUni
     } else if (unitType === 'jila' && unitId) {
         const j = orgUnits?.jilas?.find((item) => String(item.id) === String(unitId));
         if (j) selectedUnitLabel = `${j.jila_name} Jila`;
-    } else if (unitType === 'shakha' && unitId) {
-        const s = orgUnits?.shakhas?.find((item) => String(item.id) === String(unitId));
-        if (s) selectedUnitLabel = s.shakha_name;
+    } else if ((unitType === 'basti' || unitType === 'shakha') && unitId) {
+        const bastisList = orgUnits?.bastis || orgUnits?.shakhas || [];
+        const s = bastisList.find((item) => String(item.id) === String(unitId));
+        if (s) selectedUnitLabel = s.basti_name || s.shakha_name;
     }
 
     return (
@@ -259,7 +260,7 @@ export default function Index({ products, categories, filters, orgUnits, userUni
                                 </span>
                             </h3>
                             <p className="text-xs text-gray-500 mt-0.5">
-                                Filter products by Shakha, Nagar, or Jila to buy from nearest Karyakarta dealers.
+                                Filter products by Basti, Nagar, or Jila to buy from nearest Karyakarta dealers.
                             </p>
                         </div>
                     </div>
@@ -294,7 +295,7 @@ export default function Index({ products, categories, filters, orgUnits, userUni
                             <option value="">{t('all_units')}</option>
                             <option value="nagar">{t('nagar')}</option>
                             <option value="jila">{t('jila')}</option>
-                            <option value="shakha">{t('shakha')}</option>
+                            <option value="basti">{t('basti')}</option>
                         </select>
                     </div>
 
@@ -320,9 +321,9 @@ export default function Index({ products, categories, filters, orgUnits, userUni
                                     {j.jila_name} Jila
                                 </option>
                             ))}
-                            {unitType === 'shakha' && orgUnits?.shakhas?.map((s) => (
+                            {(unitType === 'basti' || unitType === 'shakha') && (orgUnits?.bastis || orgUnits?.shakhas)?.map((s) => (
                                 <option key={s.id} value={s.id}>
-                                    {s.shakha_name} {s.nagar?.nagar_name ? `(${s.nagar.nagar_name})` : ''}
+                                    {s.basti_name || s.shakha_name} {s.nagar?.nagar_name ? `(${s.nagar.nagar_name})` : ''}
                                 </option>
                             ))}
                         </select>

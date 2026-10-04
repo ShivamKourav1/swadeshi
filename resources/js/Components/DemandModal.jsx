@@ -30,7 +30,7 @@ export default function DemandModal({ product, isOpen, onClose, user }) {
         setNotes('');
         setError('');
 
-        // Fetch swayamsevaks for user's unit/shakha if available
+        // Fetch swayamsevaks for user's unit/basti if available
         setLoadingSwayamsevaks(true);
         fetch('/api/swayamsevaks', {
             headers: {

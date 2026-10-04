@@ -153,9 +153,9 @@ class ToliInventoryScopeTest extends TestCase
             $page->component('Karyakarta/InventoryScope/Index')
                 ->where('unit.name', 'Jila Badrinath')
                 ->where('unit.level', 'jila')
-                ->has('availableSubUnits', 2) // nagar, shakha
+                ->has('availableSubUnits', 2) // nagar, basti
                 ->where('availableSubUnits.0.id', 'nagar')
-                ->where('availableSubUnits.1.id', 'shakha')
+                ->where('availableSubUnits.1.id', 'basti')
         );
     }
 

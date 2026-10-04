@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Basti;
 use App\Models\DeliveryLocation;
 use App\Models\DeliveryLog;
 use App\Models\Jila;
@@ -97,11 +98,11 @@ class OrganizationSeeder extends Seeder
             ]);
         }
 
-        // 6. Shakhas under Nagars
+        // 6. Bastis under Nagars
         $sampleShakhas = [
-            'keshav' => Shakha::create([
+            'keshav' => Basti::create([
                 'nagar_id' => $nagars['Madhav']->id,
-                'shakha_name' => 'Keshav Prabhat Shakha',
+                'basti_name' => 'Keshav Prabhat Shakha',
                 'aayu_varg' => 'Vyavsai',
                 'type' => 'dainik',
                 'toli' => [
@@ -110,9 +111,9 @@ class OrganizationSeeder extends Seeder
                 ],
                 'status' => 'Active',
             ]),
-            'vivekanand' => Shakha::create([
+            'vivekanand' => Basti::create([
                 'nagar_id' => $nagars['Madhav']->id,
-                'shakha_name' => 'Vivekanand Tarun Shakha',
+                'basti_name' => 'Vivekanand Tarun Shakha',
                 'aayu_varg' => 'Mahavidhyalay',
                 'type' => 'dainik',
                 'toli' => [
@@ -121,9 +122,9 @@ class OrganizationSeeder extends Seeder
                 ],
                 'status' => 'Active',
             ]),
-            'kabir' => Shakha::create([
+            'kabir' => Basti::create([
                 'nagar_id' => $nagars['Sant Kabir']->id,
-                'shakha_name' => 'Kabir Baal Shakha',
+                'basti_name' => 'Kabir Baal Shakha',
                 'aayu_varg' => 'Baal',
                 'type' => 'dainik',
                 'toli' => [
@@ -132,9 +133,9 @@ class OrganizationSeeder extends Seeder
                 ],
                 'status' => 'Active',
             ]),
-            'shivaji' => Shakha::create([
+            'shivaji' => Basti::create([
                 'nagar_id' => $nagars['Vishwakarma']->id,
-                'shakha_name' => 'Shivaji Saayam Shakha',
+                'basti_name' => 'Shivaji Saayam Shakha',
                 'aayu_varg' => 'Praurh',
                 'type' => 'saptahik',
                 'toli' => [
@@ -143,9 +144,9 @@ class OrganizationSeeder extends Seeder
                 ],
                 'status' => 'Active',
             ]),
-            'deendayal' => Shakha::create([
+            'deendayal' => Basti::create([
                 'nagar_id' => $nagars['Deendayal']->id,
-                'shakha_name' => 'Deendayal Saptahik Milan',
+                'basti_name' => 'Deendayal Saptahik Milan',
                 'aayu_varg' => 'Vyavsai',
                 'type' => 'saptahik',
                 'toli' => [
@@ -154,9 +155,9 @@ class OrganizationSeeder extends Seeder
                 ],
                 'status' => 'Active',
             ]),
-            'chanakya' => Shakha::create([
+            'chanakya' => Basti::create([
                 'nagar_id' => $nagars['Chandragupt']->id,
-                'shakha_name' => 'Chanakya Tarun Shakha',
+                'basti_name' => 'Chanakya Tarun Shakha',
                 'aayu_varg' => 'Mahavidhyalay',
                 'type' => 'dainik',
                 'toli' => [
@@ -165,9 +166,9 @@ class OrganizationSeeder extends Seeder
                 ],
                 'status' => 'Active',
             ]),
-            'maharana' => Shakha::create([
+            'maharana' => Basti::create([
                 'nagar_id' => $nagars['Veer Gogadev']->id,
-                'shakha_name' => 'Maharana Pratap Shakha',
+                'basti_name' => 'Maharana Pratap Shakha',
                 'aayu_varg' => 'Praurh',
                 'type' => 'dainik',
                 'toli' => [
@@ -255,6 +256,7 @@ class OrganizationSeeder extends Seeder
                 'vibhag_id' => $indoreVibhag->id,
                 'jila_id' => $badrinathJila->id,
                 'nagar_id' => $nagars['Madhav']->id,
+                'basti_id' => $sampleShakhas['keshav']->id,
                 'shakha_id' => $sampleShakhas['keshav']->id,
             ]);
 
@@ -277,6 +279,7 @@ class OrganizationSeeder extends Seeder
                 'vibhag_id' => $indoreVibhag->id,
                 'jila_id' => $badrinathJila->id,
                 'nagar_id' => $nagars['Sant Kabir']->id,
+                'basti_id' => $sampleShakhas['kabir']->id,
                 'shakha_id' => $sampleShakhas['kabir']->id,
             ]);
 
@@ -299,6 +302,7 @@ class OrganizationSeeder extends Seeder
                 'vibhag_id' => $indoreVibhag->id,
                 'jila_id' => $badrinathJila->id,
                 'nagar_id' => $nagars['Vishwakarma']->id,
+                'basti_id' => $sampleShakhas['shivaji']->id,
                 'shakha_id' => $sampleShakhas['shivaji']->id,
             ]);
 

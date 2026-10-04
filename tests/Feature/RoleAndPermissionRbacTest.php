@@ -195,8 +195,8 @@ class RoleAndPermissionRbacTest extends TestCase
         ]);
 
         $response->assertRedirect();
-        $this->assertDatabaseHas('shakhas', [
-            'shakha_name' => 'Authorized Badrinath Shakha',
+        $this->assertDatabaseHas('bastis', [
+            'basti_name' => 'Authorized Badrinath Shakha',
             'nagar_id' => $this->nagarInJila1->id,
         ]);
     }
@@ -221,7 +221,7 @@ class RoleAndPermissionRbacTest extends TestCase
         ]));
 
         $response->assertStatus(403);
-        $this->assertDatabaseHas('shakhas', ['id' => $foreignShakha->id]);
+        $this->assertDatabaseHas('bastis', ['id' => $foreignShakha->id]);
     }
 
     public function test_signup_user_promoted_to_jila_karyakarta_can_access_dashboard_and_see_orders(): void

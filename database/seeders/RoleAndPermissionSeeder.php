@@ -45,10 +45,16 @@ class RoleAndPermissionSeeder extends Seeder
                 'description' => 'Create, edit, and remove Nagars within assigned Jila jurisdiction.',
             ],
             [
-                'name' => 'manage_shakha',
-                'display_name' => 'Manage Shakhas (शाखा प्रबंधन)',
+                'name' => 'manage_basti',
+                'display_name' => 'Manage Bastis (बस्ती प्रबंधन)',
                 'group' => 'Organization Units',
-                'description' => 'Create, edit, and remove Shakhas within assigned Nagar jurisdiction.',
+                'description' => 'Create, edit, and remove Bastis within assigned Nagar jurisdiction.',
+            ],
+            [
+                'name' => 'manage_shakha',
+                'display_name' => 'Manage Bastis (बस्ती प्रबंधन)',
+                'group' => 'Organization Units',
+                'description' => 'Create, edit, and remove Bastis within assigned Nagar jurisdiction.',
             ],
             [
                 'name' => 'manage_toli',
@@ -149,13 +155,14 @@ class RoleAndPermissionSeeder extends Seeder
             'kshetra_karyakarta' => [
                 'name' => 'kshetra_karyakarta',
                 'display_name' => 'Kshetra Karyakarta (क्षेत्र कार्यकर्ता)',
-                'description' => 'Oversees Kshetra jurisdiction. Manages Prants, Vibhags, Jilas, Nagars, and Shakhas.',
+                'description' => 'Oversees Kshetra jurisdiction. Manages Prants, Vibhags, Jilas, Nagars, and Bastis.',
                 'is_system' => false,
                 'permissions' => [
                     'manage_prant',
                     'manage_vibhag',
                     'manage_jila',
                     'manage_nagar',
+                    'manage_basti',
                     'manage_shakha',
                     'manage_toli',
                     'view_unit_directory',
@@ -165,12 +172,13 @@ class RoleAndPermissionSeeder extends Seeder
             'prant_karyakarta' => [
                 'name' => 'prant_karyakarta',
                 'display_name' => 'Prant Karyakarta (प्रान्त कार्यकर्ता)',
-                'description' => 'Oversees Prant jurisdiction. Manages Vibhags, Jilas, Nagars, and Shakhas.',
+                'description' => 'Oversees Prant jurisdiction. Manages Vibhags, Jilas, Nagars, and Bastis.',
                 'is_system' => false,
                 'permissions' => [
                     'manage_vibhag',
                     'manage_jila',
                     'manage_nagar',
+                    'manage_basti',
                     'manage_shakha',
                     'manage_toli',
                     'view_unit_directory',
@@ -180,11 +188,12 @@ class RoleAndPermissionSeeder extends Seeder
             'vibhag_karyakarta' => [
                 'name' => 'vibhag_karyakarta',
                 'display_name' => 'Vibhag Karyakarta (विभाग कार्यकर्ता)',
-                'description' => 'Oversees Vibhag jurisdiction. Manages Jilas, Nagars, and Shakhas.',
+                'description' => 'Oversees Vibhag jurisdiction. Manages Jilas, Nagars, and Bastis.',
                 'is_system' => false,
                 'permissions' => [
                     'manage_jila',
                     'manage_nagar',
+                    'manage_basti',
                     'manage_shakha',
                     'manage_toli',
                     'view_unit_directory',
@@ -194,10 +203,11 @@ class RoleAndPermissionSeeder extends Seeder
             'jila_karyakarta' => [
                 'name' => 'jila_karyakarta',
                 'display_name' => 'Jila Karyakarta (जिला कार्यकर्ता)',
-                'description' => 'Oversees Jila jurisdiction. Manages Nagars and Shakhas.',
+                'description' => 'Oversees Jila jurisdiction. Manages Nagars and Bastis.',
                 'is_system' => false,
                 'permissions' => [
                     'manage_nagar',
+                    'manage_basti',
                     'manage_shakha',
                     'manage_toli',
                     'view_unit_directory',
@@ -207,10 +217,22 @@ class RoleAndPermissionSeeder extends Seeder
             'nagar_karyakarta' => [
                 'name' => 'nagar_karyakarta',
                 'display_name' => 'Nagar Karyakarta (नगर कार्यकर्ता)',
-                'description' => 'Oversees Nagar jurisdiction. Manages local Shakhas and Toli contacts.',
+                'description' => 'Oversees Nagar jurisdiction. Manages local Bastis and Toli contacts.',
                 'is_system' => false,
                 'permissions' => [
+                    'manage_basti',
                     'manage_shakha',
+                    'manage_toli',
+                    'view_unit_directory',
+                    'view_karyakarta_dashboard',
+                ],
+            ],
+            'basti_karyakarta' => [
+                'name' => 'basti_karyakarta',
+                'display_name' => 'Basti Karyakarta (बस्ती कार्यकर्ता)',
+                'description' => 'Manages Basti toli contacts and monitors local field deliveries.',
+                'is_system' => false,
+                'permissions' => [
                     'manage_toli',
                     'view_unit_directory',
                     'view_karyakarta_dashboard',
@@ -218,8 +240,8 @@ class RoleAndPermissionSeeder extends Seeder
             ],
             'shakha_karyakarta' => [
                 'name' => 'shakha_karyakarta',
-                'display_name' => 'Shakha Karyakarta (शाखा कार्यकर्ता)',
-                'description' => 'Manages Shakha toli contacts and monitors local field deliveries.',
+                'display_name' => 'Basti Karyakarta (बस्ती कार्यकर्ता)',
+                'description' => 'Manages Basti toli contacts and monitors local field deliveries.',
                 'is_system' => false,
                 'permissions' => [
                     'manage_toli',
@@ -230,10 +252,11 @@ class RoleAndPermissionSeeder extends Seeder
             'karyakarta' => [
                 'name' => 'karyakarta',
                 'display_name' => 'General Karyakarta (सामान्य कार्यकर्ता)',
-                'description' => 'Standard organizational officer with permissions to manage assigned Nagars and Shakhas.',
+                'description' => 'Standard organizational officer with permissions to manage assigned Nagars and Bastis.',
                 'is_system' => false,
                 'permissions' => [
                     'manage_nagar',
+                    'manage_basti',
                     'manage_shakha',
                     'manage_toli',
                     'view_unit_directory',

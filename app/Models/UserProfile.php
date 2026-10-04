@@ -23,8 +23,8 @@ class UserProfile extends Model
         'vibhag_id',
         'jila_id',
         'nagar_id',
-        'shakha_id',
-        'is_shakha_toli_member',
+        'basti_id',
+        'is_basti_toli_member',
         'is_nagar_toli_member',
         'is_jila_toli_member',
         'is_vibhag_toli_member',
@@ -34,12 +34,46 @@ class UserProfile extends Model
 
     protected $casts = [
         'has_seeded_shakha_products' => 'boolean',
-        'is_shakha_toli_member' => 'boolean',
+        'is_basti_toli_member' => 'boolean',
         'is_nagar_toli_member' => 'boolean',
         'is_jila_toli_member' => 'boolean',
         'is_vibhag_toli_member' => 'boolean',
         'is_kshetra_toli_member' => 'boolean',
     ];
+
+    protected $appends = [
+        'shakha_id',
+        'is_shakha_toli_member',
+    ];
+
+    public function fill(array $attributes)
+    {
+        if (isset($attributes['shakha_id']) && !isset($attributes['basti_id'])) {
+            $attributes['basti_id'] = $attributes['shakha_id'];
+        }
+        if (isset($attributes['is_shakha_toli_member']) && !isset($attributes['is_basti_toli_member'])) {
+            $attributes['is_basti_toli_member'] = $attributes['is_shakha_toli_member'];
+        }
+        unset($attributes['shakha_id'], $attributes['is_shakha_toli_member']);
+        return parent::fill($attributes);
+    }
+
+    public function newEloquentBuilder($query)
+    {
+        return new class($query) extends \Illuminate\Database\Eloquent\Builder {
+            public function where($column, $operator = null, $value = null, $boolean = 'and')
+            {
+                if (is_string($column)) {
+                    $column = str_replace(
+                        ['shakha_id', 'is_shakha_toli_member'],
+                        ['basti_id', 'is_basti_toli_member'],
+                        $column
+                    );
+                }
+                return parent::where($column, $operator, $value, $boolean);
+            }
+        };
+    }
 
     public function user(): BelongsTo
     {
@@ -71,9 +105,37 @@ class UserProfile extends Model
         return $this->belongsTo(Nagar::class);
     }
 
+    public function basti(): BelongsTo
+    {
+        return $this->belongsTo(Basti::class);
+    }
+
+    /**
+     * Backward-compatible alias for basti relationship.
+     */
     public function shakha(): BelongsTo
     {
-        return $this->belongsTo(Shakha::class);
+        return $this->basti();
+    }
+
+    public function getShakhaIdAttribute(): ?int
+    {
+        return $this->attributes['basti_id'] ?? null;
+    }
+
+    public function setShakhaIdAttribute(?int $value): void
+    {
+        $this->attributes['basti_id'] = $value;
+    }
+
+    public function getIsShakhaToliMemberAttribute(): bool
+    {
+        return (bool) ($this->attributes['is_basti_toli_member'] ?? false);
+    }
+
+    public function setIsShakhaToliMemberAttribute(bool $value): void
+    {
+        $this->attributes['is_basti_toli_member'] = $value;
     }
 
     /**
@@ -81,8 +143,8 @@ class UserProfile extends Model
      */
     public function getScopeDescriptionAttribute(): string
     {
-        if ($this->shakha_id && $this->shakha) {
-            return "Shakha: {$this->shakha->shakha_name}";
+        if ($this->basti_id && $this->basti) {
+            return "Basti: {$this->basti->basti_name}";
         }
         if ($this->nagar_id && $this->nagar) {
             return "Nagar: {$this->nagar->nagar_name}";

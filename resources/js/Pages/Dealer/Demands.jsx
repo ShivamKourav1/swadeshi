@@ -476,9 +476,9 @@ export default function Demands({ products, shareable_products = [], categories,
                                                                                 <span className="font-semibold text-amber-900 bg-amber-100/70 px-2 py-0.5 rounded-md inline-block">
                                                                                     {demand.swayamsevak.name}
                                                                                 </span>
-                                                                                {demand.swayamsevak.shakha_name && (
+                                                                                {(demand.swayamsevak.basti_name || demand.swayamsevak.shakha_name) && (
                                                                                     <div className="text-[10px] text-stone-500 mt-0.5">
-                                                                                        शाखा: {demand.swayamsevak.shakha_name}
+                                                                                        बस्ती: {demand.swayamsevak.basti_name || demand.swayamsevak.shakha_name}
                                                                                     </div>
                                                                                 )}
                                                                             </div>

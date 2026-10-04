@@ -47,7 +47,8 @@ export default function ToliIndex({
     subUnits = [],
     swayamsevaks = [],
     swayamsevakStats = { total: 0, ganvesh: 0, non_ganvesh: 0, new_ganvesh: 0 },
-    availableShakhas = [],
+    availableBastis = [],
+    availableShakhas = availableBastis || [],
     products = [],
     orders = [],
     orderStats = { total: 0, paid: 0, payment_due: 0, delivered: 0, completed: 0, cancelled: 0 },
@@ -55,6 +56,10 @@ export default function ToliIndex({
     shikshanOptions = [],
     flash = {}
 }) {
+    const bastisList = (availableBastis && availableBastis.length > 0) ? availableBastis : (availableShakhas || []);
+    const isBasti = unit?.level === 'basti' || unit?.level === 'shakha';
+    const currentBastiId = unit?.basti_id || unit?.shakha_id || (isBasti ? unit?.id : null);
+
     // Current active navigation tab
     const [activeTab, setActiveTab] = useState('members'); // 'members', 'distribution', 'orders', 'subunits'
 
@@ -81,7 +86,8 @@ export default function ToliIndex({
         name: '',
         mobile: '',
         address: '',
-        shakha_id: unit?.shakha_id || (availableShakhas[0]?.id ?? ''),
+        basti_id: currentBastiId || (bastisList[0]?.id ?? ''),
+        shakha_id: currentBastiId || (bastisList[0]?.id ?? ''),
         ganvesh: false,
         shikshan: 'प्रारंभिक'
     });
@@ -89,13 +95,13 @@ export default function ToliIndex({
 
     // CSV Bulk Import Modal
     const [showImportModal, setShowImportModal] = useState(false);
-    const [importShakhaId, setImportShakhaId] = useState(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+    const [importShakhaId, setImportShakhaId] = useState(currentBastiId || (bastisList[0]?.id ?? ''));
     const [importFile, setImportFile] = useState(null);
     const [importSubmitting, setImportSubmitting] = useState(false);
 
     // New Ganvesh Update Modal
     const [showNewGanveshModal, setShowNewGanveshModal] = useState(false);
-    const [selectedShakhaForNewGanvesh, setSelectedShakhaForNewGanvesh] = useState(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
+    const [selectedShakhaForNewGanvesh, setSelectedShakhaForNewGanvesh] = useState(currentBastiId || (bastisList[0]?.id ?? ''));
     const [newGanveshValue, setNewGanveshValue] = useState(unit?.new_ganvesh ?? 0);
     const [newGanveshSubmitting, setNewGanveshSubmitting] = useState(false);
 
@@ -128,7 +134,7 @@ export default function ToliIndex({
     const [orderQuantity, setOrderQuantity] = useState(1);
     const [orderPaymentStatus, setOrderPaymentStatus] = useState('paid'); // 'paid', 'payment_due', 'placed', 'completed'
     const [orderNotes, setOrderNotes] = useState('');
-    const [orderShakhaId, setOrderShakhaId] = useState(unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '');
+    const [orderShakhaId, setOrderShakhaId] = useState(isBasti ? (currentBastiId || '') : '');
     const [orderSwayamsevakId, setOrderSwayamsevakId] = useState('');
     const [orderSubmitting, setOrderSubmitting] = useState(false);
 
@@ -346,7 +352,8 @@ export default function ToliIndex({
             name: '',
             mobile: '',
             address: '',
-            shakha_id: unit?.shakha_id || (availableShakhas[0]?.id ?? ''),
+            basti_id: currentBastiId || (bastisList[0]?.id ?? ''),
+            shakha_id: currentBastiId || (bastisList[0]?.id ?? ''),
             ganvesh: false,
             shikshan: 'प्रारंभिक'
         });
@@ -360,7 +367,8 @@ export default function ToliIndex({
             name: m.name,
             mobile: m.mobile || '',
             address: m.address || '',
-            shakha_id: m.shakha_id,
+            basti_id: m.basti_id || m.shakha_id,
+            shakha_id: m.basti_id || m.shakha_id,
             ganvesh: m.ganvesh,
             shikshan: m.shikshan || 'प्रारंभिक'
         });
@@ -418,6 +426,7 @@ export default function ToliIndex({
 
         const formData = new FormData();
         formData.append('file', importFile);
+        formData.append('basti_id', importShakhaId);
         formData.append('shakha_id', importShakhaId);
 
         setImportSubmitting(true);
@@ -436,14 +445,14 @@ export default function ToliIndex({
     // Update New Ganvesh Figure
     const handleUpdateNewGanvesh = (e) => {
         e.preventDefault();
-        const targetShakhaId = unit?.level === 'shakha' ? unit.id : selectedShakhaForNewGanvesh;
+        const targetShakhaId = isBasti ? unit.id : selectedShakhaForNewGanvesh;
         if (!targetShakhaId) {
-            showToast('कृपया शाखा चुनें।', 'error');
+            showToast('कृपया बस्ती चुनें।', 'error');
             return;
         }
 
         setNewGanveshSubmitting(true);
-        router.post(`/toli/shakhas/${targetShakhaId}/new-ganvesh`, {
+        router.post(`/toli/bastis/${targetShakhaId}/new-ganvesh`, {
             new_ganvesh: parseInt(newGanveshValue) || 0
         }, {
             preserveScroll: true,
@@ -473,7 +482,7 @@ export default function ToliIndex({
         setOrderQuantity(1);
         setOrderPaymentStatus('paid');
         setOrderNotes('');
-        const initialShakha = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '';
+        const initialShakha = isBasti ? (currentBastiId || '') : '';
         setOrderShakhaId(initialShakha);
         setOrderSwayamsevakId('');
         setOrderMemberSearch('');
@@ -495,7 +504,7 @@ export default function ToliIndex({
         setSelectedProduct(product);
         setOrderQuantity(1);
         setOrderNotes('');
-        const initialShakha = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '';
+        const initialShakha = isBasti ? (currentBastiId || '') : '';
         setOrderShakhaId(initialShakha);
         setOrderSwayamsevakId('');
         setOrderMemberSearch('');
@@ -512,23 +521,23 @@ export default function ToliIndex({
         setShowOrderSuccessModal(false);
     };
 
-    const effectiveOrderShakhaId = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id) : orderShakhaId;
+    const effectiveOrderShakhaId = isBasti ? (currentBastiId || '') : orderShakhaId;
 
     const currentSelectedShakha = useMemo(() => {
         if (!effectiveOrderShakhaId) return null;
-        return availableShakhas.find((s) => String(s.id) === String(effectiveOrderShakhaId)) || (unit?.level === 'shakha' ? { id: unit.id, shakha_name: unit.name } : null);
-    }, [availableShakhas, effectiveOrderShakhaId, unit]);
+        return bastisList.find((s) => String(s.id) === String(effectiveOrderShakhaId)) || (isBasti ? { id: unit.id, basti_name: unit.name, shakha_name: unit.name } : null);
+    }, [bastisList, effectiveOrderShakhaId, unit, isBasti]);
 
-    // Available swayamsevaks for order dropdown (populated only after selecting shakha, or automatically on shakha-level page)
+    // Available swayamsevaks for order dropdown (populated only after selecting basti, or automatically on basti-level page)
     const availableMembersForOrder = useMemo(() => {
         if (!effectiveOrderShakhaId) return [];
-        return localSwayamsevaks.filter((s) => String(s.shakha_id) === String(effectiveOrderShakhaId));
+        return localSwayamsevaks.filter((s) => String(s.basti_id || s.shakha_id) === String(effectiveOrderShakhaId));
     }, [localSwayamsevaks, effectiveOrderShakhaId]);
 
     // Filtered swayamsevaks for the search dropdown
     const filteredOrderMembers = useMemo(() => {
         if (!effectiveOrderShakhaId) return [];
-        const list = localSwayamsevaks.filter((s) => String(s.shakha_id) === String(effectiveOrderShakhaId));
+        const list = localSwayamsevaks.filter((s) => String(s.basti_id || s.shakha_id) === String(effectiveOrderShakhaId));
         if (!orderMemberSearch.trim()) return list;
         const q = orderMemberSearch.toLowerCase().trim();
         return list.filter((m) =>
@@ -553,7 +562,7 @@ export default function ToliIndex({
             return;
         }
         if (!effectiveOrderShakhaId) {
-            setInlineMemberError('कृपया पहले शाखा का चयन करें।');
+            setInlineMemberError('कृपया पहले बस्ती का चयन करें।');
             return;
         }
 
@@ -563,6 +572,7 @@ export default function ToliIndex({
                 name: inlineMemberForm.name.trim(),
                 mobile: inlineMemberForm.mobile.trim() || null,
                 address: inlineMemberForm.address.trim() || null,
+                basti_id: effectiveOrderShakhaId,
                 shakha_id: effectiveOrderShakhaId,
                 ganvesh: !!inlineMemberForm.ganvesh,
                 shikshan: inlineMemberForm.shikshan || 'प्रारंभिक',
@@ -592,8 +602,8 @@ export default function ToliIndex({
         e.preventDefault();
         if (!selectedProduct) return;
 
-        if (unit?.level !== 'shakha' && !effectiveOrderShakhaId) {
-            showToast('कृपया पहले शाखा का चयन करें।', 'error');
+        if (!isBasti && !effectiveOrderShakhaId) {
+            showToast('कृपया पहले बस्ती का चयन करें।', 'error');
             return;
         }
 
@@ -605,6 +615,7 @@ export default function ToliIndex({
                 payment_status: orderPaymentStatus,
                 notes: orderNotes.trim() || null,
                 swayamsevak_id: orderSwayamsevakId ? parseInt(orderSwayamsevakId) : null,
+                basti_id: effectiveOrderShakhaId || null,
                 shakha_id: effectiveOrderShakhaId || null,
                 nagar_id: unit?.nagar_id || null,
                 jila_id: unit?.jila_id || null,
@@ -643,8 +654,8 @@ export default function ToliIndex({
         e.preventDefault();
         if (!selectedProduct) return;
 
-        if (unit?.level !== 'shakha' && !effectiveOrderShakhaId) {
-            showToast('कृपया पहले शाखा का चयन करें।', 'error');
+        if (!isBasti && !effectiveOrderShakhaId) {
+            showToast('कृपया पहले बस्ती का चयन करें।', 'error');
             return;
         }
 
@@ -686,7 +697,7 @@ export default function ToliIndex({
 
             const matchesShakha =
                 memberShakhaFilter === 'all' ||
-                String(s.shakha_id) === String(memberShakhaFilter);
+                String(s.basti_id || s.shakha_id) === String(memberShakhaFilter);
 
             return matchesSearch && matchesGanvesh && matchesShakha;
         });
@@ -703,7 +714,7 @@ export default function ToliIndex({
 
             const matchesShakha =
                 ordersShakhaFilter === 'all' ||
-                String(o.shakha_id) === String(ordersShakhaFilter);
+                String(o.basti_id || o.shakha_id) === String(ordersShakhaFilter);
 
             return matchesStatus && matchesShakha;
         });
@@ -1039,17 +1050,17 @@ export default function ToliIndex({
                                     </button>
                                 ))}
 
-                                {availableShakhas.length > 1 && (
+                                {bastisList.length > 1 && (
                                     <div className="ml-auto flex items-center space-x-1">
-                                        <span className="text-stone-500 font-medium">शाखा:</span>
+                                        <span className="text-stone-500 font-medium">बस्ती:</span>
                                         <select
                                             value={memberShakhaFilter}
                                             onChange={(e) => setMemberShakhaFilter(e.target.value)}
                                             className="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs focus:ring-1 focus:ring-amber-500"
                                         >
-                                            <option value="all">सभी शाखाएं</option>
-                                            {availableShakhas.map((s) => (
-                                                <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                            <option value="all">सभी बस्तियां</option>
+                                            {bastisList.map((s) => (
+                                                <option key={s.id} value={s.id}>{s.basti_name || s.shakha_name}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -1117,9 +1128,9 @@ export default function ToliIndex({
                                                     </div>
                                                 )}
 
-                                                {m.shakha_name && (
+                                                {(m.basti_name || m.shakha_name) && (
                                                     <span className="text-[11px] text-stone-400">
-                                                        ({m.shakha_name})
+                                                        ({m.basti_name || m.shakha_name})
                                                     </span>
                                                 )}
                                             </div>
@@ -1322,17 +1333,17 @@ export default function ToliIndex({
                                 ))}
                             </div>
 
-                            {availableShakhas.length > 1 && (
+                            {bastisList.length > 1 && (
                                 <div className="flex items-center space-x-1 ml-auto">
-                                    <span className="text-stone-500 font-medium">उप-टोली:</span>
+                                    <span className="text-stone-500 font-medium">बस्ती:</span>
                                     <select
                                         value={ordersShakhaFilter}
                                         onChange={(e) => setOrdersShakhaFilter(e.target.value)}
                                         className="px-2 py-1 bg-stone-50 border border-stone-200 rounded text-xs focus:ring-1 focus:ring-amber-500"
                                     >
-                                        <option value="all">सभी उप-टोली</option>
-                                        {availableShakhas.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        <option value="all">सभी बस्तियां</option>
+                                        {bastisList.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.basti_name || s.shakha_name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1416,7 +1427,7 @@ export default function ToliIndex({
                                                 <div className="space-y-1">
                                                     <div className="space-x-2">
                                                         <span>📅 {o.placed_at}</span>
-                                                        {o.shakha_name && <span>• शाखा: {o.shakha_name}</span>}
+                                                        {(o.basti_name || o.shakha_name) && <span>• बस्ती: {o.basti_name || o.shakha_name}</span>}
                                                         <span className="text-stone-400">• दर्जकर्ता: {o.customer_name}</span>
                                                         {o.notes && <span className="italic text-amber-800 font-medium">• {o.notes}</span>}
                                                     </div>
@@ -1848,11 +1859,11 @@ export default function ToliIndex({
                                 </div>
                             )}
 
-                            {/* Shakha Assignment (if not at shakha level) */}
-                            {unit?.level !== 'shakha' && (
+                            {/* Basti Assignment (if not at basti level) */}
+                            {!isBasti && (
                                 <div>
                                     <label className="block text-xs font-bold text-stone-700 mb-1">
-                                        शाखा का चयन <span className="text-red-500">*</span>
+                                        बस्ती का चयन <span className="text-red-500">*</span>
                                     </label>
                                     <select
                                         value={orderShakhaId}
@@ -1866,9 +1877,9 @@ export default function ToliIndex({
                                         required
                                         className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-amber-500"
                                     >
-                                        <option value="">-- कृपया शाखा का चयन करें --</option>
-                                        {availableShakhas.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        <option value="">-- कृपया बस्ती का चयन करें --</option>
+                                        {bastisList.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.basti_name || s.shakha_name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -1904,7 +1915,7 @@ export default function ToliIndex({
 
                                 {!effectiveOrderShakhaId ? (
                                     <div className="w-full p-2.5 bg-stone-100 border border-stone-200 rounded-lg text-xs text-stone-400 font-medium">
-                                        -- पहले ऊपर शाखा का चयन करें --
+                                        -- पहले ऊपर बस्ती का चयन करें --
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
@@ -2085,7 +2096,7 @@ export default function ToliIndex({
                                                 <div className="flex items-center justify-between pb-2 mb-2 border-b border-amber-200">
                                                     <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-900">
                                                         <UserPlus className="w-4 h-4 text-amber-700" />
-                                                        <span>त्वरित स्वयंसेवक पंजीकरण {currentSelectedShakha ? `(शाखा: ${currentSelectedShakha.shakha_name})` : ''}</span>
+                                                        <span>त्वरित स्वयंसेवक पंजीकरण {currentSelectedShakha ? `(बस्ती: ${currentSelectedShakha.basti_name || currentSelectedShakha.shakha_name})` : ''}</span>
                                                     </div>
                                                     <button
                                                         type="button"
@@ -2429,18 +2440,18 @@ export default function ToliIndex({
                                 />
                             </div>
 
-                            {availableShakhas.length > 1 && (
+                            {bastisList.length > 1 && (
                                 <div>
                                     <label className="block text-xs font-bold text-stone-700 mb-1">
-                                        शाखा
+                                        बस्ती
                                     </label>
                                     <select
-                                        value={memberForm.shakha_id}
-                                        onChange={(e) => setMemberForm({ ...memberForm, shakha_id: e.target.value })}
+                                        value={memberForm.basti_id || memberForm.shakha_id}
+                                        onChange={(e) => setMemberForm({ ...memberForm, basti_id: e.target.value, shakha_id: e.target.value })}
                                         className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
                                     >
-                                        {availableShakhas.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        {bastisList.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.basti_name || s.shakha_name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -2534,10 +2545,10 @@ export default function ToliIndex({
                                 </a>
                             </div>
 
-                            {availableShakhas.length > 1 && (
+                            {bastisList.length > 1 && (
                                 <div>
                                     <label className="block text-xs font-bold text-stone-700 mb-1">
-                                        लक्षित शाखा (शाखा से सम्बद्ध करें)
+                                        लक्षित बस्ती (बस्ती से सम्बद्ध करें)
                                     </label>
                                     <select
                                         value={importShakhaId}
@@ -2545,8 +2556,8 @@ export default function ToliIndex({
                                         className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
                                         required
                                     >
-                                        {availableShakhas.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        {bastisList.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.basti_name || s.shakha_name}</option>
                                         ))}
                                     </select>
                                 </div>
@@ -2595,22 +2606,22 @@ export default function ToliIndex({
                         </div>
 
                         <form onSubmit={handleUpdateNewGanvesh} className="p-4 space-y-3">
-                            {unit?.level !== 'shakha' && availableShakhas.length > 0 && (
+                            {!isBasti && bastisList.length > 0 && (
                                 <div>
                                     <label className="block text-xs font-bold text-stone-700 mb-1">
-                                        शाखा चुनें
+                                        बस्ती चुनें
                                     </label>
                                     <select
                                         value={selectedShakhaForNewGanvesh}
                                         onChange={(e) => {
                                             setSelectedShakhaForNewGanvesh(e.target.value);
-                                            const matched = availableShakhas.find((s) => String(s.id) === String(e.target.value));
+                                            const matched = bastisList.find((s) => String(s.id) === String(e.target.value));
                                             if (matched) setNewGanveshValue(matched.new_ganvesh ?? 0);
                                         }}
                                         className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
                                     >
-                                        {availableShakhas.map((s) => (
-                                            <option key={s.id} value={s.id}>{s.shakha_name}</option>
+                                        {bastisList.map((s) => (
+                                            <option key={s.id} value={s.id}>{s.basti_name || s.shakha_name}</option>
                                         ))}
                                     </select>
                                 </div>

@@ -37,7 +37,9 @@ export const translations = {
         vibhag: 'विभाग (Vibhag)',
         jila: 'जिला (Jila)',
         nagar: 'नगर (Nagar)',
-        shakha: 'शाखा (Shakha)',
+        basti: 'बस्ती (Basti)',
+        bastis: 'बस्तियां (Bastis)',
+        shakha: 'बस्ती (Basti)',
 
         // Storefront
         hero_title: 'उत्पाद खोजें',
@@ -177,7 +179,9 @@ export const translations = {
         vibhag: 'Vibhag',
         jila: 'Jila',
         nagar: 'Nagar',
-        shakha: 'Shakha',
+        basti: 'Basti',
+        bastis: 'Bastis',
+        shakha: 'Basti',
 
         // Storefront
         hero_title: 'Explore Premium Products',

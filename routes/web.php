@@ -151,7 +151,8 @@ Route::middleware('auth')->group(function () {
     Route::put('/toli/members/{swayamsevak}', [ToliController::class, 'updateMember'])->name('toli.members.update');
     Route::delete('/toli/members/{swayamsevak}', [ToliController::class, 'destroyMember'])->name('toli.members.destroy');
     Route::post('/toli/members/import', [ToliController::class, 'importMembers'])->name('toli.members.import');
-    Route::post('/toli/shakhas/{shakha}/new-ganvesh', [ToliController::class, 'updateNewGanvesh'])->name('toli.shakhas.new_ganvesh');
+    Route::post('/toli/bastis/{basti}/new-ganvesh', [ToliController::class, 'updateNewGanvesh'])->name('toli.bastis.new_ganvesh');
+    Route::post('/toli/shakhas/{basti}/new-ganvesh', [ToliController::class, 'updateNewGanvesh'])->name('toli.shakhas.new_ganvesh');
     Route::post('/toli/orders', [ToliController::class, 'placeOrder'])->name('toli.orders.store');
     Route::put('/toli/orders/{order}/status', [ToliController::class, 'updateOrderStatus'])->name('toli.orders.status');
     Route::post('/toli/orders/{order}/cancel', [ToliController::class, 'cancelOrder'])->name('toli.orders.cancel');
@@ -159,13 +160,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/toli/demands', [ToliController::class, 'storeDemand'])->name('toli.demands.store');
 });
 
-// Toli Hierarchy SPA Route (Matches /{kshetra}/{vibhag?}/{jila?}/{nagar?}/{shakha?})
-Route::get('/{kshetra}/{vibhag?}/{jila?}/{nagar?}/{shakha?}', [ToliController::class, 'show'])
+// Toli Hierarchy SPA Route (Matches /{kshetra}/{vibhag?}/{jila?}/{nagar?}/{basti?})
+Route::get('/{kshetra}/{vibhag?}/{jila?}/{nagar?}/{basti?}', [ToliController::class, 'show'])
     ->where([
         'kshetra' => '[a-zA-Z0-9_\-]+',
         'vibhag' => '[a-zA-Z0-9_\-]+',
         'jila' => '[a-zA-Z0-9_\-]+',
         'nagar' => '[a-zA-Z0-9_\-]+',
-        'shakha' => '[a-zA-Z0-9_\-]+',
+        'basti' => '[a-zA-Z0-9_\-]+',
     ])
     ->name('toli.page');

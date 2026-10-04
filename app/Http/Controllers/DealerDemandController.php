@@ -47,8 +47,9 @@ class DealerDemandController extends Controller
             'demands' => function ($q) {
                 $q->with([
                     'customer:id,name,email,mobile',
-                    'swayamsevak:id,name,mobile,shakha_id',
-                    'swayamsevak.shakha:id,shakha_name',
+                    'swayamsevak:id,name,mobile,basti_id,shakha_id',
+                    'swayamsevak.basti:id,basti_name',
+                    'swayamsevak.shakha:id,basti_name',
                 ])->orderBy('created_at', 'desc');
             }
         ])
@@ -74,6 +75,7 @@ class DealerDemandController extends Controller
                 'total_original_units' => $totalOriginalUnits,
                 'pending_demands_count' => $pendingDemandsCount,
                 'demands' => $product->demands->map(function ($demand) {
+                    $bastiName = $demand->swayamsevak?->basti?->basti_name ?? $demand->swayamsevak?->shakha?->shakha_name;
                     return [
                         'id' => $demand->id,
                         'customer' => [
@@ -86,7 +88,8 @@ class DealerDemandController extends Controller
                             'id' => $demand->swayamsevak->id,
                             'name' => $demand->swayamsevak->name,
                             'mobile' => $demand->swayamsevak->mobile,
-                            'shakha_name' => $demand->swayamsevak->shakha?->shakha_name,
+                            'basti_name' => $bastiName,
+                            'shakha_name' => $bastiName,
                         ] : null,
                         'quantity' => $demand->quantity,
                         'original_quantity' => $demand->original_quantity,

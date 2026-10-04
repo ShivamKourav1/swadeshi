@@ -23,10 +23,12 @@ export default function Edit({
     vibhags = [],
     jilas = [],
     nagars = [],
-    shakhas = [],
+    bastis = [],
+    shakhas = bastis || [],
     is_superadmin = false,
     is_toli_admin = false,
 }) {
+    const bastisList = (bastis && bastis.length > 0) ? bastis : shakhas;
     const profile = user.profile || {};
     const initialRoleIds = user.roles ? user.roles.map((r) => r.id) : [];
 
@@ -48,8 +50,10 @@ export default function Edit({
         vibhag_id: profile.vibhag_id ? String(profile.vibhag_id) : '',
         jila_id: profile.jila_id ? String(profile.jila_id) : '',
         nagar_id: profile.nagar_id ? String(profile.nagar_id) : '',
-        shakha_id: profile.shakha_id ? String(profile.shakha_id) : '',
-        is_shakha_toli_member: Boolean(profile.is_shakha_toli_member),
+        basti_id: (profile.basti_id || profile.shakha_id) ? String(profile.basti_id || profile.shakha_id) : '',
+        shakha_id: (profile.basti_id || profile.shakha_id) ? String(profile.basti_id || profile.shakha_id) : '',
+        is_basti_toli_member: Boolean(profile.is_basti_toli_member ?? profile.is_shakha_toli_member),
+        is_shakha_toli_member: Boolean(profile.is_basti_toli_member ?? profile.is_shakha_toli_member),
         is_nagar_toli_member: Boolean(profile.is_nagar_toli_member),
         is_jila_toli_member: Boolean(profile.is_jila_toli_member),
         is_vibhag_toli_member: Boolean(profile.is_vibhag_toli_member),
@@ -77,10 +81,12 @@ export default function Edit({
         return nagars.filter((n) => String(n.jila_id) === String(data.jila_id));
     }, [data.jila_id, nagars]);
 
-    const filteredShakhas = useMemo(() => {
-        if (!data.nagar_id) return shakhas;
-        return shakhas.filter((s) => String(s.nagar_id) === String(data.nagar_id));
-    }, [data.nagar_id, shakhas]);
+    const filteredBastis = useMemo(() => {
+        if (!data.nagar_id) return bastisList;
+        return bastisList.filter((s) => String(s.nagar_id) === String(data.nagar_id));
+    }, [data.nagar_id, bastisList]);
+
+    const filteredShakhas = filteredBastis;
 
     const toggleRoleId = (roleId) => {
         setData((prev) => {
@@ -633,6 +639,7 @@ export default function Edit({
                                             setData((prev) => ({
                                                 ...prev,
                                                 nagar_id: e.target.value,
+                                                basti_id: '',
                                                 shakha_id: '',
                                             }));
                                         }}
@@ -647,18 +654,25 @@ export default function Edit({
                                     </select>
                                 </div>
 
-                                {/* Shakha */}
+                                {/* Basti */}
                                 <div>
-                                    <label className="block font-bold text-amber-900 mb-1">6. Shakha (शाखा)</label>
+                                    <label className="block font-bold text-amber-900 mb-1">6. Basti (बस्ती)</label>
                                     <select
-                                        value={data.shakha_id}
-                                        onChange={(e) => setData('shakha_id', e.target.value)}
+                                        value={data.basti_id || data.shakha_id}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setData((prev) => ({
+                                                ...prev,
+                                                basti_id: val,
+                                                shakha_id: val,
+                                            }));
+                                        }}
                                         className="w-full p-2.5 bg-white border border-amber-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500"
                                     >
                                         <option value="">-- All / Not Restricted --</option>
-                                        {filteredShakhas.map((s) => (
+                                        {filteredBastis.map((s) => (
                                             <option key={s.id} value={s.id}>
-                                                {s.shakha_name}
+                                                {s.basti_name || s.shakha_name}
                                             </option>
                                         ))}
                                     </select>
@@ -675,7 +689,7 @@ export default function Edit({
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                                     {[
-                                        { key: 'is_shakha_toli_member', label: 'Shakha Toli (शाखा टोली सदस्य)' },
+                                        { key: 'is_basti_toli_member', label: 'Basti Toli (बस्ती टोली सदस्य)' },
                                         { key: 'is_nagar_toli_member', label: 'Nagar Toli (नगर टोली सदस्य)' },
                                         { key: 'is_jila_toli_member', label: 'Jila Toli (जिला टोली सदस्य)' },
                                         { key: 'is_vibhag_toli_member', label: 'Vibhag Toli (विभाग टोली सदस्य)' },
@@ -692,7 +706,14 @@ export default function Edit({
                                             <input
                                                 type="checkbox"
                                                 checked={Boolean(data[toli.key])}
-                                                onChange={(e) => setData(toli.key, e.target.checked)}
+                                                onChange={(e) => {
+                                                    const checked = e.target.checked;
+                                                    setData((prev) => ({
+                                                        ...prev,
+                                                        [toli.key]: checked,
+                                                        ...(toli.key === 'is_basti_toli_member' ? { is_shakha_toli_member: checked } : {}),
+                                                    }));
+                                                }}
                                                 className="rounded text-amber-600 focus:ring-amber-500"
                                             />
                                             <span className="text-xs">{toli.label}</span>

@@ -152,8 +152,8 @@ export default function ManualIndex() {
                                             </div>
                                             <p className="text-xs text-gray-600 leading-relaxed">
                                                 {isHi 
-                                                    ? 'क्षेत्र ➔ प्रान्त ➔ विभाग ➔ जिला ➔ नगर ➔ शाखा स्तर तक व्यवस्थित वितरण और ट्रैकिंग।'
-                                                    : 'From Kshetra down to Shakha, track and filter supplies across regional hierarchies.'}
+                                                    ? 'क्षेत्र ➔ प्रान्त ➔ विभाग ➔ जिला ➔ नगर ➔ बस्ती स्तर तक व्यवस्थित वितरण और ट्रैकिंग।'
+                                                    : 'From Kshetra down to Basti, track and filter supplies across regional hierarchies.'}
                                             </p>
                                         </div>
 
@@ -348,7 +348,7 @@ export default function ManualIndex() {
                                         <div className="pl-8">└── 3. Vibhag (विभाग - Division)</div>
                                         <div className="pl-12">└── 4. Jila (जिला - District)</div>
                                         <div className="pl-16">└── 5. Nagar (नगर - City/Town)</div>
-                                        <div className="pl-20">└── 6. Shakha (शाखा - Community Unit)</div>
+                                        <div className="pl-20">└── 6. Basti (बस्ती - Community Unit)</div>
                                     </div>
 
                                     <div className="space-y-3">
@@ -356,8 +356,8 @@ export default function ManualIndex() {
                                             <h4 className="font-extrabold text-gray-900">{isHi ? 'इकाइयां जोड़ना व प्रबंधित करना (/karyakarta/units)' : 'Managing Units'}</h4>
                                             <p className="text-sm text-gray-600 mt-1">
                                                 {isHi 
-                                                    ? 'किसी भी स्तर की इकाई (जैसे नया नगर अथवा शाखा) बनाएं और उसे उसकी मूल इकाई से संबद्ध करें।'
-                                                    : 'Add or update units at any level and link them to their respective parent unit (e.g. associate a Shakha to its Nagar).'}
+                                                    ? 'किसी भी स्तर की इकाई (जैसे नया नगर अथवा बस्ती) बनाएं और उसे उसकी मूल इकाई से संबद्ध करें।'
+                                                    : 'Add or update units at any level and link them to their respective parent unit (e.g. associate a Basti to its Nagar).'}
                                             </p>
                                         </div>
 

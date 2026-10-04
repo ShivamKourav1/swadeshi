@@ -427,9 +427,9 @@ export default function Show({ order }) {
                                 <div className="inline-block bg-orange-100 text-orange-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
                                     टोली प्रत्यक्ष वितरण (Toli Direct Distribution)
                                 </div>
-                                {(order.shakha || order.nagar || order.jila) && (
+                                {(order.basti || order.shakha || order.nagar || order.jila) && (
                                     <div className="text-gray-600 font-medium">
-                                        📍 {[order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ')}
+                                        📍 {[order.basti?.basti_name || order.shakha?.basti_name || order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ')}
                                     </div>
                                 )}
                             </div>

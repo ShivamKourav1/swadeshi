@@ -128,7 +128,7 @@ class Product extends Model
         }
 
         $rawTerm = '%' . mb_strtolower(trim($term)) . '%';
-        $cleanTerm = trim(preg_replace('/\b(nagar|jila|zila|shakha|vibhag|prant|kshetra|toli)\b/i', '', $term));
+        $cleanTerm = trim(preg_replace('/\b(nagar|jila|zila|basti|shakha|vibhag|prant|kshetra|toli)\b/i', '', $term));
         $cleanTermWildcard = '%' . mb_strtolower($cleanTerm) . '%';
 
         return $query->where(function ($q) use ($rawTerm, $cleanTermWildcard, $cleanTerm) {
@@ -143,13 +143,13 @@ class Product extends Model
                          if (strlen($cleanTerm) >= 2) {
                              $pq->orWhereHas('nagar', fn($nq) => $nq->whereRaw('LOWER(nagar_name) LIKE ?', [$cleanTermWildcard]))
                                 ->orWhereHas('jila', fn($jq) => $jq->whereRaw('LOWER(jila_name) LIKE ?', [$cleanTermWildcard]))
-                                ->orWhereHas('shakha', fn($sq) => $sq->whereRaw('LOWER(shakha_name) LIKE ?', [$cleanTermWildcard]))
-                                ->orWhereHas('shakha.nagar', fn($nq) => $nq->whereRaw('LOWER(nagar_name) LIKE ?', [$cleanTermWildcard]))
+                                ->orWhereHas('basti', fn($bq) => $bq->whereRaw('LOWER(basti_name) LIKE ?', [$cleanTermWildcard]))
+                                ->orWhereHas('basti.nagar', fn($nq) => $nq->whereRaw('LOWER(nagar_name) LIKE ?', [$cleanTermWildcard]))
                                 ->orWhereHas('nagar.jila', fn($jq) => $jq->whereRaw('LOWER(jila_name) LIKE ?', [$cleanTermWildcard]));
                          } else {
                              $pq->orWhereHas('nagar', fn($nq) => $nq->whereRaw('LOWER(nagar_name) LIKE ?', [$rawTerm]))
                                 ->orWhereHas('jila', fn($jq) => $jq->whereRaw('LOWER(jila_name) LIKE ?', [$rawTerm]))
-                                ->orWhereHas('shakha', fn($sq) => $sq->whereRaw('LOWER(shakha_name) LIKE ?', [$rawTerm]));
+                                ->orWhereHas('basti', fn($bq) => $bq->whereRaw('LOWER(basti_name) LIKE ?', [$rawTerm]));
                          }
                      });
               });
@@ -157,7 +157,7 @@ class Product extends Model
     }
 
     /**
-     * Filter products by organizational unit (Shakha, Nagar, Jila, Vibhag, Prant, Kshetra).
+     * Filter products by organizational unit (Basti/Shakha, Nagar, Jila, Vibhag, Prant, Kshetra).
      */
     public function scopeByOrgUnit($query, ?string $unitType = null, $unitId = null, ?string $unitSearch = null, bool $onlyKaryakarta = false)
     {
@@ -168,6 +168,7 @@ class Product extends Model
                        'karyakarta',
                        'nagar_karyakarta',
                        'jila_karyakarta',
+                       'basti_karyakarta',
                        'shakha_karyakarta',
                        'vibhag_karyakarta',
                        'kshetra_karyakarta',
@@ -178,14 +179,16 @@ class Product extends Model
 
         if ($unitType && $unitId) {
             return $query->whereHas('dealer.profile', function ($pq) use ($unitType, $unitId) {
-                if ($unitType === 'shakha') {
-                    $pq->where('shakha_id', $unitId);
+                if ($unitType === 'basti' || $unitType === 'shakha') {
+                    $pq->where('basti_id', $unitId)->orWhere('shakha_id', $unitId);
                 } elseif ($unitType === 'nagar') {
                     $pq->where('nagar_id', $unitId)
+                       ->orWhereHas('basti', fn($bq) => $bq->where('nagar_id', $unitId))
                        ->orWhereHas('shakha', fn($sq) => $sq->where('nagar_id', $unitId));
                 } elseif ($unitType === 'jila') {
                     $pq->where('jila_id', $unitId)
                        ->orWhereHas('nagar', fn($nq) => $nq->where('jila_id', $unitId))
+                       ->orWhereHas('basti.nagar', fn($nq) => $nq->where('jila_id', $unitId))
                        ->orWhereHas('shakha.nagar', fn($nq) => $nq->where('jila_id', $unitId));
                 } elseif ($unitType === 'vibhag') {
                     $pq->where('vibhag_id', $unitId)
@@ -202,7 +205,7 @@ class Product extends Model
         }
 
         if ($unitSearch) {
-            $cleanSearch = trim(preg_replace('/\b(nagar|jila|zila|shakha|vibhag|prant|kshetra|toli)\b/i', '', $unitSearch));
+            $cleanSearch = trim(preg_replace('/\b(nagar|jila|zila|basti|shakha|vibhag|prant|kshetra|toli)\b/i', '', $unitSearch));
             $terms = array_filter(array_unique([
                 '%' . mb_strtolower(trim($unitSearch)) . '%',
                 '%' . mb_strtolower($cleanSearch) . '%',
@@ -217,8 +220,8 @@ class Product extends Model
                     $q->orWhereHas('dealer.profile', function ($pq) use ($term) {
                         $pq->whereHas('nagar', fn($nq) => $nq->whereRaw('LOWER(nagar_name) LIKE ?', [$term]))
                            ->orWhereHas('jila', fn($jq) => $jq->whereRaw('LOWER(jila_name) LIKE ?', [$term]))
-                           ->orWhereHas('shakha', fn($sq) => $sq->whereRaw('LOWER(shakha_name) LIKE ?', [$term]))
-                           ->orWhereHas('shakha.nagar', fn($nq) => $nq->whereRaw('LOWER(nagar_name) LIKE ?', [$term]))
+                           ->orWhereHas('basti', fn($bq) => $bq->whereRaw('LOWER(basti_name) LIKE ?', [$term]))
+                           ->orWhereHas('basti.nagar', fn($nq) => $nq->whereRaw('LOWER(nagar_name) LIKE ?', [$term]))
                            ->orWhereHas('nagar.jila', fn($jq) => $jq->whereRaw('LOWER(jila_name) LIKE ?', [$term]));
                     });
                 }
@@ -256,11 +259,13 @@ class Product extends Model
         $fullLocation = [];
 
         if ($profile) {
-            if ($profile->shakha_id && $profile->shakha) {
-                $unitType = 'shakha';
-                $unitName = $profile->shakha->shakha_name;
-                if ($profile->is_shakha_toli_member) {
-                    $toliBadge = "Shakha Toli ({$unitName})";
+            $basti = $profile->basti ?: $profile->shakha;
+            $bastiId = $profile->basti_id ?: $profile->shakha_id;
+            if ($bastiId && $basti) {
+                $unitType = 'basti';
+                $unitName = $basti->basti_name;
+                if ($profile->is_basti_toli_member || $profile->is_shakha_toli_member) {
+                    $toliBadge = "Basti Toli ({$unitName})";
                 }
                 $fullLocation[] = $unitName;
             }

@@ -55,13 +55,17 @@ export default function Index({
     vibhags,
     jilas,
     nagars,
-    shakhas,
+    bastis,
+    shakhas = bastis || [],
     scope,
     permissions = {},
     is_admin = false,
 }) {
     const { auth } = usePage().props;
-    const [currentTab, setCurrentTab] = useState(initialTab || 'shakhas');
+    const unitBastis = bastis || shakhas || [];
+    const [currentTab, setCurrentTab] = useState(
+        initialTab === 'shakhas' ? 'bastis' : (initialTab || 'bastis')
+    );
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUnit, setEditingUnit] = useState(null);
 
@@ -76,6 +80,7 @@ export default function Index({
         vibhag_id: '',
         nagar_name: '',
         jila_id: '',
+        basti_name: '',
         shakha_name: '',
         nagar_id: '',
         aayu_varg: 'Baal',
@@ -90,7 +95,7 @@ export default function Index({
         { id: 'vibhags', label: 'Vibhags (विभाग)', icon: '🏢', count: vibhags.length, singular: 'vibhag' },
         { id: 'jilas', label: 'Jilas (जिला)', icon: '📍', count: jilas.length, singular: 'jila' },
         { id: 'nagars', label: 'Nagars (नगर)', icon: '🏘️', count: nagars.length, singular: 'nagar' },
-        { id: 'shakhas', label: 'Shakhas (शाखा)', icon: '🚩', count: shakhas.length, singular: 'shakha' },
+        { id: 'bastis', label: 'Bastis (बस्ती)', icon: '🚩', count: unitBastis.length, singular: 'basti' },
     ];
 
     const currentTabConfig = tabs.find((t) => t.id === currentTab) || tabs[5];
@@ -149,6 +154,7 @@ export default function Index({
      */
     const getDefaultToliForTab = (tab) => {
         switch (tab) {
+            case 'bastis':
             case 'shakhas':
                 return [
                     { role: 'Mukhya Shikshak', name: '', contact: '' },
@@ -193,6 +199,7 @@ export default function Index({
      */
     const getRoleSuggestionsForTab = (tab) => {
         switch (tab) {
+            case 'bastis':
             case 'shakhas':
                 return ['Mukhya Shikshak', 'Karyavah', 'Gat Nayak', 'Sah Karyavah', 'Shikshak'];
             case 'nagars':
@@ -227,6 +234,7 @@ export default function Index({
             vibhag_id: vibhags[0]?.id ? String(vibhags[0].id) : '',
             nagar_name: '',
             jila_id: jilas[0]?.id ? String(jilas[0].id) : '',
+            basti_name: '',
             shakha_name: '',
             nagar_id: nagars[0]?.id ? String(nagars[0].id) : '',
             aayu_varg: 'Baal',
@@ -264,7 +272,8 @@ export default function Index({
             vibhag_id: unit.vibhag_id ? String(unit.vibhag_id) : '',
             nagar_name: unit.nagar_name || '',
             jila_id: unit.jila_id ? String(unit.jila_id) : '',
-            shakha_name: unit.shakha_name || '',
+            basti_name: unit.basti_name || unit.shakha_name || '',
+            shakha_name: unit.basti_name || unit.shakha_name || '',
             nagar_id: unit.nagar_id ? String(unit.nagar_id) : '',
             aayu_varg: unit.aayu_varg || 'Baal',
             type: unit.type || 'dainik',
@@ -346,6 +355,7 @@ export default function Index({
     const handleDelete = (unit) => {
         const unitType = currentTabConfig.singular;
         const name =
+            unit.basti_name ||
             unit.shakha_name ||
             unit.nagar_name ||
             unit.jila_name ||
@@ -463,13 +473,13 @@ export default function Index({
                         </div>
                     </div>
 
-                    {/* Shakhas Tab Table */}
-                    {currentTab === 'shakhas' && (
+                    {/* Bastis Tab Table */}
+                    {(currentTab === 'bastis' || currentTab === 'shakhas') && (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
                                 <thead className="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-200">
                                     <tr>
-                                        <th className="p-4">Shakha Name</th>
+                                        <th className="p-4">Basti Name</th>
                                         <th className="p-4">Hierarchy (Nagar & Jila)</th>
                                         <th className="p-4">Age Group (आयु वर्ग)</th>
                                         <th className="p-4">Frequency</th>
@@ -479,14 +489,14 @@ export default function Index({
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 font-medium">
-                                    {shakhas.map((s) => {
+                                    {unitBastis.map((s) => {
                                         const toliList = getToliArray(s.toli);
                                         return (
                                             <tr key={s.id} className="hover:bg-amber-50/20 transition">
                                                 <td className="p-4">
                                                     <div className="font-black text-gray-900 text-sm flex items-center space-x-1.5">
                                                         <Flag className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                                                        <span>{s.shakha_name}</span>
+                                                        <span>{s.basti_name || s.shakha_name}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 text-gray-600">
@@ -541,14 +551,14 @@ export default function Index({
                                                             <button
                                                                 onClick={() => openEditModal(s)}
                                                                 className="p-1.5 text-gray-600 hover:text-amber-700 inline-block hover:bg-amber-50 rounded-xl transition cursor-pointer"
-                                                                title="Edit Shakha"
+                                                                title="Edit Basti"
                                                             >
                                                                 <Edit3 className="w-4 h-4" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDelete(s)}
                                                                 className="p-1.5 text-gray-400 hover:text-rose-600 inline-block hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                                                                title="Delete Shakha"
+                                                                title="Delete Basti"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </button>
@@ -575,7 +585,7 @@ export default function Index({
                                     <tr>
                                         <th className="p-4">Nagar Name</th>
                                         <th className="p-4">Parent Jila</th>
-                                        <th className="p-4">Linked Shakhas</th>
+                                        <th className="p-4">Linked Bastis</th>
                                         <th className="p-4">Toli Members (टोली संपर्क)</th>
                                         <th className="p-4 text-right">Actions</th>
                                     </tr>
@@ -597,7 +607,7 @@ export default function Index({
                                                 <td className="p-4">
                                                     <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-1 rounded-lg text-xs font-bold inline-flex items-center space-x-1">
                                                         <Flag className="w-3.5 h-3.5 text-amber-600" />
-                                                        <span>{n.shakhas_count ?? 0} Shakhas</span>
+                                                        <span>{n.bastis_count ?? n.shakhas_count ?? 0} Bastis</span>
                                                     </span>
                                                 </td>
                                                 <td className="p-4">
@@ -1074,7 +1084,7 @@ export default function Index({
                                     </div>
                                 )}
 
-                                {currentTab === 'shakhas' && (
+                                {(currentTab === 'bastis' || currentTab === 'shakhas') && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="block font-bold text-gray-700 uppercase mb-1">Parent Nagar (नगर) *</label>
@@ -1124,7 +1134,7 @@ export default function Index({
                                                 ? data.jila_name
                                                 : currentTab === 'nagars'
                                                 ? data.nagar_name
-                                                : data.shakha_name
+                                                : (data.basti_name || data.shakha_name)
                                         }
                                         onChange={(e) => {
                                             const val = e.target.value;
@@ -1133,7 +1143,13 @@ export default function Index({
                                             else if (currentTab === 'vibhags') setData('vibhag_name', val);
                                             else if (currentTab === 'jilas') setData('jila_name', val);
                                             else if (currentTab === 'nagars') setData('nagar_name', val);
-                                            else setData('shakha_name', val);
+                                            else {
+                                                setData((prev) => ({
+                                                    ...prev,
+                                                    basti_name: val,
+                                                    shakha_name: val,
+                                                }));
+                                            }
                                         }}
                                         placeholder={`Enter ${currentTabConfig.singular} name...`}
                                         className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-amber-500"
@@ -1141,7 +1157,7 @@ export default function Index({
                                     />
                                 </div>
 
-                                {currentTab === 'shakhas' && (
+                                {(currentTab === 'bastis' || currentTab === 'shakhas') && (
                                     <div className="grid grid-cols-2 gap-3">
                                         <div>
                                             <label className="block font-bold text-gray-700 uppercase mb-1">Meeting Frequency *</label>

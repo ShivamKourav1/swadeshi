@@ -26,12 +26,13 @@ class ToliInventoryScope extends Model
      * Permitted subordinate unit types for each organizational level.
      */
     public const SUB_UNIT_HIERARCHY = [
-        'kshetra' => ['prant', 'vibhag', 'jila', 'nagar', 'shakha'],
-        'prant'   => ['vibhag', 'jila', 'nagar', 'shakha'],
-        'vibhag'  => ['jila', 'nagar', 'shakha'],
-        'jila'    => ['nagar', 'shakha'],
-        'nagar'   => ['shakha'],
-        'shakha'  => [],
+        'kshetra' => ['prant', 'vibhag', 'jila', 'nagar', 'basti'],
+        'prant'   => ['vibhag', 'jila', 'nagar', 'basti'],
+        'vibhag'  => ['jila', 'nagar', 'basti'],
+        'jila'    => ['nagar', 'basti'],
+        'nagar'   => ['basti'],
+        'basti'   => [],
+        'shakha'  => [], // Backward compatibility
     ];
 
     /**
@@ -43,7 +44,8 @@ class ToliInventoryScope extends Model
         'vibhag'  => 'विभाग (Vibhag)',
         'jila'    => 'ज़िला (Jila)',
         'nagar'   => 'नगर (Nagar)',
-        'shakha'  => 'शाखा (Shakha)',
+        'basti'   => 'बस्ती (Basti)',
+        'shakha'  => 'बस्ती (Basti)',
     ];
 
     /**
@@ -55,7 +57,8 @@ class ToliInventoryScope extends Model
         'vibhag'  => 'विभाग',
         'jila'    => 'ज़िला',
         'nagar'   => 'नगर',
-        'shakha'  => 'शाखा',
+        'basti'   => 'बस्ती',
+        'shakha'  => 'बस्ती',
     ];
 
     /**
@@ -91,12 +94,22 @@ class ToliInventoryScope extends Model
      */
     public static function isSubUnitVisible(string $parentUnitType, int $parentUnitId, string $targetSubUnitType): bool
     {
-        $scope = static::where('unit_type', $parentUnitType)
+        $scope = static::where(function ($q) use ($parentUnitType) {
+            if ($parentUnitType === 'basti' || $parentUnitType === 'shakha') {
+                $q->whereIn('unit_type', ['basti', 'shakha']);
+            } else {
+                $q->where('unit_type', $parentUnitType);
+            }
+        })
             ->where('unit_id', $parentUnitId)
             ->first();
 
         if (!$scope || !is_array($scope->visible_sub_units)) {
             return false;
+        }
+
+        if ($targetSubUnitType === 'basti' || $targetSubUnitType === 'shakha') {
+            return in_array('basti', $scope->visible_sub_units, true) || in_array('shakha', $scope->visible_sub_units, true);
         }
 
         return in_array($targetSubUnitType, $scope->visible_sub_units, true);

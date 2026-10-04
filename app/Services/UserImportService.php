@@ -21,7 +21,7 @@ class UserImportService
         $headers = [
             'Name',
             'Mobile',
-            'Is Shakha Toli Member',
+            'Is Basti Toli Member',
             'Is Nagar Toli Member',
             'Is Jila Toli Member',
         ];
@@ -89,6 +89,7 @@ class UserImportService
 
         $jilaRole = Role::firstOrCreate(['name' => 'jila_karyakarta'], ['display_name' => 'Jila Karyakarta (जिला कार्यकर्ता)']);
         $nagarRole = Role::firstOrCreate(['name' => 'nagar_karyakarta'], ['display_name' => 'Nagar Karyakarta (नगर कार्यकर्ता)']);
+        $bastiRole = Role::firstOrCreate(['name' => 'basti_karyakarta'], ['display_name' => 'Basti Karyakarta (बस्ती कार्यकर्ता)']);
         $shakhaRole = Role::firstOrCreate(['name' => 'shakha_karyakarta'], ['display_name' => 'Shakha Karyakarta (शाखा कार्यकर्ता)']);
         $karyakartaRole = Role::firstOrCreate(['name' => 'karyakarta'], ['display_name' => 'Karyakarta (कार्यकर्ता)']);
         $customerRole = Role::firstOrCreate(['name' => 'customer'], ['display_name' => 'Customer (ग्राहक)']);
@@ -126,7 +127,8 @@ class UserImportService
                 }
 
                 // Determine Toli memberships
-                $isShakha = $this->isAffirmative($row[$headerMap['is_shakha']] ?? '');
+                $bastiCol = $headerMap['is_basti'] ?? ($headerMap['is_shakha'] ?? null);
+                $isBasti = $bastiCol !== null ? $this->isAffirmative($row[$bastiCol] ?? '') : false;
                 $isNagar = $this->isAffirmative($row[$headerMap['is_nagar']] ?? '');
                 $isJila = $this->isAffirmative($row[$headerMap['is_jila']] ?? '');
 
@@ -141,8 +143,9 @@ class UserImportService
                     $assignedRoleIds[] = $nagarRole->id;
                     $primaryRole = 'karyakarta';
                 }
-                if ($isShakha && $shakhaRole) {
-                    $assignedRoleIds[] = $shakhaRole->id;
+                if ($isBasti) {
+                    if ($bastiRole) $assignedRoleIds[] = $bastiRole->id;
+                    if ($shakhaRole) $assignedRoleIds[] = $shakhaRole->id;
                     $primaryRole = 'karyakarta';
                 }
 
@@ -158,7 +161,8 @@ class UserImportService
 
                 // Prepare profile payload with toli flags and admin jurisdiction
                 $profilePayload = [
-                    'is_shakha_toli_member' => $isShakha,
+                    'is_basti_toli_member' => $isBasti,
+                    'is_shakha_toli_member' => $isBasti,
                     'is_nagar_toli_member' => $isNagar,
                     'is_jila_toli_member' => $isJila,
                 ];
@@ -171,7 +175,11 @@ class UserImportService
                         if ($adminProfile->vibhag_id) $profilePayload['vibhag_id'] = $adminProfile->vibhag_id;
                         if ($adminProfile->jila_id) $profilePayload['jila_id'] = $adminProfile->jila_id;
                         if ($adminProfile->nagar_id) $profilePayload['nagar_id'] = $adminProfile->nagar_id;
-                        if ($adminProfile->shakha_id) $profilePayload['shakha_id'] = $adminProfile->shakha_id;
+                        $adminBastiId = $adminProfile->basti_id ?: $adminProfile->shakha_id;
+                        if ($adminBastiId) {
+                            $profilePayload['basti_id'] = $adminBastiId;
+                            $profilePayload['shakha_id'] = $adminBastiId;
+                        }
                     }
                 }
 
@@ -244,6 +252,7 @@ class UserImportService
         $map = [
             'name' => null,
             'mobile' => null,
+            'is_basti' => null,
             'is_shakha' => null,
             'is_nagar' => null,
             'is_jila' => null,
@@ -257,6 +266,8 @@ class UserImportService
                 if ($map['name'] === null) $map['name'] = $index;
             } elseif (str_contains($normalized, 'mobile') || str_contains($normalized, 'phone') || str_contains($normalized, 'मोबाइल')) {
                 if ($map['mobile'] === null) $map['mobile'] = $index;
+            } elseif (str_contains($normalized, 'basti') || str_contains($normalized, 'बस्ती')) {
+                if ($map['is_basti'] === null) $map['is_basti'] = $index;
             } elseif (str_contains($normalized, 'shakha') || str_contains($normalized, 'शाखा')) {
                 if ($map['is_shakha'] === null) $map['is_shakha'] = $index;
             } elseif (str_contains($normalized, 'nagar') || str_contains($normalized, 'नगर')) {

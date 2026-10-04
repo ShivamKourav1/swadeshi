@@ -28,8 +28,16 @@ class Nagar extends Model
         return $this->belongsTo(Jila::class);
     }
 
+    public function bastis(): HasMany
+    {
+        return $this->hasMany(Basti::class);
+    }
+
+    /**
+     * Backward-compatible alias for bastis relationship.
+     */
     public function shakhas(): HasMany
     {
-        return $this->hasMany(Shakha::class);
+        return $this->bastis();
     }
 }

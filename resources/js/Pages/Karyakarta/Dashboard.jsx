@@ -25,17 +25,19 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
     const [selectedStatus, setSelectedStatus] = useState(filters?.delivery_status || '');
     const [selectedJila, setSelectedJila] = useState(filters?.jila_id || '');
     const [selectedNagar, setSelectedNagar] = useState(filters?.nagar_id || '');
-    const [selectedShakha, setSelectedShakha] = useState(filters?.shakha_id || '');
+    const [selectedBasti, setSelectedBasti] = useState(filters?.basti_id || filters?.shakha_id || '');
 
     // Filter nagars based on selected jila
     const availableNagars = selectedJila
         ? filterOptions?.nagars?.filter((n) => String(n.jila_id) === String(selectedJila))
         : filterOptions?.nagars || [];
 
-    // Filter shakhas based on selected nagar
-    const availableShakhas = selectedNagar
-        ? filterOptions?.shakhas?.filter((s) => String(s.nagar_id) === String(selectedNagar))
-        : filterOptions?.shakhas || [];
+    // Filter bastis based on selected nagar
+    const bastisList = filterOptions?.bastis || filterOptions?.shakhas || [];
+    const availableBastis = selectedNagar
+        ? bastisList.filter((s) => String(s.nagar_id) === String(selectedNagar))
+        : bastisList;
+    const availableShakhas = availableBastis;
 
     const handleFilterSubmit = (e) => {
         if (e) e.preventDefault();
@@ -46,7 +48,8 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                 delivery_status: selectedStatus,
                 jila_id: selectedJila,
                 nagar_id: selectedNagar,
-                shakha_id: selectedShakha,
+                basti_id: selectedBasti,
+                shakha_id: selectedBasti,
             },
             { preserveState: true }
         );
@@ -57,7 +60,7 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
         setSelectedStatus('');
         setSelectedJila('');
         setSelectedNagar('');
-        setSelectedShakha('');
+        setSelectedBasti('');
         router.get(route('karyakarta.dashboard'), {}, { preserveState: true });
     };
 
@@ -290,7 +293,7 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                     onChange={(e) => {
                                         setSelectedJila(e.target.value);
                                         setSelectedNagar('');
-                                        setSelectedShakha('');
+                                        setSelectedBasti('');
                                     }}
                                     className="w-full p-2 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white text-xs"
                                 >
@@ -311,7 +314,7 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                 value={selectedNagar}
                                 onChange={(e) => {
                                     setSelectedNagar(e.target.value);
-                                    setSelectedShakha('');
+                                    setSelectedBasti('');
                                 }}
                                 className="w-full p-2 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white text-xs"
                             >
@@ -324,18 +327,18 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                             </select>
                         </div>
 
-                        {/* Shakha Filter */}
+                        {/* Basti Filter */}
                         <div>
-                            <label className="block font-bold text-gray-700 uppercase mb-1">Shakha (शाखा)</label>
+                            <label className="block font-bold text-gray-700 uppercase mb-1">Basti (बस्ती)</label>
                             <select
-                                value={selectedShakha}
-                                onChange={(e) => setSelectedShakha(e.target.value)}
+                                value={selectedBasti}
+                                onChange={(e) => setSelectedBasti(e.target.value)}
                                 className="w-full p-2 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white text-xs"
                             >
-                                <option value="">All Shakhas</option>
-                                {availableShakhas.map((s) => (
+                                <option value="">All Bastis</option>
+                                {availableBastis.map((s) => (
                                     <option key={s.id} value={s.id}>
-                                        {s.shakha_name} ({s.aayu_varg})
+                                        {s.basti_name || s.shakha_name} ({s.aayu_varg})
                                     </option>
                                 ))}
                             </select>
@@ -422,9 +425,9 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                                                 <Building2 className="w-3 h-3 text-amber-700 mr-1 flex-shrink-0" />
                                                                 <span>{loc.organizational_hierarchy}</span>
                                                             </div>
-                                                            {loc.shakha?.aayu_varg && (
+                                                            {(loc.basti?.aayu_varg || loc.shakha?.aayu_varg) && (
                                                                 <div className="text-[10px] text-gray-400">
-                                                                    Age Group: <strong>{loc.shakha.aayu_varg}</strong> ({loc.shakha.type})
+                                                                    Age Group: <strong>{loc.basti?.aayu_varg || loc.shakha?.aayu_varg}</strong> ({loc.basti?.type || loc.shakha?.type})
                                                                 </div>
                                                             )}
                                                         </div>
@@ -432,7 +435,7 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                                         <div className="space-y-1">
                                                             <div className="inline-flex items-center space-x-1 bg-orange-50 text-orange-900 border border-orange-200 font-bold px-2.5 py-1 rounded-lg text-[11px]">
                                                                 <Building2 className="w-3 h-3 text-orange-700 mr-1 flex-shrink-0" />
-                                                                <span>टोली: {[order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ') || 'इकाई वितरण'}</span>
+                                                                <span>टोली: {[order.basti?.basti_name || order.shakha?.basti_name || order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ') || 'इकाई वितरण'}</span>
                                                             </div>
                                                         </div>
                                                     ) : (

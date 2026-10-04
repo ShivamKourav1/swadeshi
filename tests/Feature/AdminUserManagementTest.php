@@ -114,7 +114,7 @@ class AdminUserManagementTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
-        $this->assertStringContainsString('Is Shakha Toli Member', $response->streamedContent());
+        $this->assertStringContainsString('Is Basti Toli Member', $response->streamedContent());
     }
 
     public function test_admin_can_import_users_via_csv_with_toli_flags_and_phone_password(): void

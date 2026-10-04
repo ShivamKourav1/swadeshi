@@ -92,7 +92,7 @@ class ToliModuleTest extends TestCase
         $response->assertInertia(fn ($page) =>
             $page->component('Toli/Index')
                 ->where('unit.name', 'Keshav Shakha')
-                ->where('unit.level', 'shakha')
+                ->where('unit.level', 'basti')
                 ->where('unit.new_ganvesh', 10)
         );
     }
@@ -230,7 +230,7 @@ class ToliModuleTest extends TestCase
         $this->assertDatabaseHas('swayamsevaks', [
             'name' => 'रमेश कुमार',
             'mobile' => '9876500001',
-            'shakha_id' => $this->shakha->id,
+            'basti_id' => $this->shakha->id,
             'ganvesh' => true,
         ]);
 
@@ -333,7 +333,7 @@ class ToliModuleTest extends TestCase
             'customer_id' => $this->toliMember->id,
             'swayamsevak_id' => $member->id,
             'delivery_location_id' => null,
-            'shakha_id' => $this->shakha->id,
+            'basti_id' => $this->shakha->id,
             'nagar_id' => $this->nagar->id,
             'order_status' => 'paid',
             'total_amount' => 160.00,

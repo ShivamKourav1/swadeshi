@@ -31,7 +31,8 @@ class DeliveryLocationRequest extends FormRequest
             'vibhag_id' => ['nullable', 'exists:vibhags,id'],
             'jila_id' => ['nullable', 'exists:jilas,id'],
             'nagar_id' => ['nullable', 'exists:nagars,id'],
-            'shakha_id' => ['nullable', 'exists:shakhas,id'],
+            'basti_id' => ['nullable', 'exists:bastis,id'],
+            'shakha_id' => ['nullable', 'exists:bastis,id'],
         ];
     }
 

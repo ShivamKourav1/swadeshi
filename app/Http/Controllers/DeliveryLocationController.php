@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\DeliveryLocationRequest;
+use App\Models\Basti;
 use App\Models\DeliveryLocation;
 use App\Models\Jila;
 use App\Models\Kshetra;
@@ -20,7 +21,7 @@ class DeliveryLocationController extends Controller
     public function index(Request $request): Response
     {
         $locations = DeliveryLocation::where('user_id', $request->user()->id)
-            ->with(['kshetra', 'prant', 'vibhag', 'jila', 'nagar', 'shakha'])
+            ->with(['kshetra', 'prant', 'vibhag', 'jila', 'nagar', 'basti', 'shakha'])
             ->latest()
             ->get();
 
@@ -90,14 +91,17 @@ class DeliveryLocationController extends Controller
      */
     private function resolveOrganizationalHierarchy(array $data): array
     {
-        if (!empty($data['shakha_id'])) {
-            $shakha = Shakha::with('nagar.jila.vibhag.prant.kshetra')->find($data['shakha_id']);
-            if ($shakha && $shakha->nagar) {
-                $data['nagar_id'] = $shakha->nagar->id;
-                $data['jila_id'] = $shakha->nagar->jila_id;
-                $data['vibhag_id'] = $shakha->nagar->jila?->vibhag_id;
-                $data['prant_id'] = $shakha->nagar->jila?->vibhag?->prant_id;
-                $data['kshetra_id'] = $shakha->nagar->jila?->vibhag?->prant?->kshetra_id;
+        $bastiId = $data['basti_id'] ?? ($data['shakha_id'] ?? null);
+        if (!empty($bastiId)) {
+            $data['basti_id'] = $bastiId;
+            $data['shakha_id'] = $bastiId;
+            $basti = Basti::with('nagar.jila.vibhag.prant.kshetra')->find($bastiId);
+            if ($basti && $basti->nagar) {
+                $data['nagar_id'] = $basti->nagar->id;
+                $data['jila_id'] = $basti->nagar->jila_id;
+                $data['vibhag_id'] = $basti->nagar->jila?->vibhag_id;
+                $data['prant_id'] = $basti->nagar->jila?->vibhag?->prant_id;
+                $data['kshetra_id'] = $basti->nagar->jila?->vibhag?->prant?->kshetra_id;
             }
         } elseif (!empty($data['nagar_id'])) {
             $nagar = Nagar::with('jila.vibhag.prant.kshetra')->find($data['nagar_id']);
@@ -135,13 +139,16 @@ class DeliveryLocationController extends Controller
      */
     private function getOrganizationTree(): array
     {
+        $bastis = Basti::where('status', 'Active')->get(['id', 'nagar_id', 'basti_name', 'aayu_varg', 'type']);
+
         return [
             'kshetras' => Kshetra::all(['id', 'kshetra_name']),
             'prants' => Prant::all(['id', 'kshetra_id', 'prant_name']),
             'vibhags' => Vibhag::all(['id', 'prant_id', 'vibhag_name']),
             'jilas' => Jila::all(['id', 'vibhag_id', 'jila_name']),
             'nagars' => Nagar::all(['id', 'jila_id', 'nagar_name']),
-            'shakhas' => Shakha::where('status', 'Active')->get(['id', 'nagar_id', 'shakha_name', 'aayu_varg', 'type']),
+            'bastis' => $bastis,
+            'shakhas' => $bastis,
         ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AdminUserCreateRequest;
 use App\Http\Requests\AdminUserUpdateRequest;
+use App\Models\Basti;
 use App\Models\Jila;
 use App\Models\Kshetra;
 use App\Models\Nagar;
@@ -43,6 +44,7 @@ class UserController extends Controller
             'profile.vibhag',
             'profile.jila',
             'profile.nagar',
+            'profile.basti',
             'profile.shakha',
         ]);
 
@@ -58,19 +60,22 @@ class UserController extends Controller
                     $id = (int)$jurisdiction['id'];
 
                     $q->orWhereHas('profile', function ($pq) use ($level, $id) {
-                        if ($level === 'shakha') {
-                            $pq->where('shakha_id', $id);
+                        if ($level === 'basti' || $level === 'shakha') {
+                            $pq->where('basti_id', $id)->orWhere('shakha_id', $id);
                         } elseif ($level === 'nagar') {
                             $pq->where('nagar_id', $id)
+                               ->orWhereHas('basti', fn($sq) => $sq->where('nagar_id', $id))
                                ->orWhereHas('shakha', fn($sq) => $sq->where('nagar_id', $id));
                         } elseif ($level === 'jila') {
                             $pq->where('jila_id', $id)
                                ->orWhereHas('nagar', fn($nq) => $nq->where('jila_id', $id))
+                               ->orWhereHas('basti.nagar', fn($snq) => $snq->where('jila_id', $id))
                                ->orWhereHas('shakha.nagar', fn($snq) => $snq->where('jila_id', $id));
                         } elseif ($level === 'vibhag') {
                             $pq->where('vibhag_id', $id)
                                ->orWhereHas('jila', fn($jq) => $jq->where('vibhag_id', $id))
                                ->orWhereHas('nagar.jila', fn($njq) => $njq->where('vibhag_id', $id))
+                               ->orWhereHas('basti.nagar.jila', fn($snjq) => $snjq->where('vibhag_id', $id))
                                ->orWhereHas('shakha.nagar.jila', fn($snjq) => $snjq->where('vibhag_id', $id));
                         } elseif ($level === 'prant') {
                             $pq->where('prant_id', $id)
@@ -149,7 +154,7 @@ class UserController extends Controller
         $vibhags = Vibhag::with('prant')->orderBy('vibhag_name')->get();
         $jilas = Jila::with('vibhag')->orderBy('jila_name')->get();
         $nagars = Nagar::with('jila')->orderBy('nagar_name')->get();
-        $shakhas = Shakha::with('nagar')->orderBy('shakha_name')->get();
+        $bastis = Basti::with('nagar')->orderBy('basti_name')->get();
 
         if ($currentUser->isToliAdmin()) {
             $jurisdiction = $currentUser->getToliJurisdiction();
@@ -161,19 +166,19 @@ class UserController extends Controller
                     $jilas = $jilas->where('id', $id)->values();
                     $nagars = $nagars->where('jila_id', $id)->values();
                     $nagarIds = $nagars->pluck('id')->toArray();
-                    $shakhas = $shakhas->whereIn('nagar_id', $nagarIds)->values();
+                    $bastis = $bastis->whereIn('nagar_id', $nagarIds)->values();
                 } elseif ($level === 'nagar') {
                     $nagars = $nagars->where('id', $id)->values();
-                    $shakhas = $shakhas->where('nagar_id', $id)->values();
-                } elseif ($level === 'shakha') {
-                    $shakhas = $shakhas->where('id', $id)->values();
+                    $bastis = $bastis->where('nagar_id', $id)->values();
+                } elseif ($level === 'basti' || $level === 'shakha') {
+                    $bastis = $bastis->where('id', $id)->values();
                 } elseif ($level === 'vibhag') {
                     $vibhags = $vibhags->where('id', $id)->values();
                     $jilas = $jilas->where('vibhag_id', $id)->values();
                     $jilaIds = $jilas->pluck('id')->toArray();
                     $nagars = $nagars->whereIn('jila_id', $jilaIds)->values();
                     $nagarIds = $nagars->pluck('id')->toArray();
-                    $shakhas = $shakhas->whereIn('nagar_id', $nagarIds)->values();
+                    $bastis = $bastis->whereIn('nagar_id', $nagarIds)->values();
                 }
             }
         }
@@ -185,7 +190,8 @@ class UserController extends Controller
             'vibhags' => $vibhags,
             'jilas' => $jilas,
             'nagars' => $nagars,
-            'shakhas' => $shakhas,
+            'bastis' => $bastis,
+            'shakhas' => $bastis,
             'is_superadmin' => $currentUser->isSuperAdmin(),
             'is_toli_admin' => $currentUser->isToliAdmin(),
         ]);
@@ -212,16 +218,17 @@ class UserController extends Controller
 
         // Toli Admin check: Admin role can ONLY be assigned to karyakartas who belong to a toli!
         $isAdminAssigned = ($role === 'admin' || in_array(Role::where('name', 'admin')->value('id'), $roleIds));
+        $bastiId = $validated['basti_id'] ?? $validated['shakha_id'] ?? null;
         if ($isAdminAssigned) {
-            $hasToliJurisdiction = !empty($validated['shakha_id']) || !empty($validated['nagar_id']) || !empty($validated['jila_id']) || !empty($validated['vibhag_id']) || !empty($validated['kshetra_id']) || !empty($validated['prant_id']);
+            $hasToliJurisdiction = !empty($bastiId) || !empty($validated['nagar_id']) || !empty($validated['jila_id']) || !empty($validated['vibhag_id']) || !empty($validated['kshetra_id']) || !empty($validated['prant_id']);
             $hasToliRole = !empty(array_intersect(Role::whereIn('id', $roleIds)->pluck('name')->toArray(), [
-                'shakha_karyakarta', 'nagar_karyakarta', 'jila_karyakarta', 'vibhag_karyakarta', 'kshetra_karyakarta', 'prant_karyakarta'
+                'basti_karyakarta', 'shakha_karyakarta', 'nagar_karyakarta', 'jila_karyakarta', 'vibhag_karyakarta', 'kshetra_karyakarta', 'prant_karyakarta'
             ]));
-            $hasToliFlag = !empty($validated['is_shakha_toli_member']) || !empty($validated['is_nagar_toli_member']) || !empty($validated['is_jila_toli_member']) || !empty($validated['is_vibhag_toli_member']) || !empty($validated['is_kshetra_toli_member']);
+            $hasToliFlag = !empty($validated['is_basti_toli_member']) || !empty($validated['is_shakha_toli_member']) || !empty($validated['is_nagar_toli_member']) || !empty($validated['is_jila_toli_member']) || !empty($validated['is_vibhag_toli_member']) || !empty($validated['is_kshetra_toli_member']);
 
             if (!$hasToliJurisdiction && !$hasToliRole && !$hasToliFlag) {
                 return back()->withErrors([
-                    'role' => 'The Admin role can only be assigned to Karyakartas who belong to an organizational toli (Shakha, Nagar, Jila, Vibhag, or Kshetra). Please select an organizational unit jurisdiction or toli membership.',
+                    'role' => 'The Admin role can only be assigned to Karyakartas who belong to an organizational toli (Basti, Nagar, Jila, Vibhag, or Kshetra). Please select an organizational unit jurisdiction or toli membership.',
                 ])->withInput();
             }
         }
@@ -239,13 +246,17 @@ class UserController extends Controller
                 if (!empty($validated['nagar_id']) && $level === 'nagar' && (int)$validated['nagar_id'] !== $adminUnitId) {
                     abort(403, 'Cannot create a user outside your assigned Nagar jurisdiction.');
                 }
-                if (!empty($validated['shakha_id']) && $level === 'shakha' && (int)$validated['shakha_id'] !== $adminUnitId) {
-                    abort(403, 'Cannot create a user outside your assigned Shakha jurisdiction.');
+                if (!empty($bastiId) && ($level === 'basti' || $level === 'shakha') && (int)$bastiId !== $adminUnitId) {
+                    abort(403, 'Cannot create a user outside your assigned Basti jurisdiction.');
                 }
 
                 // If no unit specified, default to toli admin's jurisdiction
-                if (empty($validated['shakha_id']) && empty($validated['nagar_id']) && empty($validated['jila_id']) && empty($validated['vibhag_id']) && empty($validated['kshetra_id'])) {
-                    $validated[$level . '_id'] = $adminUnitId;
+                if (empty($bastiId) && empty($validated['nagar_id']) && empty($validated['jila_id']) && empty($validated['vibhag_id']) && empty($validated['kshetra_id'])) {
+                    $key = ($level === 'shakha' ? 'basti_id' : $level . '_id');
+                    $validated[$key] = $adminUnitId;
+                    if ($level === 'basti' || $level === 'shakha') {
+                        $bastiId = $adminUnitId;
+                    }
                 }
             }
         }
@@ -259,6 +270,9 @@ class UserController extends Controller
             'status' => 'active',
         ]);
 
+        $bastiRoleId = Role::whereIn('name', ['basti_karyakarta', 'shakha_karyakarta'])->pluck('id')->toArray();
+        $isBastiToli = !empty($validated['is_basti_toli_member']) || !empty($validated['is_shakha_toli_member']) || !empty(array_intersect($bastiRoleId, $roleIds));
+
         $profileData = $this->resolveJurisdictionHierarchy([
             'user_id' => $user->id,
             'bio' => $validated['bio'] ?? null,
@@ -271,8 +285,10 @@ class UserController extends Controller
             'vibhag_id' => $validated['vibhag_id'] ?? null,
             'jila_id' => $validated['jila_id'] ?? null,
             'nagar_id' => $validated['nagar_id'] ?? null,
-            'shakha_id' => $validated['shakha_id'] ?? null,
-            'is_shakha_toli_member' => !empty($validated['is_shakha_toli_member']) || in_array(Role::where('name', 'shakha_karyakarta')->value('id'), $roleIds),
+            'basti_id' => $bastiId,
+            'shakha_id' => $bastiId,
+            'is_basti_toli_member' => $isBastiToli,
+            'is_shakha_toli_member' => $isBastiToli,
             'is_nagar_toli_member' => !empty($validated['is_nagar_toli_member']) || in_array(Role::where('name', 'nagar_karyakarta')->value('id'), $roleIds),
             'is_jila_toli_member' => !empty($validated['is_jila_toli_member']) || in_array(Role::where('name', 'jila_karyakarta')->value('id'), $roleIds),
             'is_vibhag_toli_member' => !empty($validated['is_vibhag_toli_member']) || in_array(Role::where('name', 'vibhag_karyakarta')->value('id'), $roleIds),
@@ -335,7 +351,7 @@ class UserController extends Controller
         $vibhags = Vibhag::with('prant')->orderBy('vibhag_name')->get();
         $jilas = Jila::with('vibhag')->orderBy('jila_name')->get();
         $nagars = Nagar::with('jila')->orderBy('nagar_name')->get();
-        $shakhas = Shakha::with('nagar')->orderBy('shakha_name')->get();
+        $bastis = Basti::with('nagar')->orderBy('basti_name')->get();
 
         if ($currentUser->isToliAdmin()) {
             $jurisdiction = $currentUser->getToliJurisdiction();
@@ -347,19 +363,19 @@ class UserController extends Controller
                     $jilas = $jilas->where('id', $id)->values();
                     $nagars = $nagars->where('jila_id', $id)->values();
                     $nagarIds = $nagars->pluck('id')->toArray();
-                    $shakhas = $shakhas->whereIn('nagar_id', $nagarIds)->values();
+                    $bastis = $bastis->whereIn('nagar_id', $nagarIds)->values();
                 } elseif ($level === 'nagar') {
                     $nagars = $nagars->where('id', $id)->values();
-                    $shakhas = $shakhas->where('nagar_id', $id)->values();
-                } elseif ($level === 'shakha') {
-                    $shakhas = $shakhas->where('id', $id)->values();
+                    $bastis = $bastis->where('nagar_id', $id)->values();
+                } elseif ($level === 'basti' || $level === 'shakha') {
+                    $bastis = $bastis->where('id', $id)->values();
                 } elseif ($level === 'vibhag') {
                     $vibhags = $vibhags->where('id', $id)->values();
                     $jilas = $jilas->where('vibhag_id', $id)->values();
                     $jilaIds = $jilas->pluck('id')->toArray();
                     $nagars = $nagars->whereIn('jila_id', $jilaIds)->values();
                     $nagarIds = $nagars->pluck('id')->toArray();
-                    $shakhas = $shakhas->whereIn('nagar_id', $nagarIds)->values();
+                    $bastis = $bastis->whereIn('nagar_id', $nagarIds)->values();
                 }
             }
         }
@@ -372,7 +388,8 @@ class UserController extends Controller
             'vibhags' => $vibhags,
             'jilas' => $jilas,
             'nagars' => $nagars,
-            'shakhas' => $shakhas,
+            'bastis' => $bastis,
+            'shakhas' => $bastis,
             'is_superadmin' => $currentUser->isSuperAdmin(),
             'is_toli_admin' => $currentUser->isToliAdmin(),
         ]);
@@ -403,16 +420,17 @@ class UserController extends Controller
 
         // Toli Admin check: Admin role can ONLY be assigned to karyakartas who belong to a toli!
         $isAdminAssigned = ($role === 'admin' || in_array(Role::where('name', 'admin')->value('id'), $roleIds));
+        $bastiId = $validated['basti_id'] ?? $validated['shakha_id'] ?? null;
         if ($isAdminAssigned) {
-            $hasToliJurisdiction = !empty($validated['shakha_id']) || !empty($validated['nagar_id']) || !empty($validated['jila_id']) || !empty($validated['vibhag_id']) || !empty($validated['kshetra_id']) || !empty($validated['prant_id']);
+            $hasToliJurisdiction = !empty($bastiId) || !empty($validated['nagar_id']) || !empty($validated['jila_id']) || !empty($validated['vibhag_id']) || !empty($validated['kshetra_id']) || !empty($validated['prant_id']);
             $hasToliRole = !empty(array_intersect(Role::whereIn('id', $roleIds)->pluck('name')->toArray(), [
-                'shakha_karyakarta', 'nagar_karyakarta', 'jila_karyakarta', 'vibhag_karyakarta', 'kshetra_karyakarta', 'prant_karyakarta'
+                'basti_karyakarta', 'shakha_karyakarta', 'nagar_karyakarta', 'jila_karyakarta', 'vibhag_karyakarta', 'kshetra_karyakarta', 'prant_karyakarta'
             ]));
-            $hasToliFlag = !empty($validated['is_shakha_toli_member']) || !empty($validated['is_nagar_toli_member']) || !empty($validated['is_jila_toli_member']) || !empty($validated['is_vibhag_toli_member']) || !empty($validated['is_kshetra_toli_member']);
+            $hasToliFlag = !empty($validated['is_basti_toli_member']) || !empty($validated['is_shakha_toli_member']) || !empty($validated['is_nagar_toli_member']) || !empty($validated['is_jila_toli_member']) || !empty($validated['is_vibhag_toli_member']) || !empty($validated['is_kshetra_toli_member']);
 
             if (!$hasToliJurisdiction && !$hasToliRole && !$hasToliFlag) {
                 return back()->withErrors([
-                    'role' => 'The Admin role can only be assigned to Karyakartas who belong to an organizational toli (Shakha, Nagar, Jila, Vibhag, or Kshetra). Please select an organizational unit jurisdiction or toli membership.',
+                    'role' => 'The Admin role can only be assigned to Karyakartas who belong to an organizational toli (Basti, Nagar, Jila, Vibhag, or Kshetra). Please select an organizational unit jurisdiction or toli membership.',
                 ])->withInput();
             }
         }
@@ -430,8 +448,8 @@ class UserController extends Controller
                 if (!empty($validated['nagar_id']) && $level === 'nagar' && (int)$validated['nagar_id'] !== $adminUnitId) {
                     abort(403, 'Cannot transfer a user outside your assigned Nagar jurisdiction.');
                 }
-                if (!empty($validated['shakha_id']) && $level === 'shakha' && (int)$validated['shakha_id'] !== $adminUnitId) {
-                    abort(403, 'Cannot transfer a user outside your assigned Shakha jurisdiction.');
+                if (!empty($bastiId) && ($level === 'basti' || $level === 'shakha') && (int)$bastiId !== $adminUnitId) {
+                    abort(403, 'Cannot transfer a user outside your assigned Basti jurisdiction.');
                 }
             }
         }
@@ -450,6 +468,9 @@ class UserController extends Controller
 
         $user->update($userData);
 
+        $bastiRoleId = Role::whereIn('name', ['basti_karyakarta', 'shakha_karyakarta'])->pluck('id')->toArray();
+        $isBastiToli = !empty($validated['is_basti_toli_member']) || !empty($validated['is_shakha_toli_member']) || !empty(array_intersect($bastiRoleId, $roleIds));
+
         $profileData = $this->resolveJurisdictionHierarchy([
             'bio' => $validated['bio'] ?? null,
             'business_name' => $validated['business_name'] ?? null,
@@ -461,8 +482,10 @@ class UserController extends Controller
             'vibhag_id' => $validated['vibhag_id'] ?? null,
             'jila_id' => $validated['jila_id'] ?? null,
             'nagar_id' => $validated['nagar_id'] ?? null,
-            'shakha_id' => $validated['shakha_id'] ?? null,
-            'is_shakha_toli_member' => !empty($validated['is_shakha_toli_member']) || in_array(Role::where('name', 'shakha_karyakarta')->value('id'), $roleIds),
+            'basti_id' => $bastiId,
+            'shakha_id' => $bastiId,
+            'is_basti_toli_member' => $isBastiToli,
+            'is_shakha_toli_member' => $isBastiToli,
             'is_nagar_toli_member' => !empty($validated['is_nagar_toli_member']) || in_array(Role::where('name', 'nagar_karyakarta')->value('id'), $roleIds),
             'is_jila_toli_member' => !empty($validated['is_jila_toli_member']) || in_array(Role::where('name', 'jila_karyakarta')->value('id'), $roleIds),
             'is_vibhag_toli_member' => !empty($validated['is_vibhag_toli_member']) || in_array(Role::where('name', 'vibhag_karyakarta')->value('id'), $roleIds),
@@ -500,7 +523,8 @@ class UserController extends Controller
             $assignedRoleNames = Role::whereIn('id', $roleIds)->pluck('name')->toArray();
             $hasKaryakartaRole = array_intersect($assignedRoleNames, [
                 'karyakarta', 'kshetra_karyakarta', 'prant_karyakarta', 
-                'vibhag_karyakarta', 'jila_karyakarta', 'nagar_karyakarta', 'shakha_karyakarta'
+                'vibhag_karyakarta', 'jila_karyakarta', 'nagar_karyakarta', 
+                'basti_karyakarta', 'shakha_karyakarta'
             ]);
 
             if ($role === 'customer' || empty($role)) {
@@ -530,14 +554,17 @@ class UserController extends Controller
      */
     private function resolveJurisdictionHierarchy(array $profileData): array
     {
-        if (!empty($profileData['shakha_id'])) {
-            $shakha = Shakha::with('nagar.jila.vibhag.prant')->find($profileData['shakha_id']);
-            if ($shakha) {
-                $profileData['nagar_id'] = $profileData['nagar_id'] ?: $shakha->nagar_id;
-                $profileData['jila_id'] = $profileData['jila_id'] ?: $shakha->nagar?->jila_id;
-                $profileData['vibhag_id'] = $profileData['vibhag_id'] ?: $shakha->nagar?->jila?->vibhag_id;
-                $profileData['prant_id'] = $profileData['prant_id'] ?: $shakha->nagar?->jila?->vibhag?->prant_id;
-                $profileData['kshetra_id'] = $profileData['kshetra_id'] ?: $shakha->nagar?->jila?->vibhag?->prant?->kshetra_id;
+        $bastiId = $profileData['basti_id'] ?? $profileData['shakha_id'] ?? null;
+        if (!empty($bastiId)) {
+            $basti = Basti::with('nagar.jila.vibhag.prant')->find($bastiId);
+            if ($basti) {
+                $profileData['basti_id'] = $basti->id;
+                $profileData['shakha_id'] = $basti->id;
+                $profileData['nagar_id'] = $profileData['nagar_id'] ?: $basti->nagar_id;
+                $profileData['jila_id'] = $profileData['jila_id'] ?: $basti->nagar?->jila_id;
+                $profileData['vibhag_id'] = $profileData['vibhag_id'] ?: $basti->nagar?->jila?->vibhag_id;
+                $profileData['prant_id'] = $profileData['prant_id'] ?: $basti->nagar?->jila?->vibhag?->prant_id;
+                $profileData['kshetra_id'] = $profileData['kshetra_id'] ?: $basti->nagar?->jila?->vibhag?->prant?->kshetra_id;
             }
         } elseif (!empty($profileData['nagar_id'])) {
             $nagar = Nagar::with('jila.vibhag.prant')->find($profileData['nagar_id']);
@@ -695,7 +722,8 @@ class UserController extends Controller
             'karyakarta' => 'Karyakarta (सामान्य कार्यकर्ता)',
             'jila_karyakarta' => 'Jila Karyakarta (जिला कार्यकर्ता)',
             'nagar_karyakarta' => 'Nagar Karyakarta (नगर कार्यकर्ता)',
-            'shakha_karyakarta' => 'Shakha Karyakarta (शाखा कार्यकर्ता)',
+            'basti_karyakarta' => 'Basti Karyakarta (बस्ती कार्यकर्ता)',
+            'shakha_karyakarta' => 'Basti Karyakarta (बस्ती कार्यकर्ता)',
             'vibhag_karyakarta' => 'Vibhag Karyakarta (विभाग कार्यकर्ता)',
             'prant_karyakarta' => 'Prant Karyakarta (प्रान्त कार्यकर्ता)',
             'kshetra_karyakarta' => 'Kshetra Karyakarta (क्षेत्र कार्यकर्ता)',

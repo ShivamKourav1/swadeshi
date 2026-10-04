@@ -38,7 +38,7 @@ class ToliInventoryScopeController extends Controller
             'vibhag'  => Vibhag::find($id)?->vibhag_name,
             'jila'    => Jila::find($id)?->jila_name,
             'nagar'   => Nagar::find($id)?->nagar_name,
-            'shakha'  => Shakha::find($id)?->shakha_name,
+            'basti', 'shakha' => \App\Models\Basti::find($id)?->basti_name,
             default   => 'असाइन इकाई',
         } ?? 'असाइन इकाई';
 
@@ -85,8 +85,9 @@ class ToliInventoryScopeController extends Controller
         ]);
 
         $requestedUnits = $validated['sub_units'] ?? [];
+        $requestedUnits = array_map(fn($u) => $u === 'shakha' ? 'basti' : $u, $requestedUnits);
         $allowedHierarchy = ToliInventoryScope::SUB_UNIT_HIERARCHY[$level] ?? [];
-        $validSubUnits = array_values(array_intersect($requestedUnits, $allowedHierarchy));
+        $validSubUnits = array_values(array_unique(array_intersect($requestedUnits, $allowedHierarchy)));
 
         ToliInventoryScope::updateOrCreate(
             [

@@ -2,38 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
-class Shakha extends Model
+/**
+ * Backward compatibility alias for Basti model.
+ */
+class Shakha extends Basti
 {
-    use HasFactory;
-
-    protected $table = 'shakhas';
-
-    protected $fillable = [
-        'nagar_id',
-        'shakha_name',
-        'aayu_varg',
-        'type',
-        'new_ganvesh',
-        'toli',
-        'status',
-    ];
-
-    protected $casts = [
-        'toli' => 'array',
-        'new_ganvesh' => 'integer',
-    ];
-
-    public function nagar(): BelongsTo
-    {
-        return $this->belongsTo(Nagar::class);
-    }
-
-    public function swayamsevaks()
-    {
-        return $this->hasMany(Swayamsevak::class);
-    }
+    // Inherits everything from Basti
 }

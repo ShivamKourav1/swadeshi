@@ -61,24 +61,24 @@ class ProductDemandController extends Controller
     }
 
     /**
-     * Fetch swayamsevaks for a given shakha or the authenticated user's unit.
+     * Fetch swayamsevaks for a given basti/shakha or the authenticated user's unit.
      */
     public function getSwayamsevaks(Request $request): JsonResponse
     {
-        $shakhaId = $request->query('shakha_id');
+        $bastiId = $request->query('basti_id') ?: $request->query('shakha_id');
 
-        if (!$shakhaId && $user = $request->user()) {
+        if (!$bastiId && $user = $request->user()) {
             $loc = $user->deliveryLocations()->where('is_default', true)->first()
                 ?: $user->deliveryLocations()->latest()->first();
-            $shakhaId = $loc?->shakha_id ?: $user->profile?->shakha_id;
+            $bastiId = $loc?->basti_id ?: $loc?->shakha_id ?: $user->profile?->basti_id ?: $user->profile?->shakha_id;
         }
 
-        if (!$shakhaId) {
+        if (!$bastiId) {
             return response()->json([]);
         }
 
-        $swayamsevaks = Swayamsevak::where('shakha_id', $shakhaId)
-            ->select('id', 'name', 'mobile', 'shakha_id', 'ganvesh')
+        $swayamsevaks = Swayamsevak::where('basti_id', $bastiId)
+            ->select('id', 'name', 'mobile', 'basti_id', 'ganvesh')
             ->orderBy('name')
             ->get();
 

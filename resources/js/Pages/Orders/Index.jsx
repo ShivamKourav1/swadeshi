@@ -93,7 +93,7 @@ export default function Index({ orders }) {
                                         </div>
                                     ) : order.is_toli_order ? (
                                         <div className="text-xs text-orange-800 mt-2 font-medium">
-                                            🚩 टोली गणवेश वितरण: {[order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ') || 'प्रत्यक्ष वितरण'}
+                                            🚩 टोली गणवेश वितरण: {[order.basti?.basti_name || order.shakha?.basti_name || order.shakha?.shakha_name, order.nagar?.nagar_name, order.jila?.jila_name].filter(Boolean).join(' • ') || 'प्रत्यक्ष वितरण'}
                                         </div>
                                     ) : null}
                                     {order.swayamsevak && (

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProductRequest;
+use App\Models\Basti;
 use App\Models\Category;
 use App\Models\Jila;
 use App\Models\Nagar;
@@ -26,7 +27,7 @@ class ProductController extends Controller
 
         $jilas = Jila::select('id', 'jila_name')->orderBy('jila_name')->get();
         $nagars = Nagar::with('jila:id,jila_name')->select('id', 'nagar_name', 'jila_id')->orderBy('nagar_name')->get();
-        $shakhas = Shakha::with('nagar:id,nagar_name')->select('id', 'shakha_name', 'nagar_id')->orderBy('shakha_name')->get();
+        $bastis = Basti::with('nagar:id,nagar_name')->select('id', 'basti_name', 'nagar_id')->orderBy('basti_name')->get();
 
         // Check user's location if authenticated
         $userUnit = null;
@@ -35,7 +36,7 @@ class ProductController extends Controller
                 ?: $user->deliveryLocations()->latest()->first();
             $prof = $user->profile;
 
-            $shakhaId = $loc?->shakha_id ?: $prof?->shakha_id;
+            $bastiId = $loc?->basti_id ?: ($loc?->shakha_id ?: ($prof?->basti_id ?: $prof?->shakha_id));
             $nagarId = $loc?->nagar_id ?: $prof?->nagar_id;
             $jilaId = $loc?->jila_id ?: $prof?->jila_id;
 
@@ -49,14 +50,14 @@ class ProductController extends Controller
                         'label' => "{$n->nagar_name} Nagar",
                     ];
                 }
-            } elseif ($shakhaId) {
-                $s = Shakha::find($shakhaId);
-                if ($s) {
+            } elseif ($bastiId) {
+                $b = Basti::find($bastiId);
+                if ($b) {
                     $userUnit = [
-                        'type' => 'shakha',
-                        'id' => $s->id,
-                        'name' => $s->shakha_name,
-                        'label' => "{$s->shakha_name} (Shakha)",
+                        'type' => 'basti',
+                        'id' => $b->id,
+                        'name' => $b->basti_name,
+                        'label' => "{$b->basti_name} (Basti)",
                     ];
                 }
             } elseif ($jilaId) {
@@ -73,6 +74,7 @@ class ProductController extends Controller
         }
 
         $products = Product::with([
+            'dealer.profile.basti',
             'dealer.profile.shakha',
             'dealer.profile.nagar',
             'dealer.profile.jila',
@@ -99,7 +101,8 @@ class ProductController extends Controller
             'orgUnits' => [
                 'jilas' => $jilas,
                 'nagars' => $nagars,
-                'shakhas' => $shakhas,
+                'bastis' => $bastis,
+                'shakhas' => $bastis,
             ],
             'userUnit' => $userUnit,
             'filters' => [
@@ -119,6 +122,7 @@ class ProductController extends Controller
     public function show(Product $product): Response
     {
         $product->load([
+            'dealer.profile.basti',
             'dealer.profile.shakha',
             'dealer.profile.nagar',
             'dealer.profile.jila',

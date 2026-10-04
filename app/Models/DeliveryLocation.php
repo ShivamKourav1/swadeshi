@@ -30,7 +30,7 @@ class DeliveryLocation extends Model
         'vibhag_id',
         'jila_id',
         'nagar_id',
-        'shakha_id',
+        'basti_id',
     ];
 
     protected $casts = [
@@ -41,7 +41,30 @@ class DeliveryLocation extends Model
 
     protected $appends = [
         'organizational_hierarchy',
+        'shakha_id',
     ];
+
+    public function fill(array $attributes)
+    {
+        if (isset($attributes['shakha_id']) && !isset($attributes['basti_id'])) {
+            $attributes['basti_id'] = $attributes['shakha_id'];
+        }
+        unset($attributes['shakha_id']);
+        return parent::fill($attributes);
+    }
+
+    public function newEloquentBuilder($query)
+    {
+        return new class($query) extends \Illuminate\Database\Eloquent\Builder {
+            public function where($column, $operator = null, $value = null, $boolean = 'and')
+            {
+                if (is_string($column)) {
+                    $column = str_replace('shakha_id', 'basti_id', $column);
+                }
+                return parent::where($column, $operator, $value, $boolean);
+            }
+        };
+    }
 
     public function user(): BelongsTo
     {
@@ -78,9 +101,27 @@ class DeliveryLocation extends Model
         return $this->belongsTo(Nagar::class);
     }
 
+    public function basti(): BelongsTo
+    {
+        return $this->belongsTo(Basti::class);
+    }
+
+    /**
+     * Backward-compatible alias for basti relationship.
+     */
     public function shakha(): BelongsTo
     {
-        return $this->belongsTo(Shakha::class);
+        return $this->basti();
+    }
+
+    public function getShakhaIdAttribute(): ?int
+    {
+        return $this->attributes['basti_id'] ?? null;
+    }
+
+    public function setShakhaIdAttribute(?int $value): void
+    {
+        $this->attributes['basti_id'] = $value;
     }
 
     /**
@@ -98,8 +139,9 @@ class DeliveryLocation extends Model
         if ($this->nagar) {
             $parts[] = $this->nagar->nagar_name;
         }
-        if ($this->shakha) {
-            $parts[] = $this->shakha->shakha_name;
+        $targetBasti = $this->basti ?: $this->shakha;
+        if ($targetBasti) {
+            $parts[] = $targetBasti->basti_name ?? $targetBasti->shakha_name;
         }
 
         return count($parts) > 0 ? implode(' > ', $parts) : null;

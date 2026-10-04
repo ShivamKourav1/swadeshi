@@ -45,6 +45,7 @@ export default function Index({ locations, orgData }) {
         vibhag_id: '',
         jila_id: '',
         nagar_id: '',
+        basti_id: '',
         shakha_id: '',
     });
 
@@ -60,6 +61,7 @@ export default function Index({ locations, orgData }) {
         setEditingLocation(loc);
         clearErrors();
         setShowManualCoords(false);
+        const bId = loc.basti_id ? String(loc.basti_id) : (loc.shakha_id ? String(loc.shakha_id) : '');
         setData({
             label: loc.label || 'Home',
             recipient_name: loc.recipient_name || '',
@@ -78,7 +80,8 @@ export default function Index({ locations, orgData }) {
             vibhag_id: loc.vibhag_id ? String(loc.vibhag_id) : '',
             jila_id: loc.jila_id ? String(loc.jila_id) : '',
             nagar_id: loc.nagar_id ? String(loc.nagar_id) : '',
-            shakha_id: loc.shakha_id ? String(loc.shakha_id) : '',
+            basti_id: bId,
+            shakha_id: bId,
         });
         setShowModal(true);
     };
@@ -114,9 +117,11 @@ export default function Index({ locations, orgData }) {
         ? orgData?.nagars?.filter((n) => String(n.jila_id) === String(data.jila_id))
         : orgData?.nagars || [];
 
-    const filteredShakhas = data.nagar_id
-        ? orgData?.shakhas?.filter((s) => String(s.nagar_id) === String(data.nagar_id))
-        : orgData?.shakhas || [];
+    const bastisList = orgData?.bastis || orgData?.shakhas || [];
+    const filteredBastis = data.nagar_id
+        ? bastisList.filter((s) => String(s.nagar_id) === String(data.nagar_id))
+        : bastisList;
+    const filteredShakhas = filteredBastis;
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -160,7 +165,7 @@ export default function Index({ locations, orgData }) {
                             <span>Saved Delivery Locations</span>
                         </h1>
                         <p className="text-xs text-gray-500 mt-1">
-                            Manage your delivery addresses and organizational unit belongings (Kshetra, Prant, Vibhag, Jila, Nagar, Shakha).
+                            Manage your delivery addresses and organizational unit belongings (Kshetra, Prant, Vibhag, Jila, Nagar, Basti).
                         </p>
                     </div>
 
@@ -245,9 +250,9 @@ export default function Index({ locations, orgData }) {
                                             <Building2 className="w-3.5 h-3.5 text-amber-700 flex-shrink-0 mt-0.5" />
                                             <div>
                                                 <span>{loc.organizational_hierarchy}</span>
-                                                {loc.shakha?.aayu_varg && (
+                                                {(loc.basti?.aayu_varg || loc.shakha?.aayu_varg) && (
                                                     <span className="text-[10px] text-amber-700 block font-medium">
-                                                        Age Group: {loc.shakha.aayu_varg} • {loc.shakha.type}
+                                                        Age Group: {loc.basti?.aayu_varg || loc.shakha?.aayu_varg} • {loc.basti?.type || loc.shakha?.type}
                                                     </span>
                                                 )}
                                             </div>
@@ -398,7 +403,7 @@ export default function Index({ locations, orgData }) {
                                         >
                                             <option value="Home">Home</option>
                                             <option value="Work / Office">Work / Office</option>
-                                            <option value="Shakha / Unit">Shakha / Unit</option>
+                                            <option value="Basti / Unit">Basti / Unit</option>
                                             <option value="Warehouse">Warehouse</option>
                                             <option value="Other">Other</option>
                                         </select>
@@ -527,6 +532,7 @@ export default function Index({ locations, orgData }) {
                                                         vibhag_id: '',
                                                         jila_id: '',
                                                         nagar_id: '',
+                                                        basti_id: '',
                                                         shakha_id: '',
                                                     }));
                                                 }}
@@ -553,6 +559,7 @@ export default function Index({ locations, orgData }) {
                                                         vibhag_id: '',
                                                         jila_id: '',
                                                         nagar_id: '',
+                                                        basti_id: '',
                                                         shakha_id: '',
                                                     }));
                                                 }}
@@ -578,6 +585,7 @@ export default function Index({ locations, orgData }) {
                                                         vibhag_id: e.target.value,
                                                         jila_id: '',
                                                         nagar_id: '',
+                                                        basti_id: '',
                                                         shakha_id: '',
                                                     }));
                                                 }}
@@ -602,6 +610,7 @@ export default function Index({ locations, orgData }) {
                                                         ...prev,
                                                         jila_id: e.target.value,
                                                         nagar_id: '',
+                                                        basti_id: '',
                                                         shakha_id: '',
                                                     }));
                                                 }}
@@ -625,6 +634,7 @@ export default function Index({ locations, orgData }) {
                                                     setData((prev) => ({
                                                         ...prev,
                                                         nagar_id: e.target.value,
+                                                        basti_id: '',
                                                         shakha_id: '',
                                                     }));
                                                 }}
@@ -639,18 +649,18 @@ export default function Index({ locations, orgData }) {
                                             </select>
                                         </div>
 
-                                        {/* Shakha */}
+                                        {/* Basti */}
                                         <div>
-                                            <label className="block font-bold text-gray-700 mb-1">Shakha (शाखा)</label>
+                                            <label className="block font-bold text-gray-700 mb-1">Basti (बस्ती)</label>
                                             <select
-                                                value={data.shakha_id}
-                                                onChange={(e) => setData('shakha_id', e.target.value)}
+                                                value={data.basti_id || data.shakha_id}
+                                                onChange={(e) => setData((prev) => ({ ...prev, basti_id: e.target.value, shakha_id: e.target.value }))}
                                                 className="w-full p-2 border border-gray-300 rounded-xl bg-white text-xs focus:ring-2 focus:ring-amber-500"
                                             >
-                                                <option value="">Select Shakha</option>
-                                                {filteredShakhas?.map((s) => (
+                                                <option value="">Select Basti</option>
+                                                {filteredBastis?.map((s) => (
                                                     <option key={s.id} value={s.id}>
-                                                        {s.shakha_name} ({s.aayu_varg})
+                                                        {s.basti_name || s.shakha_name} ({s.aayu_varg})
                                                     </option>
                                                 ))}
                                             </select>
