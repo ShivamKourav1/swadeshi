@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
@@ -18,15 +18,25 @@ import {
     ArrowRight,
     RefreshCw,
     X,
+    Share2,
+    Copy,
+    MessageCircle,
+    FileSpreadsheet,
+    Download,
 } from 'lucide-react';
 
-export default function Demands({ products, categories, summary, filters }) {
+export default function Demands({ products, shareable_products = [], categories, summary, filters }) {
     const { auth } = usePage().props;
     const isKaryakartaDealer = Boolean(auth?.user?.is_karyakarta_dealer);
 
     const [search, setSearch] = useState(filters.search || '');
     const [categoryId, setCategoryId] = useState(filters.category_id || '');
     const [expandedProducts, setExpandedProducts] = useState({});
+
+    // Share demands modal state
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [shareFilterOnlyPending, setShareFilterOnlyPending] = useState(true);
+    const [copiedShareText, setCopiedShareText] = useState(false);
     
     // Quick restock modal state
     const [restockProduct, setRestockProduct] = useState(null);
@@ -84,14 +94,71 @@ export default function Demands({ products, categories, summary, filters }) {
         );
     };
 
+    const shareText = useMemo(() => {
+        const sourceList = (shareable_products && shareable_products.length > 0)
+            ? shareable_products
+            : (products.data || []).map(p => ({
+                id: p.id,
+                name: p.name,
+                sku: p.sku,
+                category: p.category?.name,
+                pending_demand_units: p.active_demand_units || 0,
+            }));
+
+        const listToShare = sourceList.filter(p =>
+            shareFilterOnlyPending ? (Number(p.pending_demand_units) > 0) : true
+        );
+
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('hi-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const totalDemanded = listToShare.reduce((acc, p) => acc + (Number(p.pending_demand_units) || 0), 0);
+
+        let msg = `🚩 *वस्तु भंडार - शून्य स्टॉक एवं उत्पाद मांग सूची*\n`;
+        msg += `📅 दिनांक: ${dateStr}\n`;
+        msg += `📦 कुल उत्पाद: ${listToShare.length} | कुल मांग: ${totalDemanded} नग\n`;
+        msg += `────────────────────────────\n\n`;
+
+        if (listToShare.length === 0) {
+            msg += `(वर्तमान में कोई लंबित मांग दर्ज नहीं है)\n\n`;
+        } else {
+            listToShare.forEach((p, idx) => {
+                const units = Number(p.pending_demand_units) || 0;
+                msg += `${idx + 1}. *${p.name}*\n`;
+                if (p.sku) msg += `   • SKU: ${p.sku}\n`;
+                if (p.category) msg += `   • श्रेणी: ${typeof p.category === 'string' ? p.category : p.category.name}\n`;
+                msg += `   • वर्तमान स्टॉक: 0\n`;
+                msg += `   • 📌 लंबित मांग: *${units} नग*\n\n`;
+            });
+        }
+
+        msg += `────────────────────────────\n`;
+        msg += `ℹ️ कृपया उपरोक्त आवश्यकतानुसार स्टॉक तैयार/उपलब्ध कराने की कृपा करें।`;
+        return msg;
+    }, [shareable_products, products, shareFilterOnlyPending]);
+
+    const handleCopyShareText = async () => {
+        try {
+            await navigator.clipboard.writeText(shareText);
+            setCopiedShareText(true);
+            setTimeout(() => setCopiedShareText(false), 2500);
+        } catch (err) {
+            console.error('Clipboard copy failed:', err);
+        }
+    };
+
+    const handleWhatsAppShare = () => {
+        const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+        window.open(url, '_blank');
+    };
+
     return (
         <AuthenticatedLayout title={isKaryakartaDealer ? "उत्पाद मांग (Product Demands) - वस्तु भंडार प्रमुख" : "उत्पाद मांग (Product Demands) - डीलर"}>
             <Head title={isKaryakartaDealer ? "उत्पाद मांग (Product Demands) - वस्तु भंडार प्रमुख" : "उत्पाद मांग (Product Demands) - डीलर डैशबोर्ड"} />
 
             <div className="py-6 sm:py-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
                 {/* Header Banner */}
-                <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-                    <div className="relative z-10">
+                <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="relative z-10 max-w-2xl">
                         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-bold uppercase tracking-wider mb-3">
                             <ClipboardList className="w-4 h-4" />
                             <span>मांग पूर्वानुमान एवं स्टॉक योजना</span>
@@ -99,10 +166,33 @@ export default function Demands({ products, categories, summary, filters }) {
                         <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
                             शून्य स्टॉक उत्पाद मांग प्रबंधन (Zero-Stock Demands)
                         </h1>
-                        <p className="mt-2 text-amber-100 text-sm sm:text-base max-w-2xl leading-relaxed">
+                        <p className="mt-2 text-amber-100 text-sm sm:text-base leading-relaxed">
                             जब किसी उत्पाद का स्टॉक 0 हो जाता है, तो ग्राहक और टोली सदस्य अपनी अग्रिम मांग दर्ज कर सकते हैं।
                             यहाँ से आप मांग का अनुमान लगाकर आवश्यकतानुसार स्टॉक जोड़ सकते हैं। स्टॉक जोड़ते ही मांग के आंकड़े स्वतः कम हो जाएंगे।
                         </p>
+                    </div>
+
+                    <div className="relative z-10 flex flex-col sm:flex-row gap-2.5 w-full md:w-auto shrink-0">
+                        <a
+                            href={route('dealer.demands.export', {
+                                search: search || undefined,
+                                category_id: categoryId || undefined,
+                            })}
+                            className="bg-white/15 hover:bg-white/25 text-white font-extrabold px-4 py-3 rounded-2xl text-xs sm:text-sm transition border border-white/30 shadow-lg flex items-center justify-center space-x-2"
+                            title="शून्य स्टॉक उत्पाद मांग सूची की Excel / CSV फ़ाइल डाउनलोड करें (प्रति उत्पाद 1 पंक्ति)"
+                        >
+                            <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
+                            <span>📥 Excel / CSV डाउनलोड</span>
+                        </a>
+                        <button
+                            type="button"
+                            onClick={() => setIsShareModalOpen(true)}
+                            className="bg-white hover:bg-amber-50 text-amber-950 font-extrabold px-4 py-3 rounded-2xl text-xs sm:text-sm transition shadow-lg flex items-center justify-center space-x-2 cursor-pointer"
+                            title="मांग सूची कॉपी व WhatsApp पर साझा करें"
+                        >
+                            <Share2 className="w-4 h-4 text-emerald-600" />
+                            <span>📋 मांग सूची साझा करें</span>
+                        </button>
                     </div>
                 </div>
 
@@ -182,12 +272,32 @@ export default function Demands({ products, categories, summary, filters }) {
                         </select>
                     </div>
 
-                    <div className="flex items-center space-x-2 w-full md:w-auto">
+                    <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                        <a
+                            href={route('dealer.demands.export', {
+                                search: search || undefined,
+                                category_id: categoryId || undefined,
+                            })}
+                            className="flex-1 md:flex-none px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs sm:text-sm font-bold rounded-xl border border-stone-300 shadow-xs transition flex items-center justify-center space-x-1.5"
+                            title="शून्य स्टॉक उत्पाद मांग सूची की Excel / CSV फ़ाइल डाउनलोड करें (प्रति उत्पाद 1 पंक्ति)"
+                        >
+                            <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+                            <span>Excel/CSV डाउनलोड</span>
+                        </a>
+                        <button
+                            type="button"
+                            onClick={() => setIsShareModalOpen(true)}
+                            className="flex-1 md:flex-none px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center space-x-1.5"
+                            title="मांग सूची कॉपी व WhatsApp पर साझा करें"
+                        >
+                            <Share2 className="w-4 h-4" />
+                            <span>मांग सूची साझा करें</span>
+                        </button>
                         <button
                             type="submit"
                             className="flex-1 md:flex-none px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs sm:text-sm font-bold rounded-xl shadow-xs transition cursor-pointer"
                         >
-                            फ़िल्टर लागू करें
+                            फ़िल्टर
                         </button>
                         {(filters.search || filters.category_id) && (
                             <button
@@ -542,6 +652,119 @@ export default function Demands({ products, categories, summary, filters }) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Share Demands List Modal */}
+            {isShareModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+                    <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] shadow-2xl border border-stone-200 flex flex-col overflow-hidden">
+                        {/* Header */}
+                        <div className="p-4 sm:p-5 border-b border-stone-200 bg-gradient-to-r from-emerald-600/10 via-teal-600/5 to-emerald-600/10 flex items-center justify-between">
+                            <div className="flex items-center space-x-2.5">
+                                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                                    <MessageCircle className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h2 className="text-base sm:text-lg font-black text-stone-900">
+                                        मांग सूची साझा करें (Share Demands List)
+                                    </h2>
+                                    <p className="text-xs text-stone-500">
+                                        WhatsApp या संदेश के रूप में कॉपी व साझा करने योग्य सूची
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsShareModalOpen(false)}
+                                className="p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-xl transition cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Filter Toggle */}
+                        <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-stone-600">सूची में सम्मिलित करें:</span>
+                            <div className="inline-flex rounded-xl p-0.5 bg-stone-200 text-xs font-semibold">
+                                <button
+                                    type="button"
+                                    onClick={() => setShareFilterOnlyPending(true)}
+                                    className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                                        shareFilterOnlyPending ? 'bg-white text-emerald-800 shadow-2xs font-bold' : 'text-stone-600 hover:text-stone-900'
+                                    }`}
+                                >
+                                    केवल मांग वाले उत्पाद
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setShareFilterOnlyPending(false)}
+                                    className={`px-3 py-1 rounded-lg transition cursor-pointer ${
+                                        !shareFilterOnlyPending ? 'bg-white text-emerald-800 shadow-2xs font-bold' : 'text-stone-600 hover:text-stone-900'
+                                    }`}
+                                >
+                                    सभी शून्य स्टॉक उत्पाद
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Message Preview Box */}
+                        <div className="p-4 flex-1 overflow-y-auto">
+                            <label className="block text-xs font-bold text-stone-700 mb-1.5 flex items-center justify-between">
+                                <span>संदेश पूर्वावलोकन (Message Preview):</span>
+                                <span className="text-[11px] font-normal text-stone-500">सीधे कॉपी या WhatsApp पर साझा करें</span>
+                            </label>
+                            <div className="relative">
+                                <textarea
+                                    readOnly
+                                    value={shareText}
+                                    rows={11}
+                                    className="w-full p-3 font-mono text-xs bg-stone-50 border border-stone-200 rounded-2xl text-stone-800 select-all leading-relaxed focus:ring-0 focus:border-stone-300 resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="p-4 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setIsShareModalOpen(false)}
+                                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                            >
+                                बंद करें
+                            </button>
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                                <a
+                                    href={route('dealer.demands.export', {
+                                        only_pending: shareFilterOnlyPending ? 1 : 0,
+                                        search: search || undefined,
+                                        category_id: categoryId || undefined,
+                                    })}
+                                    className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs"
+                                    title="Excel / CSV फ़ाइल डाउनलोड करें (प्रति उत्पाद 1 पंक्ति)"
+                                >
+                                    <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+                                    <span>Excel/CSV डाउनलोड</span>
+                                </a>
+                                <button
+                                    type="button"
+                                    onClick={handleCopyShareText}
+                                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-900 text-white text-xs font-bold transition flex items-center justify-center space-x-1.5 cursor-pointer shadow-xs"
+                                >
+                                    {copiedShareText ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                                    <span>{copiedShareText ? 'कॉपी हो गया!' : 'टेक्स्ट कॉपी करें'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleWhatsAppShare}
+                                    className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-extrabold shadow-md shadow-emerald-600/20 transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span>WhatsApp पर भेजें</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DealerDemandController extends Controller
 {
@@ -112,8 +113,25 @@ class DealerDemandController extends Controller
 
         $categories = Category::where('is_active', true)->get(['id', 'name']);
 
+        $shareableProducts = (clone $allZeroStockQuery)
+            ->select('id', 'name', 'sku', 'price', 'stock', 'category_id')
+            ->withSum('demands as pending_demand_units', 'quantity')
+            ->with('category:id,name')
+            ->orderBy('name', 'asc')
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'sku' => $p->sku,
+                    'category' => $p->category?->name,
+                    'pending_demand_units' => (int) ($p->pending_demand_units ?? 0),
+                ];
+            });
+
         return Inertia::render('Dealer/Demands', [
             'products' => $products,
+            'shareable_products' => $shareableProducts,
             'categories' => $categories,
             'summary' => [
                 'zero_stock_products_count' => $totalZeroStockProducts,
@@ -146,5 +164,97 @@ class DealerDemandController extends Controller
         $product->restock($added);
 
         return back()->with('success', "उत्पाद '{$product->name}' में {$added} इकाइयां स्टॉक में जोड़ी गईं एवं मांग के आंकड़े तदनुसार घटा दिए गए!");
+    }
+
+    /**
+     * Download Excel/CSV file of zero-stock products demand list (1 row per product).
+     */
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $user = $request->user();
+
+        if (!$user->isDealer() && !$user->isAdmin()) {
+            abort(403, 'Unauthorized. Only dealers and administrators can export demands.');
+        }
+
+        $search = $request->input('search');
+        $categoryId = $request->input('category_id');
+        $onlyPending = $request->boolean('only_pending', false);
+
+        $query = Product::where('stock', '<=', 0);
+
+        if (!$user->isAdmin()) {
+            $query->where('dealer_id', $user->id);
+        }
+
+        if ($search) {
+            $query->search($search);
+        }
+
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
+
+        $products = $query->select('id', 'name', 'sku', 'price', 'stock', 'category_id')
+            ->withSum('demands as pending_demand_units', 'quantity')
+            ->withCount(['demands as total_demand_requests' => function ($q) {
+                $q->where('quantity', '>', 0);
+            }])
+            ->with('category:id,name')
+            ->orderBy('name', 'asc')
+            ->get();
+
+        if ($onlyPending) {
+            $products = $products->filter(function ($p) {
+                return (int) ($p->pending_demand_units ?? 0) > 0;
+            });
+        }
+
+        $dateStr = now()->format('Y-m-d');
+        $filename = "demands_zero_stock_{$dateStr}.csv";
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        return response()->stream(function () use ($products) {
+            $handle = fopen('php://output', 'w');
+            // Write UTF-8 BOM so Microsoft Excel correctly displays Hindi/Devanagari characters
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // CSV Header Row (1 row per product)
+            fputcsv($handle, [
+                'क्र. सं. (Sr No)',
+                'उत्पाद का नाम (Product Name)',
+                'एसकेयू कोड (SKU)',
+                'श्रेणी (Category)',
+                'मूल्य (Price ₹)',
+                'वर्तमान स्टॉक (Current Stock)',
+                'लंबित मांग संख्या (Pending Demand Units)',
+                'मांग अनुरोधों की संख्या (Demand Requests)',
+                'स्थिति (Status)'
+            ]);
+
+            $idx = 1;
+            foreach ($products as $p) {
+                fputcsv($handle, [
+                    $idx++,
+                    $p->name,
+                    $p->sku ?? 'N/A',
+                    $p->category?->name ?? 'सामान्य',
+                    number_format((float) $p->price, 2, '.', ''),
+                    0,
+                    (int) ($p->pending_demand_units ?? 0),
+                    (int) ($p->total_demand_requests ?? 0),
+                    'आउट ऑफ स्टॉक (मांग अपेक्षित)'
+                ]);
+            }
+
+            fclose($handle);
+        }, 200, $headers);
     }
 }

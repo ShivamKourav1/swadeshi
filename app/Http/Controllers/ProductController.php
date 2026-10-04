@@ -161,8 +161,15 @@ class ProductController extends Controller
         $canSeedShakhaProducts = ($user->isDealer() || $user->hasRole('superadmin'))
             && ($dealerStandardCount < $standardTotal);
 
+        $allDealerProducts = Product::where('dealer_id', $user->id)
+            ->with('category:id,name')
+            ->select('id', 'name', 'sku', 'stock', 'price', 'category_id')
+            ->orderBy('name', 'asc')
+            ->get();
+
         return Inertia::render('Products/Dealer/Index', [
             'products' => $products,
+            'all_dealer_products' => $allDealerProducts,
             'filters' => [
                 'search' => $search ?? '',
                 'per_page' => $perPage,
@@ -171,6 +178,40 @@ class ProductController extends Controller
             'standard_products_count' => $dealerStandardCount,
             'standard_products_total' => $standardTotal,
         ]);
+    }
+
+    /**
+     * Bulk update stock for dealer products.
+     */
+    public function bulkUpdateStock(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (!$user->isDealer() && !$user->isAdmin()) {
+            abort(403, 'Unauthorized. Only dealers can update product stock.');
+        }
+
+        $validated = $request->validate([
+            'updates' => 'required|array',
+            'updates.*.id' => 'required|integer|exists:products,id',
+            'updates.*.stock' => 'required|integer|min:0',
+        ]);
+
+        $updatedCount = 0;
+        foreach ($validated['updates'] as $item) {
+            $productQuery = Product::where('id', $item['id']);
+            if (!$user->isAdmin()) {
+                $productQuery->where('dealer_id', $user->id);
+            }
+            $product = $productQuery->first();
+
+            if ($product && (int) $product->stock !== (int) $item['stock']) {
+                $product->update(['stock' => (int) $item['stock']]);
+                $updatedCount++;
+            }
+        }
+
+        return redirect()->route('dealer.products.index')
+            ->with('success', "{$updatedCount} उत्पादों का स्टॉक सफलतापूर्वक अपडेट किया गया।");
     }
 
     /**

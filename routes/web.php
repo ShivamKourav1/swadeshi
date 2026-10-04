@@ -71,6 +71,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/products', [ProductController::class, 'dealerIndex'])->name('dealer.products.index');
         Route::get('/products/create', [ProductController::class, 'create'])->name('dealer.products.create');
         Route::post('/products', [ProductController::class, 'store'])->name('dealer.products.store');
+        Route::post('/products/bulk-stock', [ProductController::class, 'bulkUpdateStock'])->name('dealer.products.bulk_stock');
         Route::post('/products/seed-shakha', [ProductController::class, 'seedShakhaProducts'])->name('dealer.products.seed_shakha');
         Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('dealer.products.edit');
         Route::put('/products/{product}', [ProductController::class, 'update'])->name('dealer.products.update');
@@ -91,6 +92,7 @@ Route::middleware('auth')->group(function () {
 
         // Product Demands
         Route::get('/demands', [DealerDemandController::class, 'index'])->name('dealer.demands.index');
+        Route::get('/demands/export', [DealerDemandController::class, 'exportCsv'])->name('dealer.demands.export');
         Route::post('/demands/{product}/quick-restock', [DealerDemandController::class, 'quickRestock'])->name('dealer.demands.quick_restock');
     });
 

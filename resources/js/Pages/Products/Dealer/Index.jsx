@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Store, Plus, Edit3, Trash2, Tag, AlertCircle, FolderTree, Sparkles, Search } from 'lucide-react';
+import { Store, Plus, Edit3, Trash2, Tag, AlertCircle, FolderTree, Sparkles, Search, Boxes, X, Save } from 'lucide-react';
 
 export default function Index({
     products,
+    all_dealer_products = [],
     filters = {},
     can_seed_shakha_products = false,
     standard_products_count = 0,
@@ -16,6 +17,70 @@ export default function Index({
 
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const perPage = filters.per_page || 50;
+
+    // Bulk Stock Edit states
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+    const [stockEdits, setStockEdits] = useState({});
+    const [bulkFilter, setBulkFilter] = useState('');
+    const [isSavingBulk, setIsSavingBulk] = useState(false);
+
+    const editableProducts = all_dealer_products && all_dealer_products.length > 0
+        ? all_dealer_products
+        : (products.data || []);
+
+    const openBulkModal = () => {
+        const initial = {};
+        editableProducts.forEach((p) => {
+            initial[p.id] = p.stock ?? 0;
+        });
+        setStockEdits(initial);
+        setBulkFilter('');
+        setIsBulkModalOpen(true);
+    };
+
+    const handleStockChange = (productId, newStock) => {
+        const val = Math.max(0, parseInt(newStock) || 0);
+        setStockEdits((prev) => ({
+            ...prev,
+            [productId]: val,
+        }));
+    };
+
+    const handleBulkSubmit = (e) => {
+        e.preventDefault();
+        setIsSavingBulk(true);
+
+        const updates = Object.entries(stockEdits).map(([id, stock]) => ({
+            id: Number(id),
+            stock: Number(stock),
+        }));
+
+        router.post(route('dealer.products.bulk_stock'), { updates }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setIsBulkModalOpen(false);
+                setIsSavingBulk(false);
+            },
+            onError: () => {
+                setIsSavingBulk(false);
+            },
+        });
+    };
+
+    const filteredBulkProducts = useMemo(() => {
+        if (!bulkFilter.trim()) return editableProducts;
+        const q = bulkFilter.toLowerCase().trim();
+        return editableProducts.filter(
+            (p) => p.name.toLowerCase().includes(q) || (p.sku && p.sku.toLowerCase().includes(q))
+        );
+    }, [editableProducts, bulkFilter]);
+
+    const changedStockCount = useMemo(() => {
+        return editableProducts.filter((p) => {
+            const edited = stockEdits[p.id];
+            return edited !== undefined && edited !== p.stock;
+        }).length;
+    }, [editableProducts, stockEdits]);
 
     const handleDelete = (productId) => {
         if (confirm('Are you sure you want to delete this product?')) {
@@ -70,6 +135,15 @@ export default function Index({
                                 </span>
                             </button>
                         )}
+                        <button
+                            type="button"
+                            onClick={openBulkModal}
+                            className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-bold px-4 py-3 rounded-2xl text-xs transition flex items-center space-x-1.5 cursor-pointer shadow-xs"
+                            title="Bulk Stock Edit"
+                        >
+                            <Boxes className="w-4 h-4 text-amber-800" />
+                            <span>{isKaryakartaDealer ? 'थोक स्टॉक संपादन' : 'Bulk Stock Edit'}</span>
+                        </button>
                         <Link
                             href={route('dealer.categories.index')}
                             className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-bold px-4 py-3 rounded-2xl text-xs transition flex items-center space-x-1.5 cursor-pointer"
@@ -243,6 +317,160 @@ export default function Index({
                     )}
                 </div>
             </div>
+
+            {/* Bulk Stock Edit Modal */}
+            {isBulkModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-stone-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+                    <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] shadow-2xl border border-stone-200 flex flex-col overflow-hidden">
+                        {/* Modal Header */}
+                        <div className="p-4 sm:p-5 border-b border-stone-200 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-amber-500/10 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base sm:text-lg font-black text-stone-900 flex items-center space-x-2">
+                                    <Boxes className="w-5 h-5 text-amber-700" />
+                                    <span>{isKaryakartaDealer ? 'थोक स्टॉक संपादन (Bulk Stock Edit)' : 'Bulk Stock Edit'}</span>
+                                </h2>
+                                <p className="text-xs text-stone-500 mt-0.5">
+                                    उत्पादों का नया स्टॉक दर्ज करें। पहले कॉलम में उत्पाद और दूसरे कॉलम में स्टॉक फ़ील्ड है।
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsBulkModalOpen(false)}
+                                className="p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-xl transition cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Quick Search & Modified Tracker */}
+                        <div className="p-3 sm:p-4 border-b border-stone-100 bg-stone-50/50 flex items-center gap-3">
+                            <div className="relative flex-1">
+                                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={bulkFilter}
+                                    onChange={(e) => setBulkFilter(e.target.value)}
+                                    placeholder="उत्पाद का नाम या SKU से फ़िल्टर करें..."
+                                    className="w-full pl-9 pr-3 py-2 bg-white border border-stone-300 rounded-xl text-xs focus:ring-2 focus:ring-amber-500"
+                                />
+                            </div>
+                            {changedStockCount > 0 && (
+                                <span className="text-xs font-bold text-amber-800 bg-amber-100 px-3 py-1.5 rounded-xl shrink-0">
+                                    संशोधित: {changedStockCount}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Tabular Form */}
+                        <form onSubmit={handleBulkSubmit} className="flex-1 flex flex-col overflow-hidden">
+                            <div className="flex-1 overflow-y-auto p-2 sm:p-4">
+                                <table className="w-full text-left text-xs border-collapse">
+                                    <thead className="bg-stone-100 text-stone-700 font-extrabold uppercase tracking-wider sticky top-0 z-10 border-b border-stone-200">
+                                        <tr>
+                                            <th className="p-3 w-7/12">उत्पाद का नाम (Product Name)</th>
+                                            <th className="p-3 w-5/12 text-right sm:text-left">स्टॉक (Stock)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-stone-100">
+                                        {filteredBulkProducts.length === 0 ? (
+                                            <tr>
+                                                <td colSpan="2" className="p-8 text-center text-stone-400">
+                                                    कोई उत्पाद नहीं मिला।
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            filteredBulkProducts.map((p) => {
+                                                const currentStock = p.stock ?? 0;
+                                                const editedVal = stockEdits[p.id] ?? currentStock;
+                                                const isChanged = editedVal !== currentStock;
+
+                                                return (
+                                                    <tr key={p.id} className={`hover:bg-amber-50/40 transition ${isChanged ? 'bg-amber-50/60' : ''}`}>
+                                                        {/* Column 1: Product Name as Label */}
+                                                        <td className="p-3 align-middle">
+                                                            <label htmlFor={`bulk-stock-${p.id}`} className="font-bold text-stone-900 text-xs sm:text-sm block cursor-pointer">
+                                                                {p.name}
+                                                            </label>
+                                                            <div className="text-[11px] text-stone-500 font-mono flex items-center space-x-2 mt-0.5">
+                                                                <span>SKU: {p.sku || '-'}</span>
+                                                                {p.category && (
+                                                                    <span className="text-[10px] bg-stone-100 text-stone-600 px-1.5 py-0.2 rounded">
+                                                                        {p.category.name}
+                                                                    </span>
+                                                                )}
+                                                                <span className="text-[10px] text-stone-400">
+                                                                    (मौजूदा: {currentStock})
+                                                                </span>
+                                                            </div>
+                                                        </td>
+
+                                                        {/* Column 2: Stock Field */}
+                                                        <td className="p-3 align-middle text-right sm:text-left">
+                                                            <div className="inline-flex items-center space-x-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStockChange(p.id, Math.max(0, Number(editedVal) - 1))}
+                                                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold transition text-sm cursor-pointer"
+                                                                >
+                                                                    -
+                                                                </button>
+                                                                <input
+                                                                    id={`bulk-stock-${p.id}`}
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={editedVal}
+                                                                    onChange={(e) => handleStockChange(p.id, e.target.value)}
+                                                                    className={`w-20 p-2 text-center rounded-xl font-bold text-xs sm:text-sm border transition focus:ring-2 focus:ring-amber-500 ${
+                                                                        isChanged
+                                                                            ? 'border-amber-500 bg-amber-50 text-amber-950 ring-1 ring-amber-400'
+                                                                            : 'border-stone-300 bg-white text-stone-900'
+                                                                    }`}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleStockChange(p.id, Number(editedVal) + 1)}
+                                                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold transition text-sm cursor-pointer"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Footer Controls */}
+                            <div className="p-4 bg-stone-50 border-t border-stone-200 flex flex-col sm:flex-row justify-between items-center gap-3">
+                                <div className="text-xs text-stone-500">
+                                    कुल उत्पाद: <strong className="text-stone-800">{editableProducts.length}</strong> | 
+                                    संशोधित: <strong className="text-amber-700">{changedStockCount}</strong>
+                                </div>
+                                <div className="flex items-center space-x-2 w-full sm:w-auto">
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsBulkModalOpen(false)}
+                                        className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl border border-stone-300 text-xs font-bold text-stone-700 hover:bg-stone-100 transition cursor-pointer"
+                                    >
+                                        रद्द करें
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={isSavingBulk || changedStockCount === 0}
+                                        className="flex-1 sm:flex-initial px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white text-xs font-extrabold shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center space-x-1.5 cursor-pointer"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        <span>{isSavingBulk ? 'सहेज रहे हैं...' : 'स्टॉक सुरक्षित करें'}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </AuthenticatedLayout>
     );
 }

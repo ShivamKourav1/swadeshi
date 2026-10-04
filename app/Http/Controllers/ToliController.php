@@ -826,18 +826,29 @@ class ToliController extends Controller
     /**
      * Store new Swayamsevak (Member).
      */
-    public function storeMember(Request $request): RedirectResponse
+    public function storeMember(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'mobile' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:1000',
             'shakha_id' => 'required|exists:shakhas,id',
-            'ganvesh' => 'required|boolean',
+            'ganvesh' => 'nullable|boolean',
             'shikshan' => 'nullable|string|max:100',
         ]);
 
-        Swayamsevak::create($validated);
+        $validated['ganvesh'] = $request->boolean('ganvesh', false);
+        $validated['shikshan'] = !empty($validated['shikshan']) ? $validated['shikshan'] : 'प्रारंभिक';
+
+        $swayamsevak = Swayamsevak::create($validated);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'swayamsevak' => $swayamsevak,
+                'message' => 'स्वयंसेवक सफलतापूर्वक सूची में जोड़ा गया।'
+            ]);
+        }
 
         return back()->with('success', 'स्वयंसेवक सफलतापूर्वक सूची में जोड़ा गया।');
     }

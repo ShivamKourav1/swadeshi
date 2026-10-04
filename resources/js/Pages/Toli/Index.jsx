@@ -34,7 +34,10 @@ import {
     MessageCircle,
     CornerDownRight,
     ClipboardList,
+    QrCode,
+    UserPlus,
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function ToliIndex({
     isAuthenticated = false,
@@ -95,6 +98,29 @@ export default function ToliIndex({
     const [selectedShakhaForNewGanvesh, setSelectedShakhaForNewGanvesh] = useState(unit?.shakha_id || (availableShakhas[0]?.id ?? ''));
     const [newGanveshValue, setNewGanveshValue] = useState(unit?.new_ganvesh ?? 0);
     const [newGanveshSubmitting, setNewGanveshSubmitting] = useState(false);
+
+    // Local mutable swayamsevaks list to support instant inline creation without full reload
+    const [localSwayamsevaks, setLocalSwayamsevaks] = useState(swayamsevaks);
+    useEffect(() => {
+        setLocalSwayamsevaks(swayamsevaks);
+    }, [swayamsevaks]);
+
+    // QR Code Modal state
+    const [selectedQrUnit, setSelectedQrUnit] = useState(null);
+
+    // Searchable Swayamsevak combobox & inline quick-create in Order/Demand form
+    const [orderMemberSearch, setOrderMemberSearch] = useState('');
+    const [isOrderMemberDropdownOpen, setIsOrderMemberDropdownOpen] = useState(false);
+    const [showInlineMemberCreate, setShowInlineMemberCreate] = useState(false);
+    const [inlineMemberForm, setInlineMemberForm] = useState({
+        name: '',
+        mobile: '',
+        address: '',
+        ganvesh: false,
+        shikshan: 'प्रारंभिक'
+    });
+    const [inlineMemberSubmitting, setInlineMemberSubmitting] = useState(false);
+    const [inlineMemberError, setInlineMemberError] = useState('');
 
     // Distribution (Uniform Products) Search & Order Modal
     const [productSearch, setProductSearch] = useState('');
@@ -207,6 +233,110 @@ export default function ToliIndex({
     const shareToWhatsApp = (text) => {
         const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
         window.open(url, '_blank');
+    };
+
+    // Helper to download Sub-Toli QR Code as PNG image
+    const handleDownloadQrImage = (targetUnit) => {
+        if (!targetUnit) return;
+
+        try {
+            // Find the SVG element in the DOM
+            let svgElement = null;
+            if (selectedQrUnit && (selectedQrUnit.id === targetUnit.id || selectedQrUnit.name === targetUnit.name)) {
+                svgElement = document.getElementById('enlarged-toli-qr-svg');
+            }
+            if (!svgElement && targetUnit.id) {
+                svgElement = document.getElementById(`sub-unit-qr-svg-${targetUnit.id}`);
+            }
+            if (!svgElement) {
+                svgElement = document.getElementById('enlarged-toli-qr-svg');
+            }
+
+            if (!svgElement) {
+                showToast('QR कोड इमेज प्राप्त नहीं हो सकी।', 'error');
+                return;
+            }
+
+            const serializer = new XMLSerializer();
+            let source = serializer.serializeToString(svgElement);
+
+            if (!source.match(/^<svg[^>]+xmlns="http\:\/\/www\.w3\.org\/2000\/svg"/)) {
+                source = source.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
+
+            const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+            const URL = window.URL || window.webkitURL || window;
+            const blobUrl = URL.createObjectURL(svgBlob);
+
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const qrSize = 500;
+                const padding = 36;
+                const headerHeight = 76;
+                const footerHeight = 44;
+
+                canvas.width = qrSize + (padding * 2);
+                canvas.height = qrSize + (padding * 2) + headerHeight + footerHeight;
+                const ctx = canvas.getContext('2d');
+
+                // 1. Clean background
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                // 2. Saffron Header Banner
+                ctx.fillStyle = '#ea580c';
+                ctx.fillRect(0, 0, canvas.width, headerHeight);
+
+                // 3. Header Title & Subtitle
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 22px "Noto Sans", sans-serif, system-ui';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(`🚩 ${targetUnit.name} (${targetUnit.type_hindi || 'उप-इकाई'})`, canvas.width / 2, 32);
+
+                ctx.fillStyle = '#ffedd5';
+                ctx.font = 'bold 12px "Noto Sans", sans-serif, system-ui';
+                ctx.fillText('टोली गणवेश एवं वस्तु भंडार वितरण पृष्ठ', canvas.width / 2, 54);
+
+                // 4. Draw QR Code in center
+                const qrCardX = padding;
+                const qrCardY = headerHeight + padding;
+                ctx.drawImage(img, qrCardX, qrCardY, qrSize, qrSize);
+
+                // 5. Border around canvas
+                ctx.strokeStyle = '#fdba74';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+                // 6. Footer Text
+                ctx.fillStyle = '#78716c';
+                ctx.font = '12px "Noto Sans", sans-serif, system-ui';
+                ctx.fillText('मोबाइल कैमरा से स्कैन कर सीधे खोलें • वस्तु भंडार', canvas.width / 2, canvas.height - 22);
+
+                const pngUrl = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                const safeName = (targetUnit.name || 'toli_qr').replace(/[^a-zA-Z0-9_\u0900-\u097F]/g, '_');
+                downloadLink.download = `toli_qr_${safeName}.png`;
+                downloadLink.href = pngUrl;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+
+                URL.revokeObjectURL(blobUrl);
+                showToast(`QR कोड इमेज (${targetUnit.name}) डाउनलोड हो गई!`, 'success');
+            };
+
+            img.onerror = () => {
+                URL.revokeObjectURL(blobUrl);
+                showToast('QR कोड इमेज तैयार करने में त्रुटि हुई।', 'error');
+            };
+
+            img.src = blobUrl;
+        } catch (err) {
+            console.error('QR download error:', err);
+            showToast('QR कोड इमेज डाउनलोड नहीं हो सकी।', 'error');
+        }
     };
 
     // Open Add Member Modal
@@ -346,6 +476,17 @@ export default function ToliIndex({
         const initialShakha = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '';
         setOrderShakhaId(initialShakha);
         setOrderSwayamsevakId('');
+        setOrderMemberSearch('');
+        setIsOrderMemberDropdownOpen(false);
+        setShowInlineMemberCreate(false);
+        setInlineMemberError('');
+        setInlineMemberForm({
+            name: '',
+            mobile: '',
+            address: '',
+            ganvesh: false,
+            shikshan: 'प्रारंभिक'
+        });
         setShowOrderSuccessModal(false);
     };
 
@@ -357,16 +498,94 @@ export default function ToliIndex({
         const initialShakha = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id || '') : '';
         setOrderShakhaId(initialShakha);
         setOrderSwayamsevakId('');
+        setOrderMemberSearch('');
+        setIsOrderMemberDropdownOpen(false);
+        setShowInlineMemberCreate(false);
+        setInlineMemberError('');
+        setInlineMemberForm({
+            name: '',
+            mobile: '',
+            address: '',
+            ganvesh: false,
+            shikshan: 'प्रारंभिक'
+        });
         setShowOrderSuccessModal(false);
     };
 
     const effectiveOrderShakhaId = unit?.level === 'shakha' ? (unit?.shakha_id || unit?.id) : orderShakhaId;
 
+    const currentSelectedShakha = useMemo(() => {
+        if (!effectiveOrderShakhaId) return null;
+        return availableShakhas.find((s) => String(s.id) === String(effectiveOrderShakhaId)) || (unit?.level === 'shakha' ? { id: unit.id, shakha_name: unit.name } : null);
+    }, [availableShakhas, effectiveOrderShakhaId, unit]);
+
     // Available swayamsevaks for order dropdown (populated only after selecting shakha, or automatically on shakha-level page)
     const availableMembersForOrder = useMemo(() => {
         if (!effectiveOrderShakhaId) return [];
-        return swayamsevaks.filter((s) => String(s.shakha_id) === String(effectiveOrderShakhaId));
-    }, [swayamsevaks, effectiveOrderShakhaId]);
+        return localSwayamsevaks.filter((s) => String(s.shakha_id) === String(effectiveOrderShakhaId));
+    }, [localSwayamsevaks, effectiveOrderShakhaId]);
+
+    // Filtered swayamsevaks for the search dropdown
+    const filteredOrderMembers = useMemo(() => {
+        if (!effectiveOrderShakhaId) return [];
+        const list = localSwayamsevaks.filter((s) => String(s.shakha_id) === String(effectiveOrderShakhaId));
+        if (!orderMemberSearch.trim()) return list;
+        const q = orderMemberSearch.toLowerCase().trim();
+        return list.filter((m) =>
+            (m.name && m.name.toLowerCase().includes(q)) ||
+            (m.mobile && m.mobile.includes(q))
+        );
+    }, [localSwayamsevaks, effectiveOrderShakhaId, orderMemberSearch]);
+
+    // Selected member object
+    const selectedOrderMember = useMemo(() => {
+        if (!orderSwayamsevakId) return null;
+        return localSwayamsevaks.find((s) => String(s.id) === String(orderSwayamsevakId)) || null;
+    }, [localSwayamsevaks, orderSwayamsevakId]);
+
+    // Fast inline member creation handler
+    const handleCreateMemberInline = async (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        setInlineMemberError('');
+
+        if (!inlineMemberForm.name.trim()) {
+            setInlineMemberError('कृपया स्वयंसेवक का नाम दर्ज करें।');
+            return;
+        }
+        if (!effectiveOrderShakhaId) {
+            setInlineMemberError('कृपया पहले शाखा का चयन करें।');
+            return;
+        }
+
+        setInlineMemberSubmitting(true);
+        try {
+            const payload = {
+                name: inlineMemberForm.name.trim(),
+                mobile: inlineMemberForm.mobile.trim() || null,
+                address: inlineMemberForm.address.trim() || null,
+                shakha_id: effectiveOrderShakhaId,
+                ganvesh: !!inlineMemberForm.ganvesh,
+                shikshan: inlineMemberForm.shikshan || 'प्रारंभिक',
+            };
+
+            const res = await axios.post('/toli/members', payload);
+            if (res.data?.success && res.data?.swayamsevak) {
+                const newMember = res.data.swayamsevak;
+                setLocalSwayamsevaks((prev) => [newMember, ...prev]);
+                setOrderSwayamsevakId(String(newMember.id));
+                setOrderMemberSearch('');
+                setShowInlineMemberCreate(false);
+                setIsOrderMemberDropdownOpen(false);
+                showToast(`नया स्वयंसेवक "${newMember.name}" पंजीकृत कर चयनित किया गया!`, 'success');
+            } else {
+                setInlineMemberError(res.data?.message || 'स्वयंसेवक जोड़ने में त्रुटि हुई।');
+            }
+        } catch (err) {
+            setInlineMemberError(err.response?.data?.message || 'सर्वर पर स्वयंसेवक जोड़ने में त्रुटि हुई।');
+        } finally {
+            setInlineMemberSubmitting(false);
+        }
+    };
 
     // Place Fast Toli Order
     const handlePlaceOrder = async (e) => {
@@ -394,7 +613,7 @@ export default function ToliIndex({
 
             const res = await axios.post('/toli/orders', payload);
             if (res.data?.success) {
-                const matchedMember = swayamsevaks.find((s) => String(s.id) === String(orderSwayamsevakId));
+                const matchedMember = localSwayamsevaks.find((s) => String(s.id) === String(orderSwayamsevakId));
                 setPlacedOrderDetails({
                     ...res.data.order,
                     product_name: selectedProduct.name,
@@ -454,7 +673,7 @@ export default function ToliIndex({
 
     // Filter swaymsevaks
     const filteredSwayamsevaks = useMemo(() => {
-        return swayamsevaks.filter((s) => {
+        return localSwayamsevaks.filter((s) => {
             const matchesSearch = !memberSearch.trim() ||
                 s.name.toLowerCase().includes(memberSearch.toLowerCase()) ||
                 (s.mobile && s.mobile.includes(memberSearch)) ||
@@ -471,7 +690,7 @@ export default function ToliIndex({
 
             return matchesSearch && matchesGanvesh && matchesShakha;
         });
-    }, [swayamsevaks, memberSearch, memberGanveshFilter, memberShakhaFilter]);
+    }, [localSwayamsevaks, memberSearch, memberGanveshFilter, memberShakhaFilter]);
 
     // Filter orders
     const filteredOrders = useMemo(() => {
@@ -1273,10 +1492,10 @@ export default function ToliIndex({
                         <div className="bg-white p-4 rounded-xl border border-orange-100 shadow-xs">
                             <h2 className="text-base font-bold text-stone-900 flex items-center space-x-2">
                                 <Share2 className="w-5 h-5 text-amber-600" />
-                                <span>अधीनस्थ उप-इकाई पृष्ठ लिंक</span>
+                                <span>अधीनस्थ उप-इकाई पृष्ठ लिंक एवं QR कोड</span>
                             </h2>
                             <p className="text-xs text-stone-500 mt-1">
-                                नीचे दी गई उप-इकाई लिंक को संबंधित टोली सदस्यों के साथ व्हाट्सएप पर साझा करें या सीधे खोलें।
+                                नीचे दी गई प्रत्येक उप-इकाई का QR कोड व सुरक्षित लिंक उपलब्ध है। इन्हें मोबाइल से स्कैन करें, कॉपी करें या व्हाट्सएप पर साझा करें।
                             </p>
                         </div>
 
@@ -1293,37 +1512,81 @@ export default function ToliIndex({
                                             sub.is_current ? 'border-amber-400 bg-amber-50/30' : 'border-orange-100 hover:border-amber-200'
                                         }`}
                                     >
-                                        <div className="space-y-1">
-                                            <div className="flex items-center space-x-2">
-                                                <h3 className="font-bold text-stone-900 text-sm sm:text-base">
-                                                    {sub.name}
-                                                </h3>
-                                                <span className="bg-stone-100 text-stone-600 text-[10px] font-semibold px-2 py-0.5 rounded">
-                                                    {sub.type_hindi}
-                                                </span>
-                                                {sub.is_current && (
-                                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                                                        वर्तमान इकाई
+                                        <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+                                            {/* QR Code Thumbnail Image */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedQrUnit(sub)}
+                                                className="cursor-pointer bg-white p-1.5 rounded-xl border border-stone-200 hover:border-amber-500 hover:shadow-md shadow-2xs transition group shrink-0 text-center"
+                                                title="बड़ा QR कोड देखने व स्कैन करने हेतु क्लिक करें"
+                                            >
+                                                <div className="bg-white p-0.5 rounded">
+                                                    <QRCodeSVG
+                                                        id={`sub-unit-qr-svg-${sub.id}`}
+                                                        value={sub.full_url}
+                                                        size={64}
+                                                        level="M"
+                                                        className="group-hover:scale-105 transition-transform"
+                                                    />
+                                                </div>
+                                                <span className="block text-[9px] text-stone-500 mt-1 font-semibold group-hover:text-amber-700">QR बड़ा करें</span>
+                                            </button>
+
+                                            <div className="space-y-1 min-w-0 flex-1">
+                                                <div className="flex items-center space-x-2">
+                                                    <h3 className="font-bold text-stone-900 text-sm sm:text-base">
+                                                        {sub.name}
+                                                    </h3>
+                                                    <span className="bg-stone-100 text-stone-600 text-[10px] font-semibold px-2 py-0.5 rounded">
+                                                        {sub.type_hindi}
                                                     </span>
-                                                )}
-                                            </div>
+                                                    {sub.is_current && (
+                                                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                                            वर्तमान इकाई
+                                                        </span>
+                                                    )}
+                                                </div>
 
-                                            <div className="text-xs text-stone-500 flex flex-wrap gap-x-3">
-                                                <span>👥 स्वयंसेवक: {sub.members_count ?? 0}</span>
-                                                <span>👕 गणवेश: {sub.ganvesh_count ?? 0}</span>
-                                                <span>✨ नया गणवेश: {sub.new_ganvesh ?? 0}</span>
-                                            </div>
+                                                <div className="text-xs text-stone-500 flex flex-wrap gap-x-3">
+                                                    <span>👥 स्वयंसेवक: {sub.members_count ?? 0}</span>
+                                                    <span>👕 गणवेश: {sub.ganvesh_count ?? 0}</span>
+                                                    <span>✨ नया गणवेश: {sub.new_ganvesh ?? 0}</span>
+                                                </div>
 
-                                            <p className="text-[11px] text-stone-400 font-mono select-all truncate max-w-sm">
-                                                {sub.full_url}
-                                            </p>
+                                                <p className="text-[11px] text-stone-400 font-mono select-all truncate max-w-sm">
+                                                    {sub.full_url}
+                                                </p>
+                                            </div>
                                         </div>
 
-                                        <div className="flex items-center space-x-2 self-end sm:self-center shrink-0">
+                                        <div className="flex flex-wrap items-center gap-1.5 self-end sm:self-center shrink-0">
+                                            {/* Show QR Modal */}
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedQrUnit(sub)}
+                                                className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition cursor-pointer"
+                                                title="QR कोड बड़ा देखें"
+                                            >
+                                                <QrCode className="w-3.5 h-3.5 text-amber-700" />
+                                                <span>QR कोड</span>
+                                            </button>
+
+                                            {/* Download QR Image */}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownloadQrImage(sub)}
+                                                className="bg-stone-100 hover:bg-amber-50 text-stone-800 hover:text-amber-900 border border-stone-200 hover:border-amber-300 px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition cursor-pointer"
+                                                title="QR इमेज (PNG) डाउनलोड करें"
+                                            >
+                                                <Download className="w-3.5 h-3.5 text-stone-600" />
+                                                <span>QR डाउनलोड</span>
+                                            </button>
+
                                             {/* Copy URL */}
                                             <button
+                                                type="button"
                                                 onClick={() => copyToClipboard(sub.full_url, idx)}
-                                                className="bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition"
+                                                className="bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 transition cursor-pointer"
                                                 title="लिंक कॉपी करें"
                                             >
                                                 {copiedIndex === idx ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1332,8 +1595,9 @@ export default function ToliIndex({
 
                                             {/* WhatsApp Share */}
                                             <button
+                                                type="button"
                                                 onClick={() => shareToWhatsApp(`🚩 ${sub.name} (${sub.type_hindi}) टोली पृष्ठ:\n${sub.full_url}`)}
-                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 shadow-xs transition"
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-1 shadow-xs transition cursor-pointer"
                                                 title="व्हाट्सएप पर शेयर करें"
                                             >
                                                 <MessageCircle className="w-3.5 h-3.5" />
@@ -1595,6 +1859,9 @@ export default function ToliIndex({
                                         onChange={(e) => {
                                             setOrderShakhaId(e.target.value);
                                             setOrderSwayamsevakId('');
+                                            setOrderMemberSearch('');
+                                            setShowInlineMemberCreate(false);
+                                            setIsOrderMemberDropdownOpen(false);
                                         }}
                                         required
                                         className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-amber-500"
@@ -1607,34 +1874,322 @@ export default function ToliIndex({
                                 </div>
                             )}
 
-                            {/* Swayamsevak (Member) Dropdown - Populated only after Shakha selection, or auto-populated on Shakha page */}
+                            {/* Swayamsevak (Member) Searchable Combobox & Inline Creation Form */}
                             <div>
-                                <label className="block text-xs font-bold text-stone-700 mb-1">
-                                    अभिप्रेत स्वयंसेवक / सदस्य (वैकल्पिक)
-                                </label>
-                                <select
-                                    value={orderSwayamsevakId}
-                                    onChange={(e) => setOrderSwayamsevakId(e.target.value)}
-                                    disabled={!effectiveOrderShakhaId}
-                                    className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-amber-500 disabled:bg-stone-100 disabled:text-stone-400"
-                                >
-                                    {!effectiveOrderShakhaId ? (
-                                        <option value="">-- पहले शाखा का चयन करें --</option>
-                                    ) : (
-                                        <>
-                                            <option value="">-- कोई नहीं / सामान्य वितरण (वैकल्पिक) --</option>
-                                            {availableMembersForOrder.map((m) => (
-                                                <option key={m.id} value={m.id}>
-                                                    {m.name} {m.mobile ? `(${m.mobile})` : ''} {m.ganvesh ? '• (गणवेश युक्त)' : '• (गणवेश अपेक्षित)'}
-                                                </option>
-                                            ))}
-                                        </>
+                                <div className="flex items-center justify-between mb-1">
+                                    <label className="block text-xs font-bold text-stone-700">
+                                        अभिप्रेत स्वयंसेवक / सदस्य (वैकल्पिक)
+                                    </label>
+                                    {effectiveOrderShakhaId && !showInlineMemberCreate && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setInlineMemberForm({
+                                                    name: orderMemberSearch.trim(),
+                                                    mobile: '',
+                                                    address: '',
+                                                    ganvesh: false,
+                                                    shikshan: 'प्रारंभिक'
+                                                });
+                                                setShowInlineMemberCreate(true);
+                                                setIsOrderMemberDropdownOpen(false);
+                                            }}
+                                            className="text-[11px] font-bold text-amber-700 hover:text-amber-800 flex items-center space-x-1 cursor-pointer"
+                                        >
+                                            <UserPlus className="w-3 h-3" />
+                                            <span>+ नया स्वयंसेवक बनाएं</span>
+                                        </button>
                                     )}
-                                </select>
-                                {effectiveOrderShakhaId && availableMembersForOrder.length === 0 && (
-                                    <p className="text-[11px] text-amber-700 mt-1">
-                                        इस शाखा में कोई स्वयंसेवक पंजीकृत नहीं है। आप सीधे सामान्य {selectedProduct.stock > 0 ? 'ऑर्डर' : 'मांग'} दे सकते हैं।
-                                    </p>
+                                </div>
+
+                                {!effectiveOrderShakhaId ? (
+                                    <div className="w-full p-2.5 bg-stone-100 border border-stone-200 rounded-lg text-xs text-stone-400 font-medium">
+                                        -- पहले ऊपर शाखा का चयन करें --
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {/* If a member is selected: display compact card */}
+                                        {selectedOrderMember ? (
+                                            <div className="flex items-center justify-between p-2.5 bg-amber-50 border border-amber-300 rounded-xl">
+                                                <div className="flex items-center space-x-2.5 min-w-0">
+                                                    <div className="w-8 h-8 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center font-bold text-xs shrink-0">
+                                                        {selectedOrderMember.name.charAt(0)}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center space-x-1.5 flex-wrap gap-y-0.5">
+                                                            <span className="font-bold text-xs text-stone-900 truncate">{selectedOrderMember.name}</span>
+                                                            <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${selectedOrderMember.ganvesh ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-800'}`}>
+                                                                {selectedOrderMember.ganvesh ? 'गणवेश युक्त' : 'गणवेश अपेक्षित'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[11px] text-stone-500 flex items-center space-x-2 mt-0.5">
+                                                            {selectedOrderMember.mobile ? <span>📱 {selectedOrderMember.mobile}</span> : <span className="italic text-stone-400">फ़ोन नंबर नहीं</span>}
+                                                            {selectedOrderMember.shikshan && <span>• {selectedOrderMember.shikshan}</span>}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setOrderSwayamsevakId('');
+                                                        setOrderMemberSearch('');
+                                                        setIsOrderMemberDropdownOpen(true);
+                                                    }}
+                                                    className="p-1 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition shrink-0 cursor-pointer"
+                                                    title="सदस्य हटाएं / दूसरा चुनें"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            /* Search input + dropdown */
+                                            <div className="relative">
+                                                <div className="relative">
+                                                    <input
+                                                        type="text"
+                                                        value={orderMemberSearch}
+                                                        onChange={(e) => {
+                                                            setOrderMemberSearch(e.target.value);
+                                                            setIsOrderMemberDropdownOpen(true);
+                                                        }}
+                                                        onFocus={() => setIsOrderMemberDropdownOpen(true)}
+                                                        placeholder="नाम या मोबाइल नंबर से खोजें..."
+                                                        className="w-full pl-8 pr-8 py-2 bg-stone-50 border border-stone-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-amber-500"
+                                                    />
+                                                    <Search className="w-4 h-4 text-stone-400 absolute left-2.5 top-2.5 pointer-events-none" />
+                                                    {orderMemberSearch && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setOrderMemberSearch('')}
+                                                            className="absolute right-2.5 top-2.5 text-stone-400 hover:text-stone-600"
+                                                        >
+                                                            <X className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {/* Backdrop to close dropdown on click outside */}
+                                                {isOrderMemberDropdownOpen && (
+                                                    <div
+                                                        className="fixed inset-0 z-20"
+                                                        onClick={() => setIsOrderMemberDropdownOpen(false)}
+                                                    />
+                                                )}
+
+                                                {/* Dropdown Results Menu */}
+                                                {isOrderMemberDropdownOpen && (
+                                                    <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-stone-300 rounded-xl shadow-xl z-30 max-h-56 overflow-y-auto divide-y divide-stone-100">
+                                                        {/* General / None option */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setOrderSwayamsevakId('');
+                                                                setIsOrderMemberDropdownOpen(false);
+                                                                setShowInlineMemberCreate(false);
+                                                            }}
+                                                            className="w-full p-2.5 text-left text-xs font-medium text-stone-600 hover:bg-stone-50 transition flex items-center justify-between cursor-pointer"
+                                                        >
+                                                            <span>-- कोई नहीं / सामान्य वितरण (वैकल्पिक) --</span>
+                                                            <Check className="w-3.5 h-3.5 text-stone-400 opacity-60" />
+                                                        </button>
+
+                                                        {/* Filtered members */}
+                                                        {filteredOrderMembers.map((m) => (
+                                                            <button
+                                                                key={m.id}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setOrderSwayamsevakId(String(m.id));
+                                                                    setIsOrderMemberDropdownOpen(false);
+                                                                    setShowInlineMemberCreate(false);
+                                                                    setOrderMemberSearch('');
+                                                                }}
+                                                                className="w-full p-2 text-left hover:bg-amber-50/70 transition flex items-center justify-between cursor-pointer"
+                                                            >
+                                                                <div className="min-w-0 pr-2">
+                                                                    <div className="flex items-center space-x-2">
+                                                                        <span className="text-xs font-bold text-stone-900 truncate">{m.name}</span>
+                                                                        <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${m.ganvesh ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-800'}`}>
+                                                                            {m.ganvesh ? 'युक्त' : 'अपेक्षित'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="text-[11px] text-stone-500 flex items-center space-x-2 mt-0.5">
+                                                                        {m.mobile ? <span>📱 {m.mobile}</span> : <span className="italic text-stone-400">फ़ोन नहीं</span>}
+                                                                        {m.shikshan && <span>• {m.shikshan}</span>}
+                                                                    </div>
+                                                                </div>
+                                                                <ChevronRight className="w-3.5 h-3.5 text-stone-300 shrink-0" />
+                                                            </button>
+                                                        ))}
+
+                                                        {/* When no record found */}
+                                                        {filteredOrderMembers.length === 0 && (
+                                                            <div className="p-3 text-center bg-stone-50">
+                                                                <p className="text-xs text-stone-600 mb-2">
+                                                                    "{orderMemberSearch}" नाम या मोबाइल से कोई स्वयंसेवक नहीं मिला।
+                                                                </p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const isDigits = /^\d+$/.test(orderMemberSearch.trim());
+                                                                        setInlineMemberForm({
+                                                                            name: isDigits ? '' : orderMemberSearch.trim(),
+                                                                            mobile: isDigits ? orderMemberSearch.trim() : '',
+                                                                            address: '',
+                                                                            ganvesh: false,
+                                                                            shikshan: 'प्रारंभिक'
+                                                                        });
+                                                                        setShowInlineMemberCreate(true);
+                                                                        setIsOrderMemberDropdownOpen(false);
+                                                                    }}
+                                                                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs transition cursor-pointer"
+                                                                >
+                                                                    <UserPlus className="w-3.5 h-3.5" />
+                                                                    <span>+ नया स्वयंसेवक बनाएं {orderMemberSearch ? `"${orderMemberSearch}"` : ''}</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Add member quick action at bottom */}
+                                                        {filteredOrderMembers.length > 0 && (
+                                                            <div className="p-2 bg-amber-50/50 flex items-center justify-between">
+                                                                <span className="text-[11px] text-stone-500">सूची में नाम नहीं है?</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setInlineMemberForm({
+                                                                            name: orderMemberSearch.trim(),
+                                                                            mobile: '',
+                                                                            address: '',
+                                                                            ganvesh: false,
+                                                                            shikshan: 'प्रारंभिक'
+                                                                        });
+                                                                        setShowInlineMemberCreate(true);
+                                                                        setIsOrderMemberDropdownOpen(false);
+                                                                    }}
+                                                                    className="text-xs font-bold text-amber-700 hover:text-amber-800 flex items-center space-x-1 cursor-pointer"
+                                                                >
+                                                                    <Plus className="w-3 h-3" />
+                                                                    <span>+ नया स्वयंसेवक जोड़ें</span>
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* INLINE QUICK SWAYAMSEVAK CREATION FORM */}
+                                        {showInlineMemberCreate && (
+                                            <div className="p-3.5 bg-gradient-to-br from-amber-50 to-orange-50/60 border-2 border-amber-400 rounded-xl shadow-xs">
+                                                <div className="flex items-center justify-between pb-2 mb-2 border-b border-amber-200">
+                                                    <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-900">
+                                                        <UserPlus className="w-4 h-4 text-amber-700" />
+                                                        <span>त्वरित स्वयंसेवक पंजीकरण {currentSelectedShakha ? `(शाखा: ${currentSelectedShakha.shakha_name})` : ''}</span>
+                                                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowInlineMemberCreate(false)}
+                                                        className="text-stone-400 hover:text-stone-600 p-0.5 rounded cursor-pointer"
+                                                        title="बंद करें"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+
+                                                {inlineMemberError && (
+                                                    <div className="mb-2 p-2 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-center space-x-1.5">
+                                                        <AlertCircle className="w-4 h-4 shrink-0" />
+                                                        <span>{inlineMemberError}</span>
+                                                    </div>
+                                                )}
+
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold text-stone-700 mb-0.5">
+                                                            स्वयंसेवक का नाम <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            required
+                                                            value={inlineMemberForm.name}
+                                                            onChange={(e) => setInlineMemberForm({ ...inlineMemberForm, name: e.target.value })}
+                                                            placeholder="उदा. रमेश शर्मा"
+                                                            className="w-full p-2 bg-white border border-stone-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-amber-500"
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold text-stone-700 mb-0.5">
+                                                            मोबाइल नंबर (वैकल्पिक)
+                                                        </label>
+                                                        <input
+                                                            type="tel"
+                                                            value={inlineMemberForm.mobile}
+                                                            onChange={(e) => setInlineMemberForm({ ...inlineMemberForm, mobile: e.target.value })}
+                                                            placeholder="10 अंकों का मोबाइल"
+                                                            className="w-full p-2 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500"
+                                                        />
+                                                    </div>
+
+                                                    <div>
+                                                        <label className="block text-[11px] font-bold text-stone-700 mb-0.5">
+                                                            शिक्षण
+                                                        </label>
+                                                        <select
+                                                            value={inlineMemberForm.shikshan}
+                                                            onChange={(e) => setInlineMemberForm({ ...inlineMemberForm, shikshan: e.target.value })}
+                                                            className="w-full p-2 bg-white border border-stone-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500"
+                                                        >
+                                                            {(shikshanOptions && shikshanOptions.length > 0 ? shikshanOptions : ['प्रारंभिक', 'प्राथमिक', 'प्रथम वर्ष', 'द्वितीय वर्ष', 'तृतीय वर्ष']).map((opt) => (
+                                                                <option key={opt} value={opt}>{opt}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="flex items-center pt-4">
+                                                        <label className="inline-flex items-center space-x-2 text-xs font-semibold text-stone-700 cursor-pointer">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={inlineMemberForm.ganvesh}
+                                                                onChange={(e) => setInlineMemberForm({ ...inlineMemberForm, ganvesh: e.target.checked })}
+                                                                className="w-4 h-4 text-amber-600 rounded border-stone-300 focus:ring-amber-500 cursor-pointer"
+                                                            />
+                                                            <span>पूर्व से पूर्ण गणवेश युक्त</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-3 flex items-center justify-end space-x-2 pt-2 border-t border-amber-200/60">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowInlineMemberCreate(false)}
+                                                        className="px-3 py-1.5 text-xs text-stone-600 hover:text-stone-800 font-semibold cursor-pointer"
+                                                    >
+                                                        रद्द करें
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={inlineMemberSubmitting}
+                                                        onClick={handleCreateMemberInline}
+                                                        className="px-4 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold shadow-xs transition flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                                                    >
+                                                        {inlineMemberSubmitting ? (
+                                                            <>
+                                                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                                <span>सहेजा जा रहा है...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Check className="w-3.5 h-3.5" />
+                                                                <span>जोड़ें एवं चयनित करें</span>
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
 
@@ -2235,6 +2790,97 @@ export default function ToliIndex({
                                 {returnSubmitting ? 'अनुरोध दर्ज हो रहा है...' : 'वापसी अनुरोध भेजें'}
                             </button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* 11. ENLARGED QR CODE MODAL */}
+            {selectedQrUnit && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-sm w-full shadow-2xl border border-amber-200 overflow-hidden animate-scale-in text-center">
+                        <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-4 text-white flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                                <QrCode className="w-5 h-5 text-amber-200" />
+                                <h2 className="text-base font-bold text-left">टोली पृष्ठ QR कोड</h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedQrUnit(null)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-stone-900">{selectedQrUnit.name}</h3>
+                                <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+                                    {selectedQrUnit.type_hindi || 'उप-इकाई'} टोली पृष्ठ
+                                </span>
+                            </div>
+
+                            {/* Crisp Enlarged QR Code */}
+                            <div className="inline-block p-4 bg-white rounded-2xl border-2 border-amber-200 shadow-md">
+                                <QRCodeSVG
+                                    id="enlarged-toli-qr-svg"
+                                    value={selectedQrUnit.full_url}
+                                    size={210}
+                                    level="H"
+                                    includeMargin={true}
+                                />
+                            </div>
+
+                            <p className="text-xs text-stone-500">
+                                इस QR कोड को किसी भी मोबाइल कैमरा या स्कैनर ऐप से स्कैन करके सीधे टोली पृष्ठ खोला जा सकता है।
+                            </p>
+
+                            {/* Download QR Image as PNG */}
+                            <button
+                                type="button"
+                                onClick={() => handleDownloadQrImage(selectedQrUnit)}
+                                className="w-full py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-bold text-xs rounded-xl flex items-center justify-center space-x-2 shadow-md shadow-orange-500/20 transition cursor-pointer"
+                            >
+                                <Download className="w-4 h-4" />
+                                <span>QR इमेज डाउनलोड करें (PNG)</span>
+                            </button>
+
+                            <div className="bg-stone-50 p-2.5 rounded-xl border border-stone-200 text-left">
+                                <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-1">
+                                    वेबलिंक (URL)
+                                </label>
+                                <p className="text-xs font-mono text-stone-800 break-all select-all">
+                                    {selectedQrUnit.full_url}
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => copyToClipboard(selectedQrUnit.full_url)}
+                                    className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs rounded-xl flex items-center justify-center space-x-1.5 transition cursor-pointer"
+                                >
+                                    <Copy className="w-4 h-4 text-stone-600" />
+                                    <span>लिंक कॉपी</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => shareToWhatsApp(`🚩 ${selectedQrUnit.name} (${selectedQrUnit.type_hindi || 'इकाई'}) टोली पृष्ठ:\n${selectedQrUnit.full_url}`)}
+                                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-xl flex items-center justify-center space-x-1.5 shadow-xs transition cursor-pointer"
+                                >
+                                    <MessageCircle className="w-4 h-4" />
+                                    <span>व्हाट्सएप</span>
+                                </button>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => setSelectedQrUnit(null)}
+                                className="w-full py-2 text-xs font-semibold text-stone-500 hover:text-stone-700 cursor-pointer"
+                            >
+                                बंद करें
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
