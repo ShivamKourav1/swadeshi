@@ -1165,7 +1165,7 @@ class ToliController extends Controller
         }, $header);
 
         $nameIdx = $this->findHeaderIndex($cleanHeader, ['name', 'naam', 'nam', 'नाम', 'सदस्य', 'स्वयंसेवक', 'पूर्णनाम', 'fullname', 'member', 'membername']);
-        $mobileIdx = $this->findHeaderIndex($cleanHeader, ['mobile', 'phone', 'contact', 'मोबाइल', 'फ़ोन', 'फोन', 'सम्पर्क', 'संपर्क', 'mobilenumber', 'phonenumber', 'contactno']);
+        $mobileIdx = $this->findHeaderIndex($cleanHeader, ['mobile', 'phone', 'contact', 'mobileno', 'phoneno', 'contactno', 'mobilenumber', 'phonenumber', 'contactnumber', 'मोबाइल', 'फ़ोन', 'फोन', 'सम्पर्क', 'संपर्क', 'मोबाइलनंबर', 'फोननंबर', 'संपर्कनंबर']);
         $addressIdx = $this->findHeaderIndex($cleanHeader, ['address', 'pata', 'पता', 'स्थान', 'निवास', 'गाँव', 'शहर', 'addressline']);
         $ganveshIdx = $this->findHeaderIndex($cleanHeader, ['ganvesh', 'गणवेश', 'uniform', 'isganvesh', 'ganveshstatus']);
         $shikshanIdx = $this->findHeaderIndex($cleanHeader, ['shikshan', 'शिक्षण', 'training', 'education', 'वर्ग']);
@@ -1174,7 +1174,21 @@ class ToliController extends Controller
             return back()->with('error', 'फ़ाइल में "name" या "नाम" कॉलम होना आवश्यक है।');
         }
 
+        // Fetch existing mobile numbers from Swayamsevaks to prevent duplicate entries
+        $existingMobiles = Swayamsevak::whereNotNull('mobile')
+            ->where('mobile', '!=', '')
+            ->pluck('mobile')
+            ->all();
+
+        $seenMobiles = [];
+        foreach ($existingMobiles as $m) {
+            foreach ($this->getMobileLookupKeys($m) as $k) {
+                $seenMobiles[$k] = true;
+            }
+        }
+
         $importedCount = 0;
+        $skippedCount = 0;
         DB::beginTransaction();
 
         try {
@@ -1185,6 +1199,31 @@ class ToliController extends Controller
 
                 $name = trim((string)$row[$nameIdx]);
                 $mobile = $mobileIdx !== false && isset($row[$mobileIdx]) ? trim((string)$row[$mobileIdx]) : null;
+                if ($mobile !== null) {
+                    $mobile = preg_replace('/\.0+$/', '', $mobile);
+                    $mobile = trim($mobile);
+                    if ($mobile === '') {
+                        $mobile = null;
+                    }
+                }
+
+                // If mobile is present, skip record if it already exists as a swayamsevak
+                if (!empty($mobile)) {
+                    $lookupKeys = $this->getMobileLookupKeys($mobile);
+                    $isDuplicate = false;
+                    foreach ($lookupKeys as $k) {
+                        if (isset($seenMobiles[$k])) {
+                            $isDuplicate = true;
+                            break;
+                        }
+                    }
+
+                    if ($isDuplicate) {
+                        $skippedCount++;
+                        continue;
+                    }
+                }
+
                 $address = $addressIdx !== false && isset($row[$addressIdx]) ? trim((string)$row[$addressIdx]) : null;
 
                 $ganveshRaw = $ganveshIdx !== false && isset($row[$ganveshIdx]) ? mb_strtolower(trim((string)$row[$ganveshIdx]), 'UTF-8') : '';
@@ -1204,12 +1243,28 @@ class ToliController extends Controller
                     'shikshan' => $shikshan,
                 ]);
 
+                // Track newly registered mobile so subsequent rows with identical mobile are also skipped
+                if (!empty($mobile)) {
+                    foreach ($this->getMobileLookupKeys($mobile) as $k) {
+                        $seenMobiles[$k] = true;
+                    }
+                }
+
                 $importedCount++;
             }
 
             DB::commit();
 
-            return back()->with('success', "{$importedCount} स्वयंसेवक सफलतापूर्वक जोड़े गए।");
+            if ($importedCount === 0 && $skippedCount > 0) {
+                return back()->with('success', "कोई नया स्वयंसेवक नहीं जोड़ा गया। {$skippedCount} रिकॉर्ड पहले से मौजूद मोबाइल नंबर के कारण छोड़ दिए गए।");
+            }
+
+            $message = "{$importedCount} स्वयंसेवक सफलतापूर्वक जोड़े गए।";
+            if ($skippedCount > 0) {
+                $message .= " ({$skippedCount} रिकॉर्ड पहले से मौजूद मोबाइल नंबर के कारण छोड़ दिए गए)";
+            }
+
+            return back()->with('success', $message);
         } catch (\Throwable $e) {
             DB::rollBack();
             return back()->with('error', 'आयात में त्रुटि: ' . $e->getMessage());
@@ -1230,6 +1285,43 @@ class ToliController extends Controller
             }
         }
         return false;
+    }
+
+    /**
+     * Generate lookup keys for mobile number matching (handles spacing, hyphens, prefixes, Devanagari numerals, and last 10 digits).
+     */
+    private function getMobileLookupKeys(?string $mobile): array
+    {
+        if ($mobile === null) {
+            return [];
+        }
+
+        $raw = trim($mobile);
+        $raw = preg_replace('/\.0+$/', '', $raw);
+        if ($raw === '') {
+            return [];
+        }
+
+        $hindiDigits = ['०', '१', '२', '३', '४', '५', '६', '७', '८', '९'];
+        $englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        $converted = str_replace($hindiDigits, $englishDigits, $raw);
+
+        $keys = [$raw, $converted];
+
+        $compact = preg_replace('/\s+/', '', $converted);
+        if ($compact !== '') {
+            $keys[] = $compact;
+        }
+
+        $digits = preg_replace('/[^\d]/', '', $converted);
+        if ($digits !== '') {
+            $keys[] = $digits;
+            if (strlen($digits) >= 10) {
+                $keys[] = substr($digits, -10);
+            }
+        }
+
+        return array_values(array_unique(array_filter($keys)));
     }
 
     /**

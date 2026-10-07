@@ -339,6 +339,91 @@ class ToliModuleTest extends TestCase
         @unlink($tempXlsx);
     }
 
+    public function test_bulk_import_skips_records_with_already_existing_mobile_numbers(): void
+    {
+        // Pre-existing Swayamsevak in database
+        Swayamsevak::create([
+            'name' => 'पुराना सदस्य',
+            'mobile' => '9888111222',
+            'basti_id' => $this->shakha->id,
+            'shakha_id' => $this->shakha->id,
+            'ganvesh' => true,
+        ]);
+
+        // Upload CSV containing:
+        // - Row 1: same mobile as DB (must be skipped)
+        // - Row 2: formatted version (+91 ...) of existing mobile (must be skipped)
+        // - Row 3: new mobile 9888333444 (must be imported)
+        // - Row 4: duplicate of Row 3 in same file (must be skipped)
+        // - Row 5: another new mobile 9888555666 (must be imported)
+        $csvContent = "name,mobile,address,ganvesh,shikshan\n" .
+            "सदस्य एक,9888111222,स्थान १,हाँ,प्राथमिक\n" .
+            "सदस्य दो,+91 9888 111 222,स्थान २,नहीं,प्रारंभिक\n" .
+            "सदस्य तीन,9888333444,स्थान ३,हाँ,प्राथमिक\n" .
+            "सदस्य चार,9888333444,स्थान ४,नहीं,प्रारंभिक\n" .
+            "सदस्य पाँच,9888555666,स्थान ५,हाँ,प्रारंभिक";
+
+        $file = UploadedFile::fake()->createWithContent('members_with_duplicates.csv', $csvContent);
+
+        $response = $this->actingAs($this->toliMember)->post('/toli/members/import', [
+            'file' => $file,
+            'basti_id' => $this->shakha->id,
+        ]);
+
+        $response->assertRedirect();
+        $response->assertSessionHas('success');
+
+        // New members should be created
+        $this->assertDatabaseHas('swayamsevaks', [
+            'name' => 'सदस्य तीन',
+            'mobile' => '9888333444',
+        ]);
+        $this->assertDatabaseHas('swayamsevaks', [
+            'name' => 'सदस्य पाँच',
+            'mobile' => '9888555666',
+        ]);
+
+        // Duplicate members should NOT be created
+        $this->assertDatabaseMissing('swayamsevaks', [
+            'name' => 'सदस्य एक',
+        ]);
+        $this->assertDatabaseMissing('swayamsevaks', [
+            'name' => 'सदस्य दो',
+        ]);
+        $this->assertDatabaseMissing('swayamsevaks', [
+            'name' => 'सदस्य चार',
+        ]);
+
+        // Exact counts per mobile
+        $this->assertEquals(1, Swayamsevak::where('mobile', '9888111222')->count());
+        $this->assertEquals(1, Swayamsevak::where('mobile', '9888333444')->count());
+        $this->assertEquals(1, Swayamsevak::where('mobile', '9888555666')->count());
+    }
+
+    public function test_bulk_import_when_all_mobiles_already_exist_skips_all_records(): void
+    {
+        Swayamsevak::create([
+            'name' => 'पूर्व सदस्य',
+            'mobile' => '9777111222',
+            'basti_id' => $this->shakha->id,
+            'shakha_id' => $this->shakha->id,
+        ]);
+
+        $csvContent = "name,mobile,address\nनया सदस्य प्रयास,9777111222,गली ५";
+        $file = UploadedFile::fake()->createWithContent('all_existing.csv', $csvContent);
+
+        $response = $this->actingAs($this->toliMember)->post('/toli/members/import', [
+            'file' => $file,
+            'basti_id' => $this->shakha->id,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('swayamsevaks', [
+            'name' => 'नया सदस्य प्रयास',
+        ]);
+        $this->assertEquals(1, Swayamsevak::where('mobile', '9777111222')->count());
+    }
+
     public function test_update_new_ganvesh_figure_on_shakha(): void
     {
         $response = $this->actingAs($this->toliMember)->post("/toli/shakhas/{$this->shakha->id}/new-ganvesh", [

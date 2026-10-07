@@ -2558,6 +2558,9 @@ export default function ToliIndex({
                             <div className="bg-stone-50 p-3 rounded-lg border border-stone-200 space-y-1">
                                 <p className="font-semibold text-stone-800">समर्थित फ़ाइल: CSV या Excel (.xlsx)</p>
                                 <p className="text-stone-500 font-mono">कॉलम: name, mobile, address, ganvesh, shikshan</p>
+                                <p className="text-amber-800 text-[11px] font-medium bg-amber-50 rounded px-1.5 py-0.5 border border-amber-200/60 inline-block">
+                                    ℹ️ पहले से मौजूद मोबाइल नंबर वाले रिकॉर्ड स्वतः छोड़ (skip) दिए जाएंगे।
+                                </p>
                                 <a
                                     href="/toli/members/template"
                                     download
