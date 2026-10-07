@@ -283,27 +283,47 @@ class KaryakartaDashboardController extends Controller
         $jilasQuery = Jila::query();
         $nagarsQuery = Nagar::query();
         $bastisQuery = Basti::where('status', 'Active');
+        $shakhasQuery = Shakha::where('status', 'Active');
 
         if ($scopeLevel === 'vibhag' && $profile?->vibhag_id) {
             $jilasQuery->where('vibhag_id', $profile->vibhag_id);
             $nagarsQuery->whereHas('jila', fn($q) => $q->where('vibhag_id', $profile->vibhag_id));
             $bastisQuery->whereHas('nagar.jila', fn($q) => $q->where('vibhag_id', $profile->vibhag_id));
+            $shakhasQuery->where(function ($sq) use ($profile) {
+                $sq->whereHas('basti.nagar.jila', fn($q) => $q->where('vibhag_id', $profile->vibhag_id))
+                    ->orWhereHas('nagar.jila', fn($q) => $q->where('vibhag_id', $profile->vibhag_id))
+                    ->orWhereHas('jila', fn($q) => $q->where('vibhag_id', $profile->vibhag_id));
+            });
         } elseif ($scopeLevel === 'jila' && $profile?->jila_id) {
             $jilasQuery->where('id', $profile->jila_id);
             $nagarsQuery->where('jila_id', $profile->jila_id);
             $bastisQuery->whereHas('nagar', fn($q) => $q->where('jila_id', $profile->jila_id));
+            $shakhasQuery->where(function ($sq) use ($profile) {
+                $sq->where('jila_id', $profile->jila_id)
+                    ->orWhereHas('basti.nagar', fn($q) => $q->where('jila_id', $profile->jila_id))
+                    ->orWhereHas('nagar', fn($q) => $q->where('jila_id', $profile->jila_id));
+            });
         } elseif ($scopeLevel === 'nagar' && $profile?->nagar_id) {
             $nagarsQuery->where('id', $profile->nagar_id);
             $bastisQuery->where('nagar_id', $profile->nagar_id);
+            $shakhasQuery->where(function ($sq) use ($profile) {
+                $sq->where('nagar_id', $profile->nagar_id)
+                    ->orWhereHas('basti', fn($q) => $q->where('nagar_id', $profile->nagar_id));
+            });
+        } elseif (($scopeLevel === 'basti' || $scopeLevel === 'shakha') && ($profile?->basti_id || $profile?->shakha_id)) {
+            $targetBastiId = $profile->basti_id ?: $profile->shakha_id;
+            $bastisQuery->where('id', $targetBastiId);
+            $shakhasQuery->where('basti_id', $targetBastiId);
         }
 
-        $bastis = $bastisQuery->get(['id', 'basti_name', 'nagar_id', 'aayu_varg']);
+        $bastis = $bastisQuery->get(['id', 'basti_name', 'nagar_id']);
+        $shakhas = $shakhasQuery->get(['id', 'shakha_name', 'jila_id', 'nagar_id', 'basti_id', 'aayu_varg', 'type']);
 
         return [
             'jilas' => $jilasQuery->get(['id', 'jila_name', 'vibhag_id']),
             'nagars' => $nagarsQuery->get(['id', 'nagar_name', 'jila_id']),
             'bastis' => $bastis,
-            'shakhas' => $bastis,
+            'shakhas' => $shakhas,
         ];
     }
 }

@@ -602,7 +602,9 @@ class ToliController extends Controller
                     'ganvesh_count' => Swayamsevak::where(function($q) use ($nBastiIds) {
                         $q->whereIn('basti_id', $nBastiIds)->orWhereIn('shakha_id', $nBastiIds);
                     })->where('ganvesh', true)->count(),
-                    'new_ganvesh' => (int) $n->bastis->sum('new_ganvesh'),
+                    'new_ganvesh' => (int) Shakha::where(function($sq) use ($n, $nBastiIds) {
+                        $sq->where('nagar_id', $n->id)->orWhereIn('basti_id', $nBastiIds);
+                    })->sum('new_ganvesh'),
                 ];
             }
 
@@ -672,7 +674,9 @@ class ToliController extends Controller
                     'ganvesh_count' => Swayamsevak::where(function($q) use ($jilaShakhas) {
                         $q->whereIn('basti_id', $jilaShakhas)->orWhereIn('shakha_id', $jilaShakhas);
                     })->where('ganvesh', true)->count(),
-                    'new_ganvesh' => (int) Basti::whereIn('id', $jilaShakhas)->sum('new_ganvesh'),
+                    'new_ganvesh' => (int) Shakha::where(function($sq) use ($j, $jilaShakhas) {
+                        $sq->where('jila_id', $j->id)->orWhereIn('basti_id', $jilaShakhas);
+                    })->sum('new_ganvesh'),
                 ];
             }
 
@@ -711,7 +715,9 @@ class ToliController extends Controller
                     'ganvesh_count' => Swayamsevak::where(function($q) use ($vibhagShakhas) {
                         $q->whereIn('basti_id', $vibhagShakhas)->orWhereIn('shakha_id', $vibhagShakhas);
                     })->where('ganvesh', true)->count(),
-                    'new_ganvesh' => (int) Basti::whereIn('id', $vibhagShakhas)->sum('new_ganvesh'),
+                    'new_ganvesh' => (int) Shakha::where(function($sq) use ($v, $vibhagShakhas) {
+                        $sq->whereIn('basti_id', $vibhagShakhas)->orWhereHas('nagar.jila', fn($jq) => $jq->where('vibhag_id', $v->id));
+                    })->sum('new_ganvesh'),
                 ];
             }
         }

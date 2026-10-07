@@ -139,7 +139,8 @@ class DeliveryLocationController extends Controller
      */
     private function getOrganizationTree(): array
     {
-        $bastis = Basti::where('status', 'Active')->get(['id', 'nagar_id', 'basti_name', 'aayu_varg', 'type']);
+        $bastis = Basti::where('status', 'Active')->get(['id', 'nagar_id', 'basti_name']);
+        $shakhas = Shakha::where('status', 'Active')->get(['id', 'jila_id', 'nagar_id', 'basti_id', 'shakha_name', 'aayu_varg', 'type']);
 
         return [
             'kshetras' => Kshetra::all(['id', 'kshetra_name']),
@@ -148,7 +149,7 @@ class DeliveryLocationController extends Controller
             'jilas' => Jila::all(['id', 'vibhag_id', 'jila_name']),
             'nagars' => Nagar::all(['id', 'jila_id', 'nagar_name']),
             'bastis' => $bastis,
-            'shakhas' => $bastis,
+            'shakhas' => $shakhas,
         ];
     }
 }

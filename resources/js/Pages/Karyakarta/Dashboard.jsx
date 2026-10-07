@@ -345,7 +345,7 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                 <option value="">All Bastis</option>
                                 {availableBastis.map((s) => (
                                     <option key={s.id} value={s.id}>
-                                        {s.basti_name || s.shakha_name} ({s.aayu_varg})
+                                        {s.basti_name || s.shakha_name}{s.aayu_varg ? ` (${s.aayu_varg})` : ''}
                                     </option>
                                 ))}
                             </select>

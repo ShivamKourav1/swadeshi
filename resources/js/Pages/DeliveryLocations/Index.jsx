@@ -660,7 +660,7 @@ export default function Index({ locations, orgData }) {
                                                 <option value="">Select Basti</option>
                                                 {filteredBastis?.map((s) => (
                                                     <option key={s.id} value={s.id}>
-                                                        {s.basti_name || s.shakha_name} ({s.aayu_varg})
+                                                        {s.basti_name || s.shakha_name}{s.aayu_varg ? ` (${s.aayu_varg})` : ''}
                                                     </option>
                                                 ))}
                                             </select>

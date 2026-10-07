@@ -44,7 +44,8 @@ class OrderController extends Controller
             $subtotal += $item['price'] * $item['quantity'];
         }
 
-        $bastis = Basti::where('status', 'Active')->get(['id', 'nagar_id', 'basti_name', 'aayu_varg', 'type']);
+        $bastis = Basti::where('status', 'Active')->get(['id', 'nagar_id', 'basti_name']);
+        $shakhas = Shakha::where('status', 'Active')->get(['id', 'jila_id', 'nagar_id', 'basti_id', 'shakha_name', 'aayu_varg', 'type']);
 
         $orgData = [
             'kshetras' => Kshetra::all(['id', 'kshetra_name']),
@@ -53,7 +54,7 @@ class OrderController extends Controller
             'jilas' => Jila::all(['id', 'vibhag_id', 'jila_name']),
             'nagars' => Nagar::all(['id', 'jila_id', 'nagar_name']),
             'bastis' => $bastis,
-            'shakhas' => $bastis,
+            'shakhas' => $shakhas,
         ];
 
         return Inertia::render('Checkout/Index', [
