@@ -2,10 +2,51 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Rename or drop legacy shakha foreign key constraint from before the basti rename
+     * so that adding the new decoupled shakha_id foreign key doesn't trigger a duplicate
+     * constraint name error in PostgreSQL or MySQL.
+     */
+    private function releaseOldShakhaConstraint(string $tableName): void
+    {
+        $driver = DB::getDriverName();
+        $oldConstraint = "{$tableName}_shakha_id_foreign";
+        $newConstraint = "{$tableName}_basti_id_foreign";
+
+        if ($driver === 'pgsql') {
+            DB::statement("
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.table_constraints 
+                        WHERE constraint_name = '{$oldConstraint}' 
+                        AND table_name = '{$tableName}'
+                    ) THEN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.table_constraints 
+                            WHERE constraint_name = '{$newConstraint}' 
+                            AND table_name = '{$tableName}'
+                        ) THEN
+                            ALTER TABLE \"{$tableName}\" RENAME CONSTRAINT \"{$oldConstraint}\" TO \"{$newConstraint}\";
+                        ELSE
+                            ALTER TABLE \"{$tableName}\" DROP CONSTRAINT \"{$oldConstraint}\";
+                        END IF;
+                    END IF;
+                END $$;
+            ");
+        } elseif ($driver === 'mysql') {
+            try {
+                DB::statement("ALTER TABLE `{$tableName}` DROP FOREIGN KEY `{$oldConstraint}`");
+            } catch (\Throwable $e) {
+                // Ignore if constraint does not exist
+            }
+        }
+    }
     /**
      * Run the migrations.
      */
@@ -55,6 +96,7 @@ return new class extends Migration
 
         // 3. Ensure both shakha_id and basti_id are present and nullable in swayamsevaks table
         if (Schema::hasTable('swayamsevaks')) {
+            $this->releaseOldShakhaConstraint('swayamsevaks');
             Schema::table('swayamsevaks', function (Blueprint $table) {
                 if (Schema::hasColumn('swayamsevaks', 'basti_id')) {
                     $table->unsignedBigInteger('basti_id')->nullable()->change();
@@ -67,6 +109,7 @@ return new class extends Migration
 
         // 4. Ensure shakha_id is present and nullable in user_profiles, delivery_locations, and orders
         if (Schema::hasTable('user_profiles')) {
+            $this->releaseOldShakhaConstraint('user_profiles');
             Schema::table('user_profiles', function (Blueprint $table) {
                 if (!Schema::hasColumn('user_profiles', 'shakha_id')) {
                     $table->foreignId('shakha_id')->nullable()->after('basti_id')->constrained('shakhas')->nullOnDelete();
@@ -75,6 +118,7 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('delivery_locations')) {
+            $this->releaseOldShakhaConstraint('delivery_locations');
             Schema::table('delivery_locations', function (Blueprint $table) {
                 if (!Schema::hasColumn('delivery_locations', 'shakha_id')) {
                     $table->foreignId('shakha_id')->nullable()->after('basti_id')->constrained('shakhas')->nullOnDelete();
@@ -83,6 +127,7 @@ return new class extends Migration
         }
 
         if (Schema::hasTable('orders')) {
+            $this->releaseOldShakhaConstraint('orders');
             Schema::table('orders', function (Blueprint $table) {
                 if (!Schema::hasColumn('orders', 'shakha_id')) {
                     $table->foreignId('shakha_id')->nullable()->after('basti_id')->constrained('shakhas')->nullOnDelete();
