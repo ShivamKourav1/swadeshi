@@ -67,6 +67,14 @@ export default function ToliIndex({
     const [toastMessage, setToastMessage] = useState(flash?.success || flash?.error || null);
     const [toastType, setToastType] = useState(flash?.error ? 'error' : 'success');
 
+    useEffect(() => {
+        if (flash?.error) {
+            showToast(flash.error, 'error');
+        } else if (flash?.success) {
+            showToast(flash.success, 'success');
+        }
+    }, [flash]);
+
     // Login Modal state (main application credentials only)
     const [showLoginModal, setShowLoginModal] = useState(!isAuthenticated);
     const [loginCredential, setLoginCredential] = useState('');
@@ -416,29 +424,43 @@ export default function ToliIndex({
         });
     };
 
-    // CSV Bulk Import
+    // CSV / Excel Bulk Import
     const handleImportSubmit = (e) => {
         e.preventDefault();
         if (!importFile) {
-            showToast('कृपया CSV फ़ाइल चुनें।', 'error');
+            showToast('कृपया CSV या Excel फ़ाइल चुनें।', 'error');
+            return;
+        }
+
+        const targetId = importShakhaId || currentBastiId || (bastisList[0]?.id ?? '');
+        if (!targetId) {
+            showToast('कृपया बस्ती अथवा शाखा का चयन करें।', 'error');
             return;
         }
 
         const formData = new FormData();
         formData.append('file', importFile);
-        formData.append('basti_id', importShakhaId);
-        formData.append('shakha_id', importShakhaId);
+        formData.append('basti_id', targetId);
+        formData.append('shakha_id', targetId);
 
         setImportSubmitting(true);
         router.post('/toli/members/import', formData, {
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page) => {
                 setShowImportModal(false);
                 setImportFile(null);
                 setImportSubmitting(false);
-                showToast('स्वयंसेवक सूची सफलतापूर्वक आयात हुई।', 'success');
+                if (page.props?.flash?.error) {
+                    showToast(page.props.flash.error, 'error');
+                } else {
+                    showToast(page.props?.flash?.success || 'स्वयंसेवक सूची सफलतापूर्वक आयात हुई।', 'success');
+                }
             },
-            onError: () => setImportSubmitting(false)
+            onError: (errors) => {
+                setImportSubmitting(false);
+                const firstErr = Object.values(errors || {})[0] || 'आयात में त्रुटि हुई। कृपया फ़ाइल प्रारूप जाँचें।';
+                showToast(firstErr, 'error');
+            }
         });
     };
 
@@ -2534,21 +2556,21 @@ export default function ToliIndex({
 
                         <form onSubmit={handleImportSubmit} className="p-4 space-y-3 text-xs">
                             <div className="bg-stone-50 p-3 rounded-lg border border-stone-200 space-y-1">
-                                <p className="font-semibold text-stone-800">CSV फ़ाइल के कॉलम:</p>
-                                <p className="text-stone-500 font-mono">name, mobile, address, ganvesh, shikshan</p>
+                                <p className="font-semibold text-stone-800">समर्थित फ़ाइल: CSV या Excel (.xlsx)</p>
+                                <p className="text-stone-500 font-mono">कॉलम: name, mobile, address, ganvesh, shikshan</p>
                                 <a
                                     href="/toli/members/template"
                                     download
                                     className="text-amber-700 hover:underline font-bold block pt-1"
                                 >
-                                    📄 नमूना CSV फ़ाइल यहाँ से डाउनलोड करें
+                                    📄 नमूना (Template) फ़ाइल यहाँ से डाउनलोड करें
                                 </a>
                             </div>
 
-                            {bastisList.length > 1 && (
+                            {bastisList.length > 1 ? (
                                 <div>
                                     <label className="block text-xs font-bold text-stone-700 mb-1">
-                                        लक्षित बस्ती (बस्ती से सम्बद्ध करें)
+                                        लक्षित बस्ती / शाखा
                                     </label>
                                     <select
                                         value={importShakhaId}
@@ -2561,15 +2583,20 @@ export default function ToliIndex({
                                         ))}
                                     </select>
                                 </div>
+                            ) : (
+                                <div className="bg-amber-50 text-amber-900 border border-amber-200 rounded-lg p-2.5">
+                                    <span className="text-stone-600">लक्षित इकाई: </span>
+                                    <span className="font-bold">{bastisList[0]?.basti_name || bastisList[0]?.shakha_name || unit?.name || 'वर्तमान इकाई'}</span>
+                                </div>
                             )}
 
                             <div>
                                 <label className="block text-xs font-bold text-stone-700 mb-1">
-                                    CSV फ़ाइल चुनें
+                                    फ़ाइल चुनें (.csv, .xlsx, .xls)
                                 </label>
                                 <input
                                     type="file"
-                                    accept=".csv,text/csv"
+                                    accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel"
                                     onChange={(e) => setImportFile(e.target.files[0] || null)}
                                     className="w-full p-2 bg-stone-50 border border-stone-300 rounded-lg text-xs"
                                     required
@@ -2579,7 +2606,7 @@ export default function ToliIndex({
                             <button
                                 type="submit"
                                 disabled={importSubmitting || !importFile}
-                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition mt-2"
+                                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow transition mt-2 cursor-pointer"
                             >
                                 {importSubmitting ? 'आयात जारी है...' : 'अपलोड एवं आयात करें'}
                             </button>

@@ -18,6 +18,7 @@ use App\Models\Swayamsevak;
 use App\Models\ToliInventoryScope;
 use App\Models\User;
 use App\Services\ToliEncryptionService;
+use App\Services\UserImportService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -1096,80 +1097,102 @@ class ToliController extends Controller
     }
 
     /**
-     * Bulk import Swayamsevaks from CSV file.
+     * Bulk import Swayamsevaks from CSV or Excel (XLSX) file.
      */
     public function importMembers(Request $request): RedirectResponse
     {
         $request->validate([
-            'file' => 'required|file|mimes:csv,txt|max:5120',
+            'file' => 'required|file|max:10240',
             'basti_id' => 'nullable',
             'shakha_id' => 'nullable',
         ]);
 
+        $file = $request->file('file');
+        $ext = strtolower($file->getClientOriginalExtension() ?: $file->extension());
+        $allowedExts = ['csv', 'txt', 'xlsx', 'xls'];
+        if (!empty($ext) && !in_array($ext, $allowedExts)) {
+            return back()->with('error', 'केवल CSV या Excel (.xlsx) फ़ाइल समर्थित है।');
+        }
+
+        // Resolve target organizational unit
         $rawBastiId = $request->input('basti_id');
         $rawShakhaId = $request->input('shakha_id');
-        $basti = $rawBastiId ? Basti::find($rawBastiId) : null;
-        $shakha = $rawShakhaId ? Shakha::find($rawShakhaId) : null;
-        if (!$shakha && $rawShakhaId) {
-            $basti = $basti ?: Basti::find($rawShakhaId);
+        $selectedId = $rawBastiId ?: $rawShakhaId;
+
+        $basti = $selectedId ? Basti::find($selectedId) : null;
+        $shakha = $selectedId ? Shakha::find($selectedId) : null;
+
+        if ($rawBastiId && $rawShakhaId && $rawBastiId != $rawShakhaId) {
+            $basti = Basti::find($rawBastiId);
+            $shakha = Shakha::find($rawShakhaId);
         }
-        if (!$basti && $rawBastiId) {
-            $shakha = $shakha ?: Shakha::find($rawBastiId);
-        }
+
         if (!$basti && !$shakha) {
             return back()->with('error', 'बस्ती अथवा शाखा का चयन अनिवार्य है।');
         }
 
-        $bastiId = $basti?->id ?: $shakha?->basti_id;
-        $shakhaId = $shakha?->id;
-        $file = $request->file('file');
-
-        $handle = fopen($file->getRealPath(), 'r');
-        if (!$handle) {
-            return back()->with('error', 'फ़ाइल खोलने में त्रुटि हुई।');
+        if ($basti && !$shakha) {
+            $bastiId = $basti->id;
+            $shakhaId = null;
+        } elseif ($shakha && !$basti) {
+            $bastiId = $shakha->basti_id;
+            $shakhaId = $shakha->id;
+        } else {
+            $bastiId = $basti?->id ?: $shakha?->basti_id;
+            $shakhaId = $shakha?->id;
         }
 
-        // Read header
-        $header = fgetcsv($handle);
-        if (!$header) {
-            fclose($handle);
-            return back()->with('error', 'फ़ाइल खाली है।');
+        try {
+            $rows = UserImportService::parseRows($file);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'फ़ाइल पढ़ने में त्रुटि: ' . $e->getMessage());
         }
 
-        // Normalize header names (remove UTF-8 BOM and lower-case)
+        if (empty($rows)) {
+            return back()->with('error', 'फ़ाइल खाली है अथवा पढ़ी नहीं जा सकी।');
+        }
+
+        // Extract header row
+        $header = array_shift($rows);
+        if (empty($header)) {
+            return back()->with('error', 'फ़ाइल में कॉलम शीर्षक (हेडर) नहीं मिला।');
+        }
+
+        // Normalize header names (strip UTF-8 BOM, whitespace, underscores, lowercase)
         $cleanHeader = array_map(function ($col) {
-            $c = preg_replace('/[\x{FEFF}\x{200B}]/u', '', trim($col));
-            return strtolower($c);
+            $c = preg_replace('/[\x{FEFF}\x{200B}\s_-]/u', '', trim((string)$col));
+            return mb_strtolower($c, 'UTF-8');
         }, $header);
 
-        $nameIdx = array_search('name', $cleanHeader);
-        $mobileIdx = array_search('mobile', $cleanHeader);
-        $addressIdx = array_search('address', $cleanHeader);
-        $ganveshIdx = array_search('ganvesh', $cleanHeader);
-        $shikshanIdx = array_search('shikshan', $cleanHeader);
+        $nameIdx = $this->findHeaderIndex($cleanHeader, ['name', 'naam', 'nam', 'नाम', 'सदस्य', 'स्वयंसेवक', 'पूर्णनाम', 'fullname', 'member', 'membername']);
+        $mobileIdx = $this->findHeaderIndex($cleanHeader, ['mobile', 'phone', 'contact', 'मोबाइल', 'फ़ोन', 'फोन', 'सम्पर्क', 'संपर्क', 'mobilenumber', 'phonenumber', 'contactno']);
+        $addressIdx = $this->findHeaderIndex($cleanHeader, ['address', 'pata', 'पता', 'स्थान', 'निवास', 'गाँव', 'शहर', 'addressline']);
+        $ganveshIdx = $this->findHeaderIndex($cleanHeader, ['ganvesh', 'गणवेश', 'uniform', 'isganvesh', 'ganveshstatus']);
+        $shikshanIdx = $this->findHeaderIndex($cleanHeader, ['shikshan', 'शिक्षण', 'training', 'education', 'वर्ग']);
 
         if ($nameIdx === false) {
-            fclose($handle);
-            return back()->with('error', 'फ़ाइल में "name" कॉलम होना आवश्यक है।');
+            return back()->with('error', 'फ़ाइल में "name" या "नाम" कॉलम होना आवश्यक है।');
         }
 
         $importedCount = 0;
         DB::beginTransaction();
 
         try {
-            while (($row = fgetcsv($handle)) !== false) {
-                if (empty($row) || !isset($row[$nameIdx]) || trim($row[$nameIdx]) === '') {
+            foreach ($rows as $row) {
+                if (empty($row) || !isset($row[$nameIdx]) || trim((string)$row[$nameIdx]) === '') {
                     continue;
                 }
 
-                $name = trim($row[$nameIdx]);
-                $mobile = $mobileIdx !== false && isset($row[$mobileIdx]) ? trim($row[$mobileIdx]) : null;
-                $address = $addressIdx !== false && isset($row[$addressIdx]) ? trim($row[$addressIdx]) : null;
+                $name = trim((string)$row[$nameIdx]);
+                $mobile = $mobileIdx !== false && isset($row[$mobileIdx]) ? trim((string)$row[$mobileIdx]) : null;
+                $address = $addressIdx !== false && isset($row[$addressIdx]) ? trim((string)$row[$addressIdx]) : null;
 
-                $ganveshRaw = $ganveshIdx !== false && isset($row[$ganveshIdx]) ? mb_strtolower(trim($row[$ganveshIdx])) : '';
-                $ganvesh = in_array($ganveshRaw, ['yes', 'y', 'haan', 'हाँ', '1', 'true', 'युक्त']);
+                $ganveshRaw = $ganveshIdx !== false && isset($row[$ganveshIdx]) ? mb_strtolower(trim((string)$row[$ganveshIdx]), 'UTF-8') : '';
+                $ganvesh = in_array($ganveshRaw, ['yes', 'y', 'haan', 'हाँ', 'हा', 'ha', '1', 'true', 'युक्त', 'गणवेशयुक्त', 'पूर्ण']);
 
-                $shikshan = $shikshanIdx !== false && isset($row[$shikshanIdx]) ? trim($row[$shikshanIdx]) : null;
+                $shikshan = $shikshanIdx !== false && isset($row[$shikshanIdx]) && trim((string)$row[$shikshanIdx]) !== ''
+                    ? trim((string)$row[$shikshanIdx]) 
+                    : 'प्रारंभिक';
 
                 Swayamsevak::create([
                     'name' => $name,
@@ -1185,14 +1208,28 @@ class ToliController extends Controller
             }
 
             DB::commit();
-            fclose($handle);
 
             return back()->with('success', "{$importedCount} स्वयंसेवक सफलतापूर्वक जोड़े गए।");
         } catch (\Throwable $e) {
             DB::rollBack();
-            fclose($handle);
             return back()->with('error', 'आयात में त्रुटि: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Helper to match column headers across multilingual aliases.
+     */
+    private function findHeaderIndex(array $headers, array $aliases): int|false
+    {
+        foreach ($headers as $idx => $header) {
+            foreach ($aliases as $alias) {
+                $cleanAlias = preg_replace('/[\x{FEFF}\x{200B}\s_-]/u', '', mb_strtolower($alias, 'UTF-8'));
+                if ($header === $cleanAlias) {
+                    return $idx;
+                }
+            }
+        }
+        return false;
     }
 
     /**

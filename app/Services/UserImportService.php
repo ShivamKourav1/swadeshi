@@ -54,14 +54,7 @@ class UserImportService
      */
     public function import(UploadedFile $file, ?User $importingAdmin = null): array
     {
-        $extension = strtolower($file->getClientOriginalExtension());
-        $rows = [];
-
-        if ($extension === 'xlsx') {
-            $rows = $this->parseXlsx($file->getPathname());
-        } else {
-            $rows = $this->parseCsv($file->getPathname());
-        }
+        $rows = self::parseRows($file);
 
         if (empty($rows)) {
             return [
@@ -296,7 +289,40 @@ class UserImportService
     /**
      * Parse CSV file with comma or semicolon delimiter and UTF-8 encoding.
      */
-    private function parseCsv(string $filePath): array
+    /**
+     * Universally parse spreadsheet rows from UploadedFile or file path (CSV or XLSX).
+     */
+    public static function parseRows($file): array
+    {
+        $filePath = $file instanceof UploadedFile ? $file->getRealPath() : (string)$file;
+        $extension = $file instanceof UploadedFile 
+            ? strtolower($file->getClientOriginalExtension() ?: $file->extension()) 
+            : strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        // Check file magic bytes for zip (xlsx is a zip archive)
+        $isZip = false;
+        if (file_exists($filePath) && ($fh = @fopen($filePath, 'rb')) !== false) {
+            $bytes = fread($fh, 4);
+            fclose($fh);
+            if ($bytes === "PK\x03\x04") {
+                $isZip = true;
+            }
+        }
+
+        if ($extension === 'xlsx' || $isZip) {
+            $xlsxRows = self::parseXlsx($filePath);
+            if (!empty($xlsxRows)) {
+                return $xlsxRows;
+            }
+        }
+
+        return self::parseCsv($filePath);
+    }
+
+    /**
+     * Parse CSV file with comma or semicolon delimiter and UTF-8 encoding.
+     */
+    public static function parseCsv(string $filePath): array
     {
         $rows = [];
         if (($handle = fopen($filePath, 'r')) !== false) {
@@ -326,7 +352,7 @@ class UserImportService
     /**
      * Parse XLSX file natively using ZipArchive and SimpleXML without external packages.
      */
-    private function parseXlsx(string $filePath): array
+    public static function parseXlsx(string $filePath): array
     {
         $zip = new ZipArchive();
         if ($zip->open($filePath) !== true) {
@@ -379,7 +405,7 @@ class UserImportService
                     // Extract column letter from cell reference e.g. A1, B1
                     $cellRef = (string)$cell['r'];
                     $colLetter = preg_replace('/[0-9]/', '', $cellRef);
-                    $colIndex = $this->letterToColumnIndex($colLetter);
+                    $colIndex = self::letterToColumnIndex($colLetter);
 
                     $rowCells[$colIndex] = trim($cellValue);
                 }
@@ -401,7 +427,7 @@ class UserImportService
         return $rows;
     }
 
-    private function letterToColumnIndex(string $letters): int
+    public static function letterToColumnIndex(string $letters): int
     {
         $letters = strtoupper($letters);
         $num = 0;
