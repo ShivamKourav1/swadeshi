@@ -184,7 +184,7 @@ class BulkStockAndToliEnhancementsTest extends TestCase
         $this->assertDatabaseHas('swayamsevaks', [
             'name' => 'आलोक शर्मा',
             'mobile' => '9876543210',
-            'basti_id' => $shakha->id,
+            'shakha_id' => $shakha->id,
         ]);
     }
 

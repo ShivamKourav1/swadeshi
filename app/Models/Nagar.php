@@ -33,11 +33,8 @@ class Nagar extends Model
         return $this->hasMany(Basti::class);
     }
 
-    /**
-     * Backward-compatible alias for bastis relationship.
-     */
     public function shakhas(): HasMany
     {
-        return $this->bastis();
+        return $this->hasMany(Shakha::class, 'nagar_id');
     }
 }

@@ -153,6 +153,13 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                 </Link>
                             )}
                             <Link
+                                href={route('karyakarta.units.index', { tab: 'shakhas' })}
+                                className="inline-flex items-center space-x-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xs transition border border-white/30 backdrop-blur-xs"
+                            >
+                                <span>⭐</span>
+                                <span>शाखाएं (स्वतंत्र)</span>
+                            </Link>
+                            <Link
                                 href={route('karyakarta.units.index')}
                                 className="inline-flex items-center space-x-1 bg-white text-amber-900 hover:bg-amber-100 text-xs font-black px-3 py-1.5 rounded-xl shadow-xs transition"
                             >

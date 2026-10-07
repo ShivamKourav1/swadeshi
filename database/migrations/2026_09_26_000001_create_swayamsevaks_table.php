@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->string('mobile')->nullable();
             $table->text('address')->nullable();
-            $table->foreignId('shakha_id')->constrained('shakhas')->onDelete('cascade');
+            $table->foreignId('shakha_id')->nullable()->constrained('shakhas')->onDelete('cascade');
             $table->boolean('ganvesh')->default(false);
             $table->string('shikshan')->nullable();
             $table->timestamps();

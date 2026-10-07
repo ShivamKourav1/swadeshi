@@ -18,6 +18,7 @@ class Swayamsevak extends Model
         'mobile',
         'address',
         'basti_id',
+        'shakha_id',
         'ganvesh',
         'shikshan',
     ];
@@ -25,32 +26,6 @@ class Swayamsevak extends Model
     protected $casts = [
         'ganvesh' => 'boolean',
     ];
-
-    protected $appends = [
-        'shakha_id',
-    ];
-
-    public function fill(array $attributes)
-    {
-        if (isset($attributes['shakha_id']) && !isset($attributes['basti_id'])) {
-            $attributes['basti_id'] = $attributes['shakha_id'];
-        }
-        unset($attributes['shakha_id']);
-        return parent::fill($attributes);
-    }
-
-    public function newEloquentBuilder($query)
-    {
-        return new class($query) extends \Illuminate\Database\Eloquent\Builder {
-            public function where($column, $operator = null, $value = null, $boolean = 'and')
-            {
-                if (is_string($column)) {
-                    $column = str_replace('shakha_id', 'basti_id', $column);
-                }
-                return parent::where($column, $operator, $value, $boolean);
-            }
-        };
-    }
 
     public const SHIKSHAN_OPTIONS = [
         'प्रारंभिक',
@@ -63,25 +38,12 @@ class Swayamsevak extends Model
 
     public function basti(): BelongsTo
     {
-        return $this->belongsTo(Basti::class);
+        return $this->belongsTo(Basti::class, 'basti_id');
     }
 
-    /**
-     * Backward-compatible alias for basti relationship.
-     */
     public function shakha(): BelongsTo
     {
-        return $this->basti();
-    }
-
-    public function getShakhaIdAttribute(): ?int
-    {
-        return $this->attributes['basti_id'] ?? null;
-    }
-
-    public function setShakhaIdAttribute(?int $value): void
-    {
-        $this->attributes['basti_id'] = $value;
+        return $this->belongsTo(Shakha::class, 'shakha_id');
     }
 
     public function orders(): HasMany

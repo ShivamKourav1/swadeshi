@@ -242,18 +242,37 @@ class User extends Authenticatable
      */
     private function isUnitWithinJurisdiction(string $unitType, $targetUnit, UserProfile $profile): bool
     {
-        $targetBasti = ($unitType === 'basti' || $unitType === 'shakha');
         $bastiId = $profile->basti_id ?: $profile->shakha_id;
+
+        $targetBastiId = null;
+        $targetNagarId = null;
+        $targetJilaId = null;
+
+        if ($unitType === 'basti') {
+            $targetBastiId = $targetUnit->id;
+            $targetNagarId = $targetUnit->nagar_id;
+            $targetJilaId = $targetUnit->nagar?->jila_id ?? (Nagar::find($targetUnit->nagar_id)?->jila_id);
+        } elseif ($unitType === 'shakha') {
+            $targetBastiId = $targetUnit->basti_id;
+            $targetNagarId = $targetUnit->nagar_id ?: ($targetUnit->basti?->nagar_id ?? ($targetUnit->basti_id ? Basti::find($targetUnit->basti_id)?->nagar_id : null));
+            $targetJilaId = $targetUnit->jila_id ?: ($targetNagarId ? (Nagar::find($targetNagarId)?->jila_id) : null);
+        } elseif ($unitType === 'nagar') {
+            $targetNagarId = $targetUnit->id;
+            $targetJilaId = $targetUnit->jila_id;
+        } elseif ($unitType === 'jila') {
+            $targetJilaId = $targetUnit->id;
+        }
 
         // 1. Basti / Shakha scope
         if ($bastiId) {
-            return $targetBasti && (int)$targetUnit->id === (int)$bastiId;
+            return ($unitType === 'basti' && (int)$targetUnit->id === (int)$bastiId)
+                || ($unitType === 'shakha' && (int)$targetBastiId === (int)$bastiId);
         }
 
         // 2. Nagar scope
         if ($profile->nagar_id) {
-            if ($targetBasti) {
-                return (int)($targetUnit->nagar_id ?? 0) === (int)$profile->nagar_id;
+            if ($unitType === 'basti' || $unitType === 'shakha') {
+                return (int)$targetNagarId === (int)$profile->nagar_id;
             }
             if ($unitType === 'nagar') {
                 return (int)$targetUnit->id === (int)$profile->nagar_id;
@@ -263,12 +282,11 @@ class User extends Authenticatable
 
         // 3. Jila scope
         if ($profile->jila_id) {
-            if ($targetBasti) {
-                $nagar = $targetUnit->nagar ?? Nagar::find($targetUnit->nagar_id);
-                return $nagar && (int)$nagar->jila_id === (int)$profile->jila_id;
+            if ($unitType === 'basti' || $unitType === 'shakha') {
+                return (int)$targetJilaId === (int)$profile->jila_id;
             }
             if ($unitType === 'nagar') {
-                return (int)($targetUnit->jila_id ?? 0) === (int)$profile->jila_id;
+                return (int)$targetJilaId === (int)$profile->jila_id;
             }
             if ($unitType === 'jila') {
                 return (int)$targetUnit->id === (int)$profile->jila_id;
@@ -278,16 +296,12 @@ class User extends Authenticatable
 
         // 4. Vibhag scope
         if ($profile->vibhag_id) {
-            if ($targetBasti) {
-                $nagar = $targetUnit->nagar ?? Nagar::with('jila')->find($targetUnit->nagar_id);
-                return $nagar && $nagar->jila && (int)$nagar->jila->vibhag_id === (int)$profile->vibhag_id;
-            }
-            if ($unitType === 'nagar') {
-                $jila = $targetUnit->jila ?? Jila::find($targetUnit->jila_id);
+            $jila = $targetJilaId ? Jila::find($targetJilaId) : null;
+            if ($unitType === 'basti' || $unitType === 'shakha' || $unitType === 'nagar') {
                 return $jila && (int)$jila->vibhag_id === (int)$profile->vibhag_id;
             }
             if ($unitType === 'jila') {
-                return (int)($targetUnit->vibhag_id ?? 0) === (int)$profile->vibhag_id;
+                return (int)$targetUnit->vibhag_id === (int)$profile->vibhag_id;
             }
             if ($unitType === 'vibhag') {
                 return (int)$targetUnit->id === (int)$profile->vibhag_id;
@@ -297,12 +311,8 @@ class User extends Authenticatable
 
         // 5. Prant scope
         if ($profile->prant_id) {
-            if ($targetBasti) {
-                $nagar = $targetUnit->nagar ?? Nagar::with('jila.vibhag')->find($targetUnit->nagar_id);
-                return $nagar && $nagar->jila && $nagar->jila->vibhag && (int)$nagar->jila->vibhag->prant_id === (int)$profile->prant_id;
-            }
-            if ($unitType === 'nagar') {
-                $jila = $targetUnit->jila ?? Jila::with('vibhag')->find($targetUnit->jila_id);
+            $jila = $targetJilaId ? Jila::with('vibhag')->find($targetJilaId) : null;
+            if ($unitType === 'basti' || $unitType === 'shakha' || $unitType === 'nagar') {
                 return $jila && $jila->vibhag && (int)$jila->vibhag->prant_id === (int)$profile->prant_id;
             }
             if ($unitType === 'jila') {
@@ -310,7 +320,7 @@ class User extends Authenticatable
                 return $vibhag && (int)$vibhag->prant_id === (int)$profile->prant_id;
             }
             if ($unitType === 'vibhag') {
-                return (int)($targetUnit->prant_id ?? 0) === (int)$profile->prant_id;
+                return (int)$targetUnit->prant_id === (int)$profile->prant_id;
             }
             if ($unitType === 'prant') {
                 return (int)$targetUnit->id === (int)$profile->prant_id;
@@ -320,9 +330,9 @@ class User extends Authenticatable
 
         // 6. Kshetra scope
         if ($profile->kshetra_id) {
-            if ($targetBasti) {
-                $nagar = $targetUnit->nagar ?? Nagar::with('jila.vibhag.prant')->find($targetUnit->nagar_id);
-                return $nagar && $nagar->jila && $nagar->jila->vibhag && $nagar->jila->vibhag->prant && (int)$nagar->jila->vibhag->prant->kshetra_id === (int)$profile->kshetra_id;
+            $jila = $targetJilaId ? Jila::with('vibhag.prant')->find($targetJilaId) : null;
+            if ($unitType === 'basti' || $unitType === 'shakha' || $unitType === 'nagar') {
+                return $jila && $jila->vibhag && $jila->vibhag->prant && (int)$jila->vibhag->prant->kshetra_id === (int)$profile->kshetra_id;
             }
             if ($unitType === 'nagar') {
                 $jila = $targetUnit->jila ?? Jila::with('vibhag.prant')->find($targetUnit->jila_id);

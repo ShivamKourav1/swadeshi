@@ -65,20 +65,34 @@ class ProductDemandController extends Controller
      */
     public function getSwayamsevaks(Request $request): JsonResponse
     {
-        $bastiId = $request->query('basti_id') ?: $request->query('shakha_id');
+        $bastiId = $request->query('basti_id');
+        $shakhaId = $request->query('shakha_id');
 
-        if (!$bastiId && $user = $request->user()) {
+        if (!$bastiId && !$shakhaId && $user = $request->user()) {
             $loc = $user->deliveryLocations()->where('is_default', true)->first()
                 ?: $user->deliveryLocations()->latest()->first();
-            $bastiId = $loc?->basti_id ?: $loc?->shakha_id ?: $user->profile?->basti_id ?: $user->profile?->shakha_id;
+            $bastiId = $loc?->basti_id ?: $user->profile?->basti_id;
+            $shakhaId = $loc?->shakha_id ?: $user->profile?->shakha_id;
         }
 
-        if (!$bastiId) {
+        if (!$bastiId && !$shakhaId) {
             return response()->json([]);
         }
 
-        $swayamsevaks = Swayamsevak::where('basti_id', $bastiId)
-            ->select('id', 'name', 'mobile', 'basti_id', 'ganvesh')
+        $query = Swayamsevak::query();
+        if ($shakhaId) {
+            $query->where(function ($q) use ($shakhaId, $bastiId) {
+                $q->where('shakha_id', $shakhaId);
+                if ($bastiId) {
+                    $q->orWhere('basti_id', $bastiId);
+                }
+            });
+        } elseif ($bastiId) {
+            $query->where('basti_id', $bastiId);
+        }
+
+        $swayamsevaks = $query
+            ->select('id', 'name', 'mobile', 'basti_id', 'shakha_id', 'ganvesh')
             ->orderBy('name')
             ->get();
 

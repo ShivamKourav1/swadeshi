@@ -186,17 +186,28 @@ class ToliEncryptionService
             case 'basti':
             case 'shakha':
                 $basti = Basti::with('nagar.jila.vibhag.prant')->find($id);
-                if (!$basti) {
-                    return null;
+                if ($basti) {
+                    $nagar = $basti->nagar;
+                    $jila = $nagar?->jila;
+                    $vibhag = $jila?->vibhag;
+                    $kshetraId = $vibhag?->prant?->kshetra_id;
+                    if ($kshetraId && $vibhag && $jila && $nagar) {
+                        return self::buildToliUrl($kshetraId, $vibhag->id, $jila->id, $nagar->id, $basti->id);
+                    }
                 }
-                $nagar = $basti->nagar;
-                $jila = $nagar?->jila;
-                $vibhag = $jila?->vibhag;
-                $kshetraId = $vibhag?->prant?->kshetra_id;
-                if (!$kshetraId || !$vibhag || !$jila || !$nagar) {
-                    return null;
+
+                $shakha = Shakha::with(['nagar.jila.vibhag.prant', 'basti.nagar.jila.vibhag.prant'])->find($id);
+                if ($shakha) {
+                    $nagar = $shakha->nagar ?: $shakha->basti?->nagar;
+                    $jila = $shakha->jila ?: ($nagar?->jila ?: $shakha->basti?->nagar?->jila);
+                    $vibhag = $jila?->vibhag;
+                    $kshetraId = $vibhag?->prant?->kshetra_id;
+                    if ($kshetraId && $vibhag && $jila && $nagar) {
+                        return self::buildToliUrl($kshetraId, $vibhag->id, $jila->id, $nagar->id, $shakha->id);
+                    }
                 }
-                return self::buildToliUrl($kshetraId, $vibhag->id, $jila->id, $nagar->id, $basti->id);
+
+                return null;
 
             case 'nagar':
                 $nagar = Nagar::with('jila.vibhag.prant')->find($id);

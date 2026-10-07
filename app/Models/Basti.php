@@ -16,16 +16,12 @@ class Basti extends Model
     protected $fillable = [
         'nagar_id',
         'basti_name',
-        'aayu_varg',
-        'type',
-        'new_ganvesh',
         'toli',
         'status',
     ];
 
     protected $casts = [
         'toli' => 'array',
-        'new_ganvesh' => 'integer',
     ];
 
     protected $appends = [
@@ -79,6 +75,11 @@ class Basti extends Model
     public function nagar(): BelongsTo
     {
         return $this->belongsTo(Nagar::class);
+    }
+
+    public function shakhas(): HasMany
+    {
+        return $this->hasMany(Shakha::class, 'basti_id');
     }
 
     public function swayamsevaks(): HasMany

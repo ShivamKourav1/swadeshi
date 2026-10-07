@@ -50,22 +50,19 @@ export const toKeyName = (str) => {
 
 export default function Index({
     activeTab: initialTab,
-    kshetras,
-    prants,
-    vibhags,
-    jilas,
-    nagars,
-    bastis,
-    shakhas = bastis || [],
+    kshetras = [],
+    prants = [],
+    vibhags = [],
+    jilas = [],
+    nagars = [],
+    bastis = [],
+    shakhas = [],
     scope,
     permissions = {},
     is_admin = false,
 }) {
     const { auth } = usePage().props;
-    const unitBastis = bastis || shakhas || [];
-    const [currentTab, setCurrentTab] = useState(
-        initialTab === 'shakhas' ? 'bastis' : (initialTab || 'bastis')
-    );
+    const [currentTab, setCurrentTab] = useState(initialTab || 'bastis');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUnit, setEditingUnit] = useState(null);
 
@@ -82,24 +79,38 @@ export default function Index({
         jila_id: '',
         basti_name: '',
         shakha_name: '',
+        basti_id: '',
         nagar_id: '',
-        aayu_varg: 'Baal',
-        type: 'dainik',
+        aayu_varg: 'dainik',
+        type: 'Vyavsai',
+        new_ganvesh: 0,
         status: 'Active',
         toli_members: [], // Array of { role: '', name: '', contact: '' }
     });
 
-    const tabs = [
+    const hierarchyTabs = [
         { id: 'kshetras', label: 'Kshetras (क्षेत्र)', icon: '🌐', count: kshetras.length, singular: 'kshetra' },
         { id: 'prants', label: 'Prants (प्रान्त)', icon: '🏛️', count: prants.length, singular: 'prant' },
         { id: 'vibhags', label: 'Vibhags (विभाग)', icon: '🏢', count: vibhags.length, singular: 'vibhag' },
         { id: 'jilas', label: 'Jilas (जिला)', icon: '📍', count: jilas.length, singular: 'jila' },
         { id: 'nagars', label: 'Nagars (नगर)', icon: '🏘️', count: nagars.length, singular: 'nagar' },
-        { id: 'bastis', label: 'Bastis (बस्ती)', icon: '🚩', count: unitBastis.length, singular: 'basti' },
+        { id: 'bastis', label: 'Bastis (बस्ती)', icon: '🚩', count: bastis.length, singular: 'basti' },
     ];
 
-    const currentTabConfig = tabs.find((t) => t.id === currentTab) || tabs[5];
+    const decoupledTabs = [
+        { id: 'shakhas', label: 'Shakhas (शाखाएं)', icon: '⭐', count: shakhas.length, singular: 'shakha', isDecoupled: true },
+    ];
+
+    const allTabs = [...hierarchyTabs, ...decoupledTabs];
+    const currentTabConfig = allTabs.find((t) => t.id === currentTab) || hierarchyTabs[5];
     const canManageCurrentTab = is_admin || Boolean(permissions[`manage_${currentTabConfig.singular}`]);
+
+    // Cascaded option lists for Shakha form
+    const filteredPrants = data.kshetra_id ? prants.filter((p) => String(p.kshetra_id) === String(data.kshetra_id)) : prants;
+    const filteredVibhags = data.prant_id ? vibhags.filter((v) => String(v.prant_id) === String(data.prant_id)) : vibhags;
+    const filteredJilas = data.vibhag_id ? jilas.filter((j) => String(j.vibhag_id) === String(data.vibhag_id)) : jilas;
+    const filteredNagars = data.jila_id ? nagars.filter((n) => String(n.jila_id) === String(data.jila_id)) : nagars;
+    const filteredBastis = data.nagar_id ? bastis.filter((b) => String(b.nagar_id) === String(data.nagar_id)) : bastis;
 
     /**
      * Parses toli data from various possible formats into a uniform array of objects.
@@ -233,12 +244,14 @@ export default function Index({
             jila_name: '',
             vibhag_id: vibhags[0]?.id ? String(vibhags[0].id) : '',
             nagar_name: '',
-            jila_id: jilas[0]?.id ? String(jilas[0].id) : '',
+            jila_id: '',
             basti_name: '',
             shakha_name: '',
-            nagar_id: nagars[0]?.id ? String(nagars[0].id) : '',
-            aayu_varg: 'Baal',
-            type: 'dainik',
+            basti_id: '',
+            nagar_id: currentTab === 'bastis' ? (nagars[0]?.id ? String(nagars[0].id) : '') : '',
+            aayu_varg: 'dainik',
+            type: 'Vyavsai',
+            new_ganvesh: 0,
             status: 'Active',
             toli_members: defaultToli,
         });
@@ -271,12 +284,14 @@ export default function Index({
             jila_name: unit.jila_name || '',
             vibhag_id: unit.vibhag_id ? String(unit.vibhag_id) : '',
             nagar_name: unit.nagar_name || '',
-            jila_id: unit.jila_id ? String(unit.jila_id) : '',
-            basti_name: unit.basti_name || unit.shakha_name || '',
-            shakha_name: unit.basti_name || unit.shakha_name || '',
-            nagar_id: unit.nagar_id ? String(unit.nagar_id) : '',
-            aayu_varg: unit.aayu_varg || 'Baal',
-            type: unit.type || 'dainik',
+            jila_id: unit.jila_id ? String(unit.jila_id) : (unit.nagar?.jila_id ? String(unit.nagar.jila_id) : (unit.basti?.nagar?.jila_id ? String(unit.basti.nagar.jila_id) : '')),
+            basti_name: unit.basti_name || '',
+            shakha_name: unit.shakha_name || '',
+            basti_id: unit.basti_id ? String(unit.basti_id) : '',
+            nagar_id: unit.nagar_id ? String(unit.nagar_id) : (unit.basti?.nagar_id ? String(unit.basti.nagar_id) : ''),
+            aayu_varg: unit.aayu_varg || 'dainik',
+            type: unit.type || 'Vyavsai',
+            new_ganvesh: unit.new_ganvesh ?? 0,
             status: unit.status || 'Active',
             toli_members: formattedMembers.length > 0 ? formattedMembers : [{ role: '', name: '', contact: '' }],
         });
@@ -319,6 +334,13 @@ export default function Index({
     const handleSubmit = (e) => {
         e.preventDefault();
         const unitType = currentTabConfig.singular;
+
+        if (unitType === 'shakha') {
+            if (!data.jila_id && !data.nagar_id && !data.basti_id) {
+                alert('कम से कम एक स्तर - जिला, नगर या बस्ती चुनना अनिवार्य है / At least one among Jila, Nagar, or Basti must be selected.');
+                return;
+            }
+        }
 
         // Transform toli_members into structured associative object for storage
         const formattedToli = {};
@@ -438,31 +460,69 @@ export default function Index({
                 </div>
 
                 {/* Level Navigation Tabs */}
-                <div className="flex flex-wrap gap-2 p-1.5 bg-white rounded-3xl border border-amber-100 shadow-xs">
-                    {tabs.map((tab) => {
-                        const isActive = currentTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setCurrentTab(tab.id)}
-                                className={`flex-1 min-w-[130px] sm:min-w-0 py-3 px-4 rounded-2xl text-xs font-extrabold transition flex items-center justify-center space-x-2 cursor-pointer ${
-                                    isActive
-                                        ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/20'
-                                        : 'text-gray-600 hover:text-amber-800 hover:bg-amber-50/60'
-                                }`}
-                            >
-                                <span className="text-base">{tab.icon}</span>
-                                <span>{tab.label}</span>
-                                <span
-                                    className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                                        isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                <div className="flex flex-col md:flex-row items-stretch gap-2 p-1.5 bg-white rounded-3xl border border-amber-100 shadow-xs">
+                    {/* Hierarchy Tabs */}
+                    <div className="flex flex-wrap flex-1 gap-1.5">
+                        {hierarchyTabs.map((tab) => {
+                            const isActive = currentTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setCurrentTab(tab.id)}
+                                    className={`flex-1 min-w-[110px] sm:min-w-0 py-2.5 px-3 rounded-2xl text-xs font-extrabold transition flex items-center justify-center space-x-1.5 cursor-pointer ${
+                                        isActive
+                                            ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-md shadow-amber-500/20'
+                                            : 'text-gray-600 hover:text-amber-800 hover:bg-amber-50/60'
                                     }`}
                                 >
-                                    {tab.count}
-                                </span>
-                            </button>
-                        );
-                    })}
+                                    <span>{tab.icon}</span>
+                                    <span>{tab.label}</span>
+                                    <span
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                            isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                                        }`}
+                                    >
+                                        {tab.count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Out of Hierarchy Separator & Decoupled Shakha Tab */}
+                    <div className="border-t md:border-t-0 md:border-l border-amber-200/80 pt-2 md:pt-0 md:pl-2 flex items-center">
+                        {decoupledTabs.map((tab) => {
+                            const isActive = currentTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setCurrentTab(tab.id)}
+                                    className={`w-full md:w-auto py-2.5 px-4 rounded-2xl text-xs font-extrabold transition flex items-center justify-center space-x-2 cursor-pointer border ${
+                                        isActive
+                                            ? 'bg-gradient-to-r from-orange-600 to-amber-600 text-white border-orange-600 shadow-md shadow-orange-500/30'
+                                            : 'bg-amber-50/80 text-amber-900 border-amber-300 hover:bg-amber-100/90'
+                                    }`}
+                                >
+                                    <span className="text-base">{tab.icon}</span>
+                                    <div className="text-left">
+                                        <div className="flex items-center space-x-1.5">
+                                            <span>{tab.label}</span>
+                                            <span
+                                                className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                                    isActive ? 'bg-white/20 text-white' : 'bg-amber-200 text-amber-900'
+                                                }`}
+                                            >
+                                                {tab.count}
+                                            </span>
+                                        </div>
+                                        <span className={`text-[9px] font-bold block ${isActive ? 'text-amber-100' : 'text-amber-700'}`}>
+                                            पदानुक्रम से बाहर (Out of Hierarchy)
+                                        </span>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Content Table & Toli List */}
@@ -473,42 +533,156 @@ export default function Index({
                         </div>
                     </div>
 
-                    {/* Bastis Tab Table */}
-                    {(currentTab === 'bastis' || currentTab === 'shakhas') && (
+                    {/* Bastis Tab Table - Clean: No Age Group or Frequency */}
+                    {currentTab === 'bastis' && (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left text-xs">
                                 <thead className="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-200">
                                     <tr>
                                         <th className="p-4">Basti Name</th>
-                                        <th className="p-4">Hierarchy (Nagar & Jila)</th>
-                                        <th className="p-4">Age Group (आयु वर्ग)</th>
-                                        <th className="p-4">Frequency</th>
+                                        <th className="p-4">Parent Nagar (नगर व जिला)</th>
                                         <th className="p-4">Toli Members (टोली संपर्क)</th>
                                         <th className="p-4">Status</th>
                                         <th className="p-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 font-medium">
-                                    {unitBastis.map((s) => {
+                                    {bastis.map((b) => {
+                                        const toliList = getToliArray(b.toli);
+                                        return (
+                                            <tr key={b.id} className="hover:bg-amber-50/20 transition">
+                                                <td className="p-4">
+                                                    <div className="font-black text-gray-900 text-sm flex items-center space-x-1.5">
+                                                        <Flag className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                                                        <span>{b.basti_name}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-4 text-gray-600">
+                                                    <div className="font-bold text-gray-800">{b.nagar?.nagar_name || 'N/A'}</div>
+                                                    <div className="text-[11px] text-gray-400">Jila: {b.nagar?.jila?.jila_name || 'N/A'}</div>
+                                                </td>
+                                                <td className="p-4">
+                                                    {toliList.length === 0 ? (
+                                                        <span className="text-gray-400 italic text-[11px]">No toli listed</span>
+                                                    ) : (
+                                                        <div className="space-y-1.5 max-w-xs">
+                                                            {toliList.map((m, i) => (
+                                                                <div key={i} className="flex items-center space-x-1.5 text-[11px]">
+                                                                    <span className="bg-amber-100 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-md font-extrabold text-[10px] whitespace-nowrap">
+                                                                        {toTitleCase(m.role)}:
+                                                                    </span>
+                                                                    <span className="font-bold text-gray-900">{m.name || 'N/A'}</span>
+                                                                    {m.contact && (
+                                                                        <a
+                                                                            href={`tel:${m.contact}`}
+                                                                            className="text-amber-700 hover:text-amber-900 font-mono text-[10px] flex items-center bg-amber-50 px-1.5 py-0.5 rounded ml-1 font-semibold"
+                                                                        >
+                                                                            <Phone className="w-2.5 h-2.5 mr-0.5" />
+                                                                            {m.contact}
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td className="p-4">
+                                                    {b.status === 'Active' ? (
+                                                        <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center w-fit">
+                                                            <CheckCircle2 className="w-3 h-3 mr-1" /> ACTIVE
+                                                        </span>
+                                                    ) : (
+                                                        <span className="bg-gray-100 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center w-fit">
+                                                            <XCircle className="w-3 h-3 mr-1" /> INACTIVE
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    {canManageCurrentTab ? (
+                                                        <div className="space-x-2">
+                                                            <button
+                                                                onClick={() => openEditModal(b)}
+                                                                className="p-1.5 text-gray-600 hover:text-amber-700 inline-block hover:bg-amber-50 rounded-xl transition cursor-pointer"
+                                                                title="Edit Basti"
+                                                            >
+                                                                <Edit3 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleDelete(b)}
+                                                                className="p-1.5 text-gray-400 hover:text-rose-600 inline-block hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                                                                title="Delete Basti"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-gray-400 italic text-[11px] bg-gray-50 px-2 py-1 rounded-md border border-gray-200">
+                                                            View only
+                                                        </span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {/* Shakhas Tab Table - Decoupled Unit Table */}
+                    {currentTab === 'shakhas' && (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead className="bg-gray-50 text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                                    <tr>
+                                        <th className="p-4">Shakha Name</th>
+                                        <th className="p-4">Scope (बस्ती / नगर / जिला)</th>
+                                        <th className="p-4">Meeting Frequency</th>
+                                        <th className="p-4">Type / Age Group</th>
+                                        <th className="p-4">New Ganvesh</th>
+                                        <th className="p-4">Toli Members (टोली संपर्क)</th>
+                                        <th className="p-4">Status</th>
+                                        <th className="p-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 font-medium">
+                                    {shakhas.map((s) => {
                                         const toliList = getToliArray(s.toli);
+                                        const scopeParts = [];
+                                        if (s.basti) scopeParts.push(`Basti: ${s.basti.basti_name}`);
+                                        if (s.nagar || s.basti?.nagar) scopeParts.push(`Nagar: ${s.nagar?.nagar_name || s.basti?.nagar?.nagar_name}`);
+                                        if (s.jila || s.nagar?.jila || s.basti?.nagar?.jila) scopeParts.push(`Jila: ${s.jila?.jila_name || s.nagar?.jila?.jila_name || s.basti?.nagar?.jila?.jila_name}`);
+                                        const scopeText = scopeParts.length > 0 ? scopeParts.join(' > ') : 'Direct Decoupled';
+
                                         return (
                                             <tr key={s.id} className="hover:bg-amber-50/20 transition">
                                                 <td className="p-4">
                                                     <div className="font-black text-gray-900 text-sm flex items-center space-x-1.5">
-                                                        <Flag className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                                                        <span>{s.basti_name || s.shakha_name}</span>
+                                                        <span className="text-amber-600">⭐</span>
+                                                        <span>{s.shakha_name}</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4 text-gray-600">
-                                                    <div className="font-bold text-gray-800">{s.nagar?.nagar_name || 'N/A'}</div>
-                                                    <div className="text-[11px] text-gray-400">Jila: {s.nagar?.jila?.jila_name || 'N/A'}</div>
-                                                </td>
-                                                <td className="p-4">
-                                                    <span className="bg-amber-50 text-amber-900 border border-amber-200 px-2.5 py-0.5 rounded-lg text-[11px] font-bold">
-                                                        {s.aayu_varg}
+                                                    <span className="inline-flex items-center space-x-1 bg-amber-50 text-amber-900 border border-amber-200 font-bold px-2 py-0.5 rounded-lg text-[11px]">
+                                                        <MapPin className="w-3 h-3 text-amber-700 mr-0.5 flex-shrink-0" />
+                                                        <span>{scopeText}</span>
                                                     </span>
                                                 </td>
-                                                <td className="p-4 uppercase text-gray-600 font-semibold">{s.type}</td>
+                                                <td className="p-4">
+                                                    <span className="bg-orange-50 text-orange-900 border border-orange-200 px-2 py-0.5 rounded-md font-bold text-[11px] uppercase">
+                                                        {s.aayu_varg || 'dainik'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="bg-blue-50 text-blue-900 border border-blue-200 px-2 py-0.5 rounded-md font-bold text-[11px]">
+                                                        {s.type || 'Vyavsai'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="font-mono font-bold text-gray-800 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
+                                                        {s.new_ganvesh ?? 0}
+                                                    </span>
+                                                </td>
                                                 <td className="p-4">
                                                     {toliList.length === 0 ? (
                                                         <span className="text-gray-400 italic text-[11px]">No toli listed</span>
@@ -551,14 +725,14 @@ export default function Index({
                                                             <button
                                                                 onClick={() => openEditModal(s)}
                                                                 className="p-1.5 text-gray-600 hover:text-amber-700 inline-block hover:bg-amber-50 rounded-xl transition cursor-pointer"
-                                                                title="Edit Basti"
+                                                                title="Edit Shakha"
                                                             >
                                                                 <Edit3 className="w-4 h-4" />
                                                             </button>
                                                             <button
                                                                 onClick={() => handleDelete(s)}
                                                                 className="p-1.5 text-gray-400 hover:text-rose-600 inline-block hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                                                                title="Delete Basti"
+                                                                title="Delete Shakha"
                                                             >
                                                                 <Trash2 className="w-4 h-4" />
                                                             </button>
@@ -1084,8 +1258,9 @@ export default function Index({
                                     </div>
                                 )}
 
-                                {(currentTab === 'bastis' || currentTab === 'shakhas') && (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {/* Basti Specific Form Inputs */}
+                                {currentTab === 'bastis' && (
+                                    <div className="space-y-3">
                                         <div>
                                             <label className="block font-bold text-gray-700 uppercase mb-1">Parent Nagar (नगर) *</label>
                                             <select
@@ -1094,84 +1269,27 @@ export default function Index({
                                                 className="w-full p-2.5 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white"
                                                 required
                                             >
-                                                <option value="">Select Nagar</option>
+                                                <option value="">Select Nagar (नगर चुनें)</option>
                                                 {nagars.map((n) => (
                                                     <option key={n.id} value={n.id}>{n.nagar_name} ({n.jila?.jila_name})</option>
                                                 ))}
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="block font-bold text-gray-700 uppercase mb-1">Age Group (आयु वर्ग) *</label>
-                                            <select
-                                                value={data.aayu_varg}
-                                                onChange={(e) => setData('aayu_varg', e.target.value)}
-                                                className="w-full p-2.5 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white"
-                                            >
-                                                <option value="Baal">Baal (बाल)</option>
-                                                <option value="Mahavidhyalay">Mahavidhyalay (महाविद्यालय / तरुण)</option>
-                                                <option value="Vyavsai">Vyavsai (व्यवसायी)</option>
-                                                <option value="Praurh">Praurh (प्रौढ़)</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Unit Name */}
-                                <div>
-                                    <label className="block font-bold text-gray-700 uppercase mb-1">
-                                        {currentTabConfig.singular.toUpperCase()} Name (नाम) *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={
-                                            currentTab === 'kshetras'
-                                                ? data.kshetra_name
-                                                : currentTab === 'prants'
-                                                ? data.prant_name
-                                                : currentTab === 'vibhags'
-                                                ? data.vibhag_name
-                                                : currentTab === 'jilas'
-                                                ? data.jila_name
-                                                : currentTab === 'nagars'
-                                                ? data.nagar_name
-                                                : (data.basti_name || data.shakha_name)
-                                        }
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (currentTab === 'kshetras') setData('kshetra_name', val);
-                                            else if (currentTab === 'prants') setData('prant_name', val);
-                                            else if (currentTab === 'vibhags') setData('vibhag_name', val);
-                                            else if (currentTab === 'jilas') setData('jila_name', val);
-                                            else if (currentTab === 'nagars') setData('nagar_name', val);
-                                            else {
-                                                setData((prev) => ({
-                                                    ...prev,
-                                                    basti_name: val,
-                                                    shakha_name: val,
-                                                }));
-                                            }
-                                        }}
-                                        placeholder={`Enter ${currentTabConfig.singular} name...`}
-                                        className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-amber-500"
-                                        required
-                                    />
-                                </div>
-
-                                {(currentTab === 'bastis' || currentTab === 'shakhas') && (
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div>
-                                            <label className="block font-bold text-gray-700 uppercase mb-1">Meeting Frequency *</label>
-                                            <select
-                                                value={data.type}
-                                                onChange={(e) => setData('type', e.target.value)}
-                                                className="w-full p-2.5 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white"
-                                            >
-                                                <option value="dainik">Dainik (दैनिक - Daily)</option>
-                                                <option value="saptahik">Saptahik (साप्ताहिक - Weekly)</option>
-                                            </select>
+                                            <label className="block font-bold text-gray-700 uppercase mb-1">
+                                                Basti Name (बस्ती का नाम) *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={data.basti_name}
+                                                onChange={(e) => setData('basti_name', e.target.value)}
+                                                placeholder="Enter Basti name..."
+                                                className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-amber-500"
+                                                required
+                                            />
                                         </div>
                                         <div>
-                                            <label className="block font-bold text-gray-700 uppercase mb-1">Status *</label>
+                                            <label className="block font-bold text-gray-700 uppercase mb-1">Status (स्थिति) *</label>
                                             <select
                                                 value={data.status}
                                                 onChange={(e) => setData('status', e.target.value)}
@@ -1181,6 +1299,281 @@ export default function Index({
                                                 <option value="Inactive">Inactive</option>
                                             </select>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* Shakha Specific Form Inputs - Out of Hierarchy Decoupled Placement */}
+                                {currentTab === 'shakhas' && (
+                                    <div className="space-y-4">
+                                        <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-3">
+                                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1 border-b border-amber-200/60 pb-2">
+                                                <div className="font-extrabold text-amber-900 text-xs flex items-center space-x-1.5">
+                                                    <MapPin className="w-4 h-4 text-amber-700" />
+                                                    <span>Decoupled Geographic Scope (क्षेत्राधिकार संबद्धता)</span>
+                                                </div>
+                                                <span className="text-[10px] font-extrabold text-amber-900 bg-amber-200/90 px-2.5 py-0.5 rounded-full">
+                                                    जिला, नगर या बस्ती में से कम से कम एक चयन अनिवार्य *
+                                                </span>
+                                            </div>
+
+                                            {/* Top Tier: Kshetra, Prant, Vibhag */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                                <div>
+                                                    <label className="block font-bold text-gray-700 text-[11px] mb-1">1. Kshetra (क्षेत्र)</label>
+                                                    <select
+                                                        value={data.kshetra_id}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                kshetra_id: val,
+                                                                prant_id: '',
+                                                                vibhag_id: '',
+                                                                jila_id: '',
+                                                                nagar_id: '',
+                                                                basti_id: '',
+                                                            }));
+                                                        }}
+                                                        className="w-full p-2 border border-gray-300 rounded-xl font-semibold bg-white text-xs"
+                                                    >
+                                                        <option value="">All Kshetras (सभी क्षेत्र)</option>
+                                                        {kshetras.map((k) => (
+                                                            <option key={k.id} value={k.id}>{k.kshetra_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-gray-700 text-[11px] mb-1">2. Prant (प्रान्त)</label>
+                                                    <select
+                                                        value={data.prant_id}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const p = prants.find((pr) => String(pr.id) === String(val));
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                prant_id: val,
+                                                                kshetra_id: p?.kshetra_id ? String(p.kshetra_id) : prev.kshetra_id,
+                                                                vibhag_id: '',
+                                                                jila_id: '',
+                                                                nagar_id: '',
+                                                                basti_id: '',
+                                                            }));
+                                                        }}
+                                                        className="w-full p-2 border border-gray-300 rounded-xl font-semibold bg-white text-xs"
+                                                    >
+                                                        <option value="">All Prants (सभी प्रान्त)</option>
+                                                        {filteredPrants.map((p) => (
+                                                            <option key={p.id} value={p.id}>{p.prant_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-gray-700 text-[11px] mb-1">3. Vibhag (विभाग)</label>
+                                                    <select
+                                                        value={data.vibhag_id}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const v = vibhags.find((vb) => String(vb.id) === String(val));
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                vibhag_id: val,
+                                                                prant_id: v?.prant_id ? String(v.prant_id) : prev.prant_id,
+                                                                jila_id: '',
+                                                                nagar_id: '',
+                                                                basti_id: '',
+                                                            }));
+                                                        }}
+                                                        className="w-full p-2 border border-gray-300 rounded-xl font-semibold bg-white text-xs"
+                                                    >
+                                                        <option value="">All Vibhags (सभी विभाग)</option>
+                                                        {filteredVibhags.map((v) => (
+                                                            <option key={v.id} value={v.id}>{v.vibhag_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {/* Subordinate Tier: Jila, Nagar, Basti */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1 border-t border-amber-200/60">
+                                                <div>
+                                                    <label className="block font-bold text-gray-800 text-[11px] mb-1">
+                                                        4. Jila (जिला) <span className="text-amber-700 font-extrabold">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={data.jila_id}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const j = jilas.find((jl) => String(jl.id) === String(val));
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                jila_id: val,
+                                                                vibhag_id: j?.vibhag_id ? String(j.vibhag_id) : prev.vibhag_id,
+                                                                nagar_id: '',
+                                                                basti_id: '',
+                                                            }));
+                                                        }}
+                                                        className="w-full p-2 border border-gray-300 rounded-xl font-semibold bg-white text-xs focus:ring-2 focus:ring-amber-500"
+                                                    >
+                                                        <option value="">Select Jila (जिला चुनें)</option>
+                                                        {filteredJilas.map((j) => (
+                                                            <option key={j.id} value={j.id}>{j.jila_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-gray-800 text-[11px] mb-1">
+                                                        5. Nagar (नगर)
+                                                    </label>
+                                                    <select
+                                                        value={data.nagar_id}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const n = nagars.find((ng) => String(ng.id) === String(val));
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                nagar_id: val,
+                                                                jila_id: n?.jila_id ? String(n.jila_id) : prev.jila_id,
+                                                                basti_id: '',
+                                                            }));
+                                                        }}
+                                                        className="w-full p-2 border border-gray-300 rounded-xl font-semibold bg-white text-xs focus:ring-2 focus:ring-amber-500"
+                                                    >
+                                                        <option value="">Select Nagar (optional if Jila set)</option>
+                                                        {filteredNagars.map((n) => (
+                                                            <option key={n.id} value={n.id}>{n.nagar_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block font-bold text-gray-800 text-[11px] mb-1">
+                                                        6. Basti (बस्ती)
+                                                    </label>
+                                                    <select
+                                                        value={data.basti_id}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            const b = bastis.find((bs) => String(bs.id) === String(val));
+                                                            const n = b?.nagar_id ? nagars.find((ng) => String(ng.id) === String(b.nagar_id)) : null;
+                                                            setData((prev) => ({
+                                                                ...prev,
+                                                                basti_id: val,
+                                                                nagar_id: b?.nagar_id ? String(b.nagar_id) : prev.nagar_id,
+                                                                jila_id: n?.jila_id ? String(n.jila_id) : prev.jila_id,
+                                                            }));
+                                                        }}
+                                                        className="w-full p-2 border border-gray-300 rounded-xl font-semibold bg-white text-xs focus:ring-2 focus:ring-amber-500"
+                                                    >
+                                                        <option value="">Select Basti (optional if Nagar/Jila set)</option>
+                                                        {filteredBastis.map((b) => (
+                                                            <option key={b.id} value={b.id}>{b.basti_name}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {!data.jila_id && !data.nagar_id && !data.basti_id && (
+                                                <p className="text-[11px] text-amber-800 font-bold bg-amber-100/80 p-2 rounded-lg">
+                                                    ⚠️ कृपया कम से कम एक (जिला, नगर या बस्ती) अवश्य चुनें ताकि शाखा सही स्तर से संबद्ध हो सके।
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div>
+                                            <label className="block font-bold text-gray-700 uppercase mb-1">
+                                                Shakha Name (शाखा का नाम) *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={data.shakha_name}
+                                                onChange={(e) => setData('shakha_name', e.target.value)}
+                                                placeholder="Enter Shakha name (e.g. Keshav Prabhat Shakha)..."
+                                                className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-amber-500"
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                            <div>
+                                                <label className="block font-bold text-gray-700 uppercase mb-1">Meeting Frequency *</label>
+                                                <select
+                                                    value={data.aayu_varg}
+                                                    onChange={(e) => setData('aayu_varg', e.target.value)}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white"
+                                                >
+                                                    <option value="dainik">Dainik (दैनिक - Daily)</option>
+                                                    <option value="saptahik">Saptahik (साप्ताहिक - Weekly)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-gray-700 uppercase mb-1">Type / Category *</label>
+                                                <select
+                                                    value={data.type}
+                                                    onChange={(e) => setData('type', e.target.value)}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white"
+                                                >
+                                                    <option value="Baal">Baal (बाल)</option>
+                                                    <option value="Mahavidhyalay">Mahavidhyalay (महाविद्यालय / तरुण)</option>
+                                                    <option value="Vyavsai">Vyavsai (व्यवसायी)</option>
+                                                    <option value="Praurh">Praurh (प्रौढ़)</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block font-bold text-gray-700 uppercase mb-1">New Ganvesh (संख्या)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={data.new_ganvesh}
+                                                    onChange={(e) => setData('new_ganvesh', parseInt(e.target.value) || 0)}
+                                                    className="w-full p-2.5 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block font-bold text-gray-700 uppercase mb-1">Status (स्थिति) *</label>
+                                            <select
+                                                value={data.status}
+                                                onChange={(e) => setData('status', e.target.value)}
+                                                className="w-full p-2.5 border border-gray-300 rounded-xl font-semibold focus:ring-2 focus:ring-amber-500 bg-white"
+                                            >
+                                                <option value="Active">Active</option>
+                                                <option value="Inactive">Inactive</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Higher Unit Name Input for Kshetra / Prant / Vibhag / Jila / Nagar */}
+                                {currentTab !== 'bastis' && currentTab !== 'shakhas' && (
+                                    <div>
+                                        <label className="block font-bold text-gray-700 uppercase mb-1">
+                                            {currentTabConfig.singular.toUpperCase()} Name (नाम) *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={
+                                                currentTab === 'kshetras'
+                                                    ? data.kshetra_name
+                                                    : currentTab === 'prants'
+                                                    ? data.prant_name
+                                                    : currentTab === 'vibhags'
+                                                    ? data.vibhag_name
+                                                    : currentTab === 'jilas'
+                                                    ? data.jila_name
+                                                    : data.nagar_name
+                                            }
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (currentTab === 'kshetras') setData('kshetra_name', val);
+                                                else if (currentTab === 'prants') setData('prant_name', val);
+                                                else if (currentTab === 'vibhags') setData('vibhag_name', val);
+                                                else if (currentTab === 'jilas') setData('jila_name', val);
+                                                else setData('nagar_name', val);
+                                            }}
+                                            placeholder={`Enter ${currentTabConfig.singular} name...`}
+                                            className="w-full p-2.5 border border-gray-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-amber-500"
+                                            required
+                                        />
                                     </div>
                                 )}
 

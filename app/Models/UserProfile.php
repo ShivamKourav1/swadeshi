@@ -24,6 +24,7 @@ class UserProfile extends Model
         'jila_id',
         'nagar_id',
         'basti_id',
+        'shakha_id',
         'is_basti_toli_member',
         'is_nagar_toli_member',
         'is_jila_toli_member',
@@ -41,38 +42,21 @@ class UserProfile extends Model
         'is_kshetra_toli_member' => 'boolean',
     ];
 
-    protected $appends = [
-        'shakha_id',
-        'is_shakha_toli_member',
-    ];
-
     public function fill(array $attributes)
     {
-        if (isset($attributes['shakha_id']) && !isset($attributes['basti_id'])) {
-            $attributes['basti_id'] = $attributes['shakha_id'];
-        }
         if (isset($attributes['is_shakha_toli_member']) && !isset($attributes['is_basti_toli_member'])) {
             $attributes['is_basti_toli_member'] = $attributes['is_shakha_toli_member'];
         }
-        unset($attributes['shakha_id'], $attributes['is_shakha_toli_member']);
-        return parent::fill($attributes);
-    }
+        unset($attributes['is_shakha_toli_member']);
 
-    public function newEloquentBuilder($query)
-    {
-        return new class($query) extends \Illuminate\Database\Eloquent\Builder {
-            public function where($column, $operator = null, $value = null, $boolean = 'and')
-            {
-                if (is_string($column)) {
-                    $column = str_replace(
-                        ['shakha_id', 'is_shakha_toli_member'],
-                        ['basti_id', 'is_basti_toli_member'],
-                        $column
-                    );
-                }
-                return parent::where($column, $operator, $value, $boolean);
+        if (isset($attributes['shakha_id']) && !isset($attributes['basti_id'])) {
+            $shakha = Shakha::find($attributes['shakha_id']);
+            if ($shakha && $shakha->basti_id) {
+                $attributes['basti_id'] = $shakha->basti_id;
             }
-        };
+        }
+
+        return parent::fill($attributes);
     }
 
     public function user(): BelongsTo
@@ -111,21 +95,23 @@ class UserProfile extends Model
     }
 
     /**
-     * Backward-compatible alias for basti relationship.
+     * Relationship for Shakha.
      */
     public function shakha(): BelongsTo
     {
-        return $this->basti();
+        return $this->belongsTo(Shakha::class);
     }
 
     public function getShakhaIdAttribute(): ?int
     {
-        return $this->attributes['basti_id'] ?? null;
+        return isset($this->attributes['shakha_id']) && $this->attributes['shakha_id'] !== null
+            ? (int) $this->attributes['shakha_id']
+            : null;
     }
 
     public function setShakhaIdAttribute(?int $value): void
     {
-        $this->attributes['basti_id'] = $value;
+        $this->attributes['shakha_id'] = $value;
     }
 
     public function getIsShakhaToliMemberAttribute(): bool

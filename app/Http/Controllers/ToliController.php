@@ -106,12 +106,14 @@ class ToliController extends Controller
             $ganveshCount = $swayamsevaks->where('ganvesh', true)->count();
             $nonGanveshCount = $totalSwayamsevaks - $ganveshCount;
 
-            $newGanveshSum = (int) Basti::whereIn('id', $shakhaIds)->sum('new_ganvesh');
+            $newGanveshSum = (int) Shakha::where(function ($q) use ($shakhaIds) {
+                $q->whereIn('id', $shakhaIds)->orWhereIn('basti_id', $shakhaIds);
+            })->sum('new_ganvesh');
         }
 
         // Subordinate Bastis available for selection / updating
         $availableBastis = Basti::whereIn('id', $shakhaIds)
-            ->select('id', 'basti_name', 'nagar_id', 'new_ganvesh')
+            ->select('id', 'basti_name', 'nagar_id')
             ->get()
             ->map(function ($b) {
                 return [
@@ -119,9 +121,24 @@ class ToliController extends Controller
                     'basti_name' => $b->basti_name,
                     'shakha_name' => $b->basti_name,
                     'nagar_id' => $b->nagar_id,
-                    'new_ganvesh' => $b->new_ganvesh,
+                    'new_ganvesh' => (int) Shakha::where('basti_id', $b->id)->sum('new_ganvesh'),
                 ];
             });
+
+        if ($availableBastis->isEmpty()) {
+            $availableBastis = Shakha::whereIn('id', $shakhaIds)
+                ->select('id', 'shakha_name', 'nagar_id', 'new_ganvesh')
+                ->get()
+                ->map(function ($s) {
+                    return [
+                        'id' => $s->id,
+                        'basti_name' => $s->shakha_name,
+                        'shakha_name' => $s->shakha_name,
+                        'nagar_id' => $s->nagar_id,
+                        'new_ganvesh' => (int) $s->new_ganvesh,
+                    ];
+                });
+        }
 
         // Products for Ganvesh Distribution (filtered based on Toli Inventory Scope rules)
         $products = $this->getVisibleProducts($hierarchy);
@@ -200,7 +217,7 @@ class ToliController extends Controller
         // Format predefined RSS report template (वृत्त)
         $nowIst = Carbon::now('Asia/Kolkata');
         $parentNames = collect($hierarchy['parents'])->pluck('name')->implode(', ');
-        $targetNewGanvesh = $hierarchy['level'] === 'shakha' ? (int) $hierarchy['target']->new_ganvesh : $newGanveshSum;
+        $targetNewGanvesh = isset($hierarchy['target']->new_ganvesh) ? (int) $hierarchy['target']->new_ganvesh : $newGanveshSum;
 
         $reportText = "🚩 *राष्ट्रीय स्वयंसेवक संघ - वृत्त* 🚩\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
@@ -278,26 +295,50 @@ class ToliController extends Controller
         // Basti / Shakha Level
         if ($shakhaId !== null) {
             $basti = Basti::with('nagar.jila.vibhag.prant.kshetra')->find($shakhaId);
+            $shakha = null;
             if (!$basti) {
+                $shakha = Shakha::with(['nagar.jila.vibhag.prant.kshetra', 'basti.nagar.jila.vibhag.prant.kshetra'])->find($shakhaId);
+            }
+            if (!$basti && !$shakha) {
                 return null;
             }
-            $nagar = $basti->nagar;
-            $jila = $nagar?->jila;
-            $vibhag = $jila?->vibhag;
-            $prant = $vibhag?->prant;
-            $kshetra = $prant?->kshetra;
+
+            if ($basti) {
+                $nagar = $basti->nagar;
+                $jila = $nagar?->jila;
+                $vibhag = $jila?->vibhag;
+                $prant = $vibhag?->prant;
+                $kshetra = $prant?->kshetra;
+                $target = $basti;
+                $targetName = $basti->basti_name;
+                $bastiIds = [$basti->id];
+                $shakhaIds = $basti->shakhas()->pluck('id')->toArray();
+                if (empty($shakhaIds)) {
+                    $shakhaIds = [$basti->id];
+                }
+            } else {
+                $nagar = $shakha->nagar ?: $shakha->basti?->nagar;
+                $jila = $shakha->jila ?: ($nagar?->jila ?: $shakha->basti?->nagar?->jila);
+                $vibhag = $jila?->vibhag;
+                $prant = $vibhag?->prant;
+                $kshetra = $prant?->kshetra;
+                $target = $shakha;
+                $targetName = $shakha->shakha_name;
+                $bastiIds = $shakha->basti_id ? [$shakha->basti_id] : [];
+                $shakhaIds = [$shakha->id];
+            }
 
             // Validate that the unit belongs to the specified parent hierarchy
-            if ($nagarId !== null && (int) $basti->nagar_id !== (int) $nagarId) {
+            if ($nagarId !== null && $nagar && (int) $nagar->id !== (int) $nagarId) {
                 return null;
             }
-            if ($jilaId !== null && (int) ($nagar?->jila_id) !== (int) $jilaId) {
+            if ($jilaId !== null && $jila && (int) $jila->id !== (int) $jilaId) {
                 return null;
             }
-            if ($vibhagId !== null && (int) ($jila?->vibhag_id) !== (int) $vibhagId) {
+            if ($vibhagId !== null && $vibhag && (int) $vibhag->id !== (int) $vibhagId) {
                 return null;
             }
-            if ($kshetraId !== null && (int) ($prant?->kshetra_id) !== (int) $kshetraId) {
+            if ($kshetraId !== null && $prant && (int) ($prant->kshetra_id) !== (int) $kshetraId) {
                 return null;
             }
 
@@ -331,7 +372,7 @@ class ToliController extends Controller
                 $ancestors[] = ['level' => 'kshetra', 'id' => $kshetra->id];
             }
 
-            // Sub-units: sibling bastis in the same nagar
+            // Sub-units: sibling bastis/shakhas in the same nagar
             $subUnits = [];
             if ($nagar) {
                 $siblings = Basti::where('nagar_id', $nagar->id)->get();
@@ -346,27 +387,45 @@ class ToliController extends Controller
                         'type_hindi' => 'बस्ती',
                         'url' => $url,
                         'full_url' => url($url),
-                        'is_current' => (int) $sibling->id === (int) $shakhaId,
+                        'is_current' => (int) $sibling->id === (int) $shakhaId && $basti !== null,
                         'members_count' => Swayamsevak::where(function($q) use ($sibling) {
                             $q->where('basti_id', $sibling->id)->orWhere('shakha_id', $sibling->id);
                         })->count(),
                         'ganvesh_count' => Swayamsevak::where(function($q) use ($sibling) {
                             $q->where('basti_id', $sibling->id)->orWhere('shakha_id', $sibling->id);
                         })->where('ganvesh', true)->count(),
-                        'new_ganvesh' => (int) $sibling->new_ganvesh,
+                        'new_ganvesh' => (int) Shakha::where('basti_id', $sibling->id)->sum('new_ganvesh'),
+                    ];
+                }
+                $shakhaSiblings = Shakha::where('nagar_id', $nagar->id)->whereNull('basti_id')->get();
+                foreach ($shakhaSiblings as $sSibling) {
+                    $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $sSibling->id);
+                    $subUnits[] = [
+                        'id' => $sSibling->id,
+                        'name' => $sSibling->shakha_name,
+                        'basti_name' => $sSibling->shakha_name,
+                        'shakha_name' => $sSibling->shakha_name,
+                        'type' => 'shakha',
+                        'type_hindi' => 'शाखा',
+                        'url' => $url,
+                        'full_url' => url($url),
+                        'is_current' => (int) $sSibling->id === (int) $shakhaId && $shakha !== null,
+                        'members_count' => Swayamsevak::where('shakha_id', $sSibling->id)->count(),
+                        'ganvesh_count' => Swayamsevak::where('shakha_id', $sSibling->id)->where('ganvesh', true)->count(),
+                        'new_ganvesh' => (int) $sSibling->new_ganvesh,
                     ];
                 }
             }
 
             return [
                 'level' => 'basti',
-                'target' => $basti,
-                'target_name' => $basti->basti_name,
+                'target' => $target,
+                'target_name' => $targetName,
                 'parents' => $parents,
                 'ancestors' => $ancestors,
                 'sub_units' => $subUnits,
-                'basti_ids' => [$basti->id],
-                'shakha_ids' => [$basti->id],
+                'basti_ids' => $bastiIds,
+                'shakha_ids' => $shakhaIds,
             ];
         }
 
@@ -418,7 +477,7 @@ class ToliController extends Controller
                 $ancestors[] = ['level' => 'kshetra', 'id' => $kshetra->id];
             }
 
-            // Sub-units: bastis under this nagar
+            // Sub-units: bastis and decoupled shakhas under this nagar
             $subUnits = [];
             $bastiList = $nagar->bastis;
             foreach ($bastiList as $s) {
@@ -439,9 +498,34 @@ class ToliController extends Controller
                     'ganvesh_count' => Swayamsevak::where(function($q) use ($s) {
                         $q->where('basti_id', $s->id)->orWhere('shakha_id', $s->id);
                     })->where('ganvesh', true)->count(),
+                    'new_ganvesh' => (int) Shakha::where('basti_id', $s->id)->sum('new_ganvesh'),
+                ];
+            }
+
+            $nagarShakhas = Shakha::where('nagar_id', $nagar->id)->whereNull('basti_id')->get();
+            foreach ($nagarShakhas as $s) {
+                $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $s->id);
+                $subUnits[] = [
+                    'id' => $s->id,
+                    'name' => $s->shakha_name,
+                    'basti_name' => $s->shakha_name,
+                    'shakha_name' => $s->shakha_name,
+                    'type' => 'shakha',
+                    'type_hindi' => 'शाखा',
+                    'url' => $url,
+                    'full_url' => url($url),
+                    'is_current' => false,
+                    'members_count' => Swayamsevak::where('shakha_id', $s->id)->count(),
+                    'ganvesh_count' => Swayamsevak::where('shakha_id', $s->id)->where('ganvesh', true)->count(),
                     'new_ganvesh' => (int) $s->new_ganvesh,
                 ];
             }
+
+            $allShakhaIds = array_values(array_unique(array_merge(
+                $bastiList->pluck('id')->toArray(),
+                $nagarShakhas->pluck('id')->toArray(),
+                Shakha::whereIn('basti_id', $bastiList->pluck('id')->toArray())->pluck('id')->toArray()
+            )));
 
             return [
                 'level' => 'nagar',
@@ -451,7 +535,7 @@ class ToliController extends Controller
                 'ancestors' => $ancestors,
                 'sub_units' => $subUnits,
                 'basti_ids' => $bastiList->pluck('id')->toArray(),
-                'shakha_ids' => $bastiList->pluck('id')->toArray(),
+                'shakha_ids' => $allShakhaIds,
             ];
         }
 
@@ -894,17 +978,30 @@ class ToliController extends Controller
             'name' => 'required|string|max:255',
             'mobile' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:1000',
-            'basti_id' => 'nullable|exists:bastis,id',
-            'shakha_id' => 'nullable|exists:bastis,id',
+            'basti_id' => 'nullable',
+            'shakha_id' => 'nullable',
             'ganvesh' => 'nullable|boolean',
             'shikshan' => 'nullable|string|max:100',
         ]);
 
-        $bastiId = $request->input('basti_id') ?: $request->input('shakha_id');
-        if (!$bastiId) {
-            return back()->withErrors(['basti_id' => 'बस्ती चुनना आवश्यक है।']);
+        $rawBastiId = $request->input('basti_id');
+        $rawShakhaId = $request->input('shakha_id');
+
+        $basti = $rawBastiId ? Basti::find($rawBastiId) : null;
+        $shakha = $rawShakhaId ? Shakha::find($rawShakhaId) : null;
+        if (!$shakha && $rawShakhaId) {
+            $basti = $basti ?: Basti::find($rawShakhaId);
         }
-        $validated['basti_id'] = $bastiId;
+        if (!$basti && $rawBastiId) {
+            $shakha = $shakha ?: Shakha::find($rawBastiId);
+        }
+
+        if (!$basti && !$shakha) {
+            return back()->withErrors(['basti_id' => 'बस्ती अथवा शाखा चुनना आवश्यक है।']);
+        }
+
+        $validated['basti_id'] = $basti?->id ?: $shakha?->basti_id;
+        $validated['shakha_id'] = $shakha?->id;
         $validated['ganvesh'] = $request->boolean('ganvesh', false);
         $validated['shikshan'] = !empty($validated['shikshan']) ? $validated['shikshan'] : 'प्रारंभिक';
 
@@ -930,14 +1027,28 @@ class ToliController extends Controller
             'name' => 'required|string|max:255',
             'mobile' => 'nullable|string|max:20',
             'address' => 'nullable|string|max:1000',
-            'basti_id' => 'nullable|exists:bastis,id',
-            'shakha_id' => 'nullable|exists:bastis,id',
+            'basti_id' => 'nullable',
+            'shakha_id' => 'nullable',
             'ganvesh' => 'required|boolean',
             'shikshan' => 'nullable|string|max:100',
         ]);
 
-        $bastiId = $request->input('basti_id') ?: $request->input('shakha_id') ?: $swayamsevak->basti_id;
-        $validated['basti_id'] = $bastiId;
+        $rawBastiId = $request->input('basti_id');
+        $rawShakhaId = $request->input('shakha_id');
+
+        $basti = $rawBastiId ? Basti::find($rawBastiId) : null;
+        $shakha = $rawShakhaId ? Shakha::find($rawShakhaId) : null;
+        if (!$shakha && $rawShakhaId) {
+            $basti = $basti ?: Basti::find($rawShakhaId);
+        }
+        if (!$basti && $rawBastiId) {
+            $shakha = $shakha ?: Shakha::find($rawBastiId);
+        }
+
+        if ($basti || $shakha) {
+            $validated['basti_id'] = $basti?->id ?: $shakha?->basti_id;
+            $validated['shakha_id'] = $shakha?->id;
+        }
 
         $swayamsevak->update($validated);
 
@@ -985,14 +1096,26 @@ class ToliController extends Controller
     {
         $request->validate([
             'file' => 'required|file|mimes:csv,txt|max:5120',
-            'basti_id' => 'nullable|exists:bastis,id',
-            'shakha_id' => 'nullable|exists:bastis,id',
+            'basti_id' => 'nullable',
+            'shakha_id' => 'nullable',
         ]);
 
-        $bastiId = (int) ($request->input('basti_id') ?: $request->input('shakha_id'));
-        if (!$bastiId) {
-            return back()->with('error', 'बस्ती का चयन अनिवार्य है।');
+        $rawBastiId = $request->input('basti_id');
+        $rawShakhaId = $request->input('shakha_id');
+        $basti = $rawBastiId ? Basti::find($rawBastiId) : null;
+        $shakha = $rawShakhaId ? Shakha::find($rawShakhaId) : null;
+        if (!$shakha && $rawShakhaId) {
+            $basti = $basti ?: Basti::find($rawShakhaId);
         }
+        if (!$basti && $rawBastiId) {
+            $shakha = $shakha ?: Shakha::find($rawBastiId);
+        }
+        if (!$basti && !$shakha) {
+            return back()->with('error', 'बस्ती अथवा शाखा का चयन अनिवार्य है।');
+        }
+
+        $bastiId = $basti?->id ?: $shakha?->basti_id;
+        $shakhaId = $shakha?->id;
         $file = $request->file('file');
 
         $handle = fopen($file->getRealPath(), 'r');
@@ -1047,6 +1170,7 @@ class ToliController extends Controller
                     'mobile' => $mobile,
                     'address' => $address,
                     'basti_id' => $bastiId,
+                    'shakha_id' => $shakhaId,
                     'ganvesh' => $ganvesh,
                     'shikshan' => $shikshan,
                 ]);
@@ -1066,19 +1190,32 @@ class ToliController extends Controller
     }
 
     /**
-     * Update New Ganvesh figure for a Basti.
+     * Update New Ganvesh figure for a Basti or Shakha.
      */
-    public function updateNewGanvesh(Request $request, Basti $basti): RedirectResponse
+    public function updateNewGanvesh(Request $request, $id): RedirectResponse
     {
         $validated = $request->validate([
             'new_ganvesh' => 'required|integer|min:0|max:10000',
         ]);
 
-        $basti->update([
-            'new_ganvesh' => (int) $validated['new_ganvesh'],
-        ]);
+        $shakha = Shakha::find($id);
+        if ($shakha) {
+            $shakha->update([
+                'new_ganvesh' => (int) $validated['new_ganvesh'],
+            ]);
+            return back()->with('success', "शाखा '{$shakha->shakha_name}' का नया गणवेश आंकड़ा अपडेट किया गया।");
+        }
 
-        return back()->with('success', "बस्ती '{$basti->basti_name}' का नया गणवेश आंकड़ा अपडेट किया गया।");
+        $basti = Basti::find($id);
+        if ($basti) {
+            $childShakha = $basti->shakhas()->first();
+            if ($childShakha) {
+                $childShakha->update(['new_ganvesh' => (int) $validated['new_ganvesh']]);
+            }
+            return back()->with('success', "बस्ती '{$basti->basti_name}' का नया गणवेश आंकड़ा अपडेट किया गया।");
+        }
+
+        abort(404, 'इकाई नहीं मिली।');
     }
 
     /**
@@ -1093,8 +1230,8 @@ class ToliController extends Controller
             'payment_status' => 'required|in:paid,payment_due,placed,completed',
             'notes' => 'nullable|string|max:500',
             'swayamsevak_id' => 'nullable|exists:swayamsevaks,id',
-            'basti_id' => 'nullable|exists:bastis,id',
-            'shakha_id' => 'nullable|exists:bastis,id',
+            'basti_id' => 'nullable',
+            'shakha_id' => 'nullable',
             'nagar_id' => 'nullable|exists:nagars,id',
             'jila_id' => 'nullable|exists:jilas,id',
             'vibhag_id' => 'nullable|exists:vibhags,id',
@@ -1105,7 +1242,19 @@ class ToliController extends Controller
             return response()->json(['success' => false, 'message' => 'अनधिकृत अनुरोध।'], 401);
         }
 
-        $bastiId = $request->input('basti_id') ?: $request->input('shakha_id');
+        $rawBastiId = $request->input('basti_id');
+        $rawShakhaId = $request->input('shakha_id');
+        $basti = $rawBastiId ? Basti::find($rawBastiId) : null;
+        $shakha = $rawShakhaId ? Shakha::find($rawShakhaId) : null;
+        if (!$shakha && $rawShakhaId) {
+            $basti = $basti ?: Basti::find($rawShakhaId);
+        }
+        if (!$basti && $rawBastiId) {
+            $shakha = $shakha ?: Shakha::find($rawBastiId);
+        }
+
+        $bastiId = $basti?->id ?: $shakha?->basti_id;
+        $shakhaId = $shakha?->id;
 
         DB::beginTransaction();
         try {
@@ -1154,7 +1303,7 @@ class ToliController extends Controller
                 'is_toli_order' => true,
                 'swayamsevak_id' => $request->input('swayamsevak_id'),
                 'basti_id' => $bastiId,
-                'shakha_id' => $bastiId,
+                'shakha_id' => $shakhaId,
                 'nagar_id' => $request->input('nagar_id'),
                 'jila_id' => $request->input('jila_id'),
                 'vibhag_id' => $request->input('vibhag_id'),

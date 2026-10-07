@@ -10,6 +10,7 @@ use App\Models\Kshetra;
 use App\Models\Nagar;
 use App\Models\Prant;
 use App\Models\Shakha;
+use App\Models\Swayamsevak;
 use App\Models\Vibhag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,9 +31,6 @@ class OrganizationUnitController extends Controller
         }
 
         $activeTab = $request->input('tab', 'bastis');
-        if ($activeTab === 'shakhas') {
-            $activeTab = 'bastis';
-        }
 
         $kshetras = Kshetra::withCount(['prants'])->get();
         $prants = Prant::with('kshetra')->withCount(['vibhags'])->get();
@@ -40,10 +38,12 @@ class OrganizationUnitController extends Controller
         $jilas = Jila::with('vibhag.prant')->withCount(['nagars'])->get();
         $nagars = Nagar::with('jila.vibhag')->withCount(['bastis'])->get();
         $bastis = Basti::with('nagar.jila')->get();
+        $shakhas = Shakha::with(['jila.vibhag', 'nagar.jila', 'basti.nagar'])->get();
 
         $profile = $user->profile()->with(['kshetra', 'prant', 'vibhag', 'jila', 'nagar', 'basti'])->first();
 
-        $canManageBasti = $user->canManageUnit('basti') || $user->canManageUnit('shakha');
+        $canManageBasti = $user->canManageUnit('basti');
+        $canManageShakha = $user->canManageUnit('shakha') || $canManageBasti;
 
         // Calculate permissions for the UI
         $permissions = [
@@ -53,7 +53,7 @@ class OrganizationUnitController extends Controller
             'manage_jila' => $user->canManageUnit('jila'),
             'manage_nagar' => $user->canManageUnit('nagar'),
             'manage_basti' => $canManageBasti,
-            'manage_shakha' => $canManageBasti,
+            'manage_shakha' => $canManageShakha,
             'manage_toli' => $user->isSuperAdmin() || $user->hasPermission('manage_toli') || $user->isToliAdmin(),
         ];
 
@@ -65,7 +65,7 @@ class OrganizationUnitController extends Controller
             'jilas' => $jilas,
             'nagars' => $nagars,
             'bastis' => $bastis,
-            'shakhas' => $bastis,
+            'shakhas' => $shakhas,
             'permissions' => $permissions,
             'is_admin' => $user->isSuperAdmin(),
             'scope' => [
@@ -76,7 +76,7 @@ class OrganizationUnitController extends Controller
                 'jila_id' => $profile?->jila_id,
                 'nagar_id' => $profile?->nagar_id,
                 'basti_id' => $profile?->basti_id ?: $profile?->shakha_id,
-                'shakha_id' => $profile?->basti_id ?: $profile?->shakha_id,
+                'shakha_id' => $profile?->shakha_id,
             ],
         ]);
     }
@@ -141,13 +141,30 @@ class OrganizationUnitController extends Controller
                 break;
 
             case 'basti':
-            case 'shakha':
                 Basti::create([
                     'nagar_id' => $request->input('nagar_id'),
-                    'basti_name' => $request->input('basti_name') ?: $request->input('shakha_name'),
+                    'basti_name' => $request->input('basti_name'),
+                    'status' => $request->input('status', 'Active'),
+                    'toli' => $toli,
+                ]);
+                break;
+
+            case 'shakha':
+                $basti = $request->filled('basti_id') ? Basti::with('nagar.jila')->find($request->input('basti_id')) : null;
+                $nagar = $request->filled('nagar_id') ? Nagar::with('jila')->find($request->input('nagar_id')) : ($basti?->nagar);
+                $jilaId = $request->input('jila_id') ?: ($nagar?->jila_id ?: $basti?->nagar?->jila_id);
+                $nagarId = $request->input('nagar_id') ?: $basti?->nagar_id;
+                $bastiId = $request->input('basti_id');
+
+                Shakha::create([
+                    'shakha_name' => $request->input('shakha_name'),
                     'aayu_varg' => $request->input('aayu_varg'),
                     'type' => $request->input('type'),
+                    'new_ganvesh' => (int) $request->input('new_ganvesh', 0),
                     'status' => $request->input('status', 'Active'),
+                    'jila_id' => $jilaId,
+                    'nagar_id' => $nagarId,
+                    'basti_id' => $bastiId,
                     'toli' => $toli,
                 ]);
                 break;
@@ -230,17 +247,38 @@ class OrganizationUnitController extends Controller
                 break;
 
             case 'basti':
-            case 'shakha':
                 $unit = Basti::findOrFail($id);
-                if (!$user->canManageUnit('basti', $unit) && !$user->canManageUnit('shakha', $unit)) {
+                if (!$user->canManageUnit('basti', $unit)) {
                     abort(403, "You do not have jurisdiction to edit this Basti.");
                 }
                 $unit->update([
                     'nagar_id' => $request->input('nagar_id'),
-                    'basti_name' => $request->input('basti_name') ?: $request->input('shakha_name'),
+                    'basti_name' => $request->input('basti_name'),
+                    'status' => $request->input('status', 'Active'),
+                    'toli' => $toli,
+                ]);
+                break;
+
+            case 'shakha':
+                $unit = Shakha::findOrFail($id);
+                if (!$user->canManageUnit('shakha', $unit)) {
+                    abort(403, "You do not have jurisdiction to edit this Shakha.");
+                }
+                $basti = $request->filled('basti_id') ? Basti::with('nagar.jila')->find($request->input('basti_id')) : null;
+                $nagar = $request->filled('nagar_id') ? Nagar::with('jila')->find($request->input('nagar_id')) : ($basti?->nagar);
+                $jilaId = $request->input('jila_id') ?: ($nagar?->jila_id ?: $basti?->nagar?->jila_id);
+                $nagarId = $request->input('nagar_id') ?: $basti?->nagar_id;
+                $bastiId = $request->input('basti_id');
+
+                $unit->update([
+                    'shakha_name' => $request->input('shakha_name'),
                     'aayu_varg' => $request->input('aayu_varg'),
                     'type' => $request->input('type'),
+                    'new_ganvesh' => (int) $request->input('new_ganvesh', $unit->new_ganvesh ?? 0),
                     'status' => $request->input('status', 'Active'),
+                    'jila_id' => $jilaId,
+                    'nagar_id' => $nagarId,
+                    'basti_id' => $bastiId,
                     'toli' => $toli,
                 ]);
                 break;
@@ -317,14 +355,29 @@ class OrganizationUnitController extends Controller
                 break;
 
             case 'basti':
-            case 'shakha':
-                $unit = Basti::findOrFail($id);
-                if (!$user->canManageUnit('basti', $unit) && !$user->canManageUnit('shakha', $unit)) {
+                $unit = Basti::withCount('shakhas')->findOrFail($id);
+                if (!$user->canManageUnit('basti', $unit)) {
                     abort(403, "You do not have jurisdiction to delete this Basti.");
                 }
-                $linkedLocations = DeliveryLocation::where('basti_id', $id)->orWhere('shakha_id', $id)->count();
+                $childShakhas = $unit->shakhas_count ?? 0;
+                if ($childShakhas > 0) {
+                    return back()->with('error', "Cannot delete Basti '{$unit->basti_name}' because it contains {$childShakhas} Shakha(s).");
+                }
+                $linkedLocations = DeliveryLocation::where('basti_id', $id)->count();
                 if ($linkedLocations > 0) {
                     return back()->with('error', "Cannot delete Basti '{$unit->basti_name}' because {$linkedLocations} address(es) are linked to it.");
+                }
+                $unit->delete();
+                break;
+
+            case 'shakha':
+                $unit = Shakha::findOrFail($id);
+                if (!$user->canManageUnit('shakha', $unit)) {
+                    abort(403, "You do not have jurisdiction to delete this Shakha.");
+                }
+                $linkedSwayamsevaks = Swayamsevak::where('shakha_id', $id)->count();
+                if ($linkedSwayamsevaks > 0) {
+                    return back()->with('error', "Cannot delete Shakha '{$unit->shakha_name}' because {$linkedSwayamsevaks} swayamsevak(s) are linked to it.");
                 }
                 $unit->delete();
                 break;
@@ -371,10 +424,27 @@ class OrganizationUnitController extends Controller
                 }
                 break;
             case 'basti':
-            case 'shakha':
                 $parent = Nagar::findOrFail($request->input('nagar_id'));
                 if (!$user->canManageUnit('nagar', $parent)) {
                     abort(403, "You do not have jurisdiction under this Nagar to add Bastis.");
+                }
+                break;
+            case 'shakha':
+                if ($request->filled('basti_id')) {
+                    $basti = Basti::with('nagar')->findOrFail($request->input('basti_id'));
+                    if (!$user->canManageUnit('basti', $basti) && !$user->canManageUnit('nagar', $basti->nagar)) {
+                        abort(403, "You do not have jurisdiction under this Basti to add Shakhas.");
+                    }
+                } elseif ($request->filled('nagar_id')) {
+                    $nagar = Nagar::findOrFail($request->input('nagar_id'));
+                    if (!$user->canManageUnit('nagar', $nagar)) {
+                        abort(403, "You do not have jurisdiction under this Nagar to add Shakhas.");
+                    }
+                } elseif ($request->filled('jila_id')) {
+                    $jila = Jila::findOrFail($request->input('jila_id'));
+                    if (!$user->canManageUnit('jila', $jila)) {
+                        abort(403, "You do not have jurisdiction under this Jila to add Shakhas.");
+                    }
                 }
                 break;
         }
@@ -416,17 +486,31 @@ class OrganizationUnitController extends Controller
                 ];
                 break;
             case 'basti':
-            case 'shakha':
                 $rules = [
                     'nagar_id' => 'required|exists:nagars,id',
-                    'basti_name' => 'nullable|string|max:255',
-                    'shakha_name' => 'nullable|string|max:255',
-                    'aayu_varg' => 'required|in:Baal,Mahavidhyalay,Vyavsai,Praurh',
-                    'type' => 'required|in:dainik,saptahik',
+                    'basti_name' => 'required|string|max:255',
                     'status' => 'required|in:Active,Inactive',
                 ];
-                if (!$request->filled('basti_name') && !$request->filled('shakha_name')) {
-                    $rules['basti_name'] = 'required|string|max:255';
+                break;
+
+            case 'shakha':
+                $rules = [
+                    'shakha_name' => 'required|string|max:255',
+                    'aayu_varg' => 'nullable|string|max:50',
+                    'type' => 'nullable|string|max:50',
+                    'new_ganvesh' => 'nullable|integer|min:0',
+                    'status' => 'required|in:Active,Inactive',
+                    'kshetra_id' => 'nullable|exists:kshetras,id',
+                    'prant_id' => 'nullable|exists:prants,id',
+                    'vibhag_id' => 'nullable|exists:vibhags,id',
+                    'jila_id' => 'nullable|exists:jilas,id',
+                    'nagar_id' => 'nullable|exists:nagars,id',
+                    'basti_id' => 'nullable|exists:bastis,id',
+                ];
+                if (!$request->filled('jila_id') && !$request->filled('nagar_id') && !$request->filled('basti_id')) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'basti_id' => 'At least one among Jila, Nagar, or Basti must be selected.',
+                    ]);
                 }
                 break;
         }

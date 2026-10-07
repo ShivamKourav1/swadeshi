@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Basti;
 use App\Models\Category;
 use App\Models\Jila;
 use App\Models\Kshetra;
@@ -29,6 +30,7 @@ class ToliModuleTest extends TestCase
     private Vibhag $vibhag;
     private Jila $jila;
     private Nagar $nagar;
+    private Basti $basti;
     private Shakha $shakha;
     private Product $product;
 
@@ -48,8 +50,14 @@ class ToliModuleTest extends TestCase
         $this->vibhag = Vibhag::create(['prant_id' => $this->prant->id, 'vibhag_name' => 'Indore Vibhag']);
         $this->jila = Jila::create(['vibhag_id' => $this->vibhag->id, 'jila_name' => 'Badrinath Jila']);
         $this->nagar = Nagar::create(['jila_id' => $this->jila->id, 'nagar_name' => 'Madhav Nagar']);
+        $this->basti = Basti::create([
+            'nagar_id' => $this->nagar->id,
+            'basti_name' => 'Keshav Shakha',
+            'status' => 'Active',
+        ]);
         $this->shakha = Shakha::create([
             'nagar_id' => $this->nagar->id,
+            'basti_id' => $this->basti->id,
             'shakha_name' => 'Keshav Shakha',
             'aayu_varg' => 'Vyavsai',
             'type' => 'dainik',

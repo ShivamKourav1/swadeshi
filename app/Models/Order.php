@@ -27,6 +27,7 @@ class Order extends Model
         'is_toli_order',
         'swayamsevak_id',
         'basti_id',
+        'shakha_id',
         'nagar_id',
         'jila_id',
         'vibhag_id',
@@ -49,23 +50,12 @@ class Order extends Model
     public function fill(array $attributes)
     {
         if (isset($attributes['shakha_id']) && !isset($attributes['basti_id'])) {
-            $attributes['basti_id'] = $attributes['shakha_id'];
-        }
-        unset($attributes['shakha_id']);
-        return parent::fill($attributes);
-    }
-
-    public function newEloquentBuilder($query)
-    {
-        return new class($query) extends \Illuminate\Database\Eloquent\Builder {
-            public function where($column, $operator = null, $value = null, $boolean = 'and')
-            {
-                if (is_string($column)) {
-                    $column = str_replace('shakha_id', 'basti_id', $column);
-                }
-                return parent::where($column, $operator, $value, $boolean);
+            $shakha = Shakha::find($attributes['shakha_id']);
+            if ($shakha && $shakha->basti_id) {
+                $attributes['basti_id'] = $shakha->basti_id;
             }
-        };
+        }
+        return parent::fill($attributes);
     }
 
     protected $casts = [
@@ -104,17 +94,19 @@ class Order extends Model
      */
     public function shakha(): BelongsTo
     {
-        return $this->basti();
+        return $this->belongsTo(Shakha::class);
     }
 
     public function getShakhaIdAttribute(): ?int
     {
-        return $this->attributes['basti_id'] ?? null;
+        return isset($this->attributes['shakha_id']) && $this->attributes['shakha_id'] !== null
+            ? (int) $this->attributes['shakha_id']
+            : null;
     }
 
     public function setShakhaIdAttribute(?int $value): void
     {
-        $this->attributes['basti_id'] = $value;
+        $this->attributes['shakha_id'] = $value;
     }
 
     public function nagar(): BelongsTo
