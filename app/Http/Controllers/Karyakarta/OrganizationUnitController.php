@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Karyakarta;
 
 use App\Http\Controllers\Controller;
 use App\Models\Basti;
+use App\Models\Daayitwa;
 use App\Models\DeliveryLocation;
 use App\Models\Jila;
 use App\Models\Kshetra;
@@ -66,6 +67,8 @@ class OrganizationUnitController extends Controller
             'nagars' => $nagars,
             'bastis' => $bastis,
             'shakhas' => $shakhas,
+            'daayitwas' => Daayitwa::orderBy('name')->get(),
+            'swayamsevaks' => Swayamsevak::with('daayitwa')->select('id', 'name', 'mobile', 'address', 'basti_id', 'shakha_id', 'daayitwa_id')->orderBy('name')->get(),
             'permissions' => $permissions,
             'is_admin' => $user->isSuperAdmin(),
             'scope' => [
@@ -538,16 +541,54 @@ class OrganizationUnitController extends Controller
             $formatted = [];
             foreach ($toliInput as $key => $val) {
                 if (is_array($val)) {
-                    // Array of member objects: ['role' => '...', 'name' => '...', 'contact' => '...']
-                    $rawRole = $val['role_key'] ?? $val['role'] ?? (is_string($key) && !is_numeric($key) ? $key : 'member_' . ((int)$key + 1));
-                    $roleKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]+/', '_', $rawRole)));
-                    if (empty($roleKey)) {
-                        $roleKey = 'member_' . (is_numeric($key) ? ((int)$key + 1) : $key);
+                    $daayitwaId = !empty($val['daayitwa_id']) ? (int) $val['daayitwa_id'] : null;
+                    $swayamsevakId = !empty($val['swayamsevak_id']) ? (int) $val['swayamsevak_id'] : null;
+                    $roleName = trim($val['role'] ?? '');
+
+                    if ($daayitwaId && empty($roleName)) {
+                        $d = Daayitwa::find($daayitwaId);
+                        if ($d) $roleName = $d->name;
                     }
+
                     $name = trim($val['name'] ?? '');
                     $contact = trim($val['contact'] ?? $val['phone'] ?? '');
-                    if (!empty($name) || !empty($contact)) {
+
+                    if ($swayamsevakId) {
+                        $s = Swayamsevak::find($swayamsevakId);
+                        if ($s) {
+                            if (empty($name)) $name = $s->name;
+                            if (empty($contact)) $contact = $s->mobile;
+                            if ($daayitwaId) {
+                                $s->update(['daayitwa_id' => $daayitwaId]);
+                            }
+                        }
+                    }
+
+                    $explicitKey = !empty($val['key']) ? $val['key'] : (!empty($val['role_key']) ? $val['role_key'] : (is_string($key) && !is_numeric($key) ? $key : null));
+                    if ($explicitKey) {
+                        $roleKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]+/', '_', $explicitKey)));
+                    } else {
+                        $roleKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]+/', '_', $roleName)));
+                        if (empty($roleKey)) {
+                            $roleKey = 'member_' . (is_numeric($key) ? ((int)$key + 1) : $key);
+                        }
+                    }
+
+                    // Prevent accidental key collision
+                    $baseRoleKey = $roleKey;
+                    $counter = 1;
+                    while (isset($formatted[$roleKey])) {
+                        $counter++;
+                        $roleKey = "{$baseRoleKey}_{$counter}";
+                    }
+
+                    $rawRole = $roleName ?: ($explicitKey ?: (is_string($key) && !is_numeric($key) ? $key : 'Member ' . ((int)$key + 1)));
+
+                    if (!empty($name) || !empty($contact) || !empty($roleName) || $daayitwaId || $swayamsevakId) {
                         $formatted[$roleKey] = [
+                            'daayitwa_id' => $daayitwaId,
+                            'swayamsevak_id' => $swayamsevakId,
+                            'role' => $roleName ?: $rawRole,
                             'name' => $name,
                             'contact' => $contact,
                         ];
@@ -557,6 +598,9 @@ class OrganizationUnitController extends Controller
                     $roleKey = strtolower(trim(preg_replace('/[^a-zA-Z0-9_]+/', '_', $rawRole)));
                     if (!empty(trim($val))) {
                         $formatted[$roleKey] = [
+                            'daayitwa_id' => null,
+                            'swayamsevak_id' => null,
+                            'role' => $rawRole,
                             'name' => trim($val),
                             'contact' => '',
                         ];

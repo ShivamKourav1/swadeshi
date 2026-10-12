@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Daayitwa;
+use App\Models\DeliveryLog;
 use App\Models\Jila;
 use App\Models\Kshetra;
 use App\Models\Nagar;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\DeliveryLog;
 use App\Models\Prant;
 use App\Models\Product;
 use App\Models\Basti;
@@ -73,17 +74,25 @@ class ToliController extends Controller
         $shakhaIds = $hierarchy['basti_ids'] ?? $hierarchy['shakha_ids'];
 
         // Swayamsevaks query
-        $swayamsevaks = [];
+        $swayamsevaks = collect([]);
         $totalSwayamsevaks = 0;
         $ganveshCount = 0;
         $nonGanveshCount = 0;
         $newGanveshSum = 0;
 
+        $pantCount = 0;
+        $shirtCount = 0;
+        $topiCount = 0;
+        $dandCount = 0;
+        $beltCount = 0;
+        $mojeCount = 0;
+        $shoesCount = 0;
+
         if (!empty($shakhaIds)) {
             $swayamsevaks = Swayamsevak::where(function ($q) use ($shakhaIds) {
                     $q->whereIn('basti_id', $shakhaIds)->orWhereIn('shakha_id', $shakhaIds);
                 })
-                ->with(['basti:id,basti_name', 'shakha:id,basti_name'])
+                ->with(['basti:id,basti_name', 'shakha:id,basti_name', 'daayitwa:id,name,unit_level'])
                 ->latest()
                 ->get()
                 ->map(function ($s) {
@@ -97,7 +106,21 @@ class ToliController extends Controller
                         'shakha_id' => $s->basti_id ?: $s->shakha_id,
                         'basti_name' => $bastiName,
                         'shakha_name' => $bastiName,
+                        'daayitwa_id' => $s->daayitwa_id,
+                        'daayitwa_name' => $s->daayitwa?->name,
+                        'daayitwa' => $s->daayitwa ? [
+                            'id' => $s->daayitwa->id,
+                            'name' => $s->daayitwa->name,
+                            'unit_level' => $s->daayitwa->unit_level,
+                        ] : null,
                         'ganvesh' => (bool) $s->ganvesh,
+                        'have_pant' => (bool) $s->have_pant,
+                        'have_shirt' => (bool) $s->have_shirt,
+                        'have_topi' => (bool) $s->have_topi,
+                        'have_dand' => (bool) $s->have_dand,
+                        'have_belt' => (bool) $s->have_belt,
+                        'have_moje' => (bool) $s->have_moje,
+                        'have_shoes' => (bool) $s->have_shoes,
                         'shikshan' => $s->shikshan,
                         'created_at' => $s->created_at?->format('d/m/Y'),
                     ];
@@ -106,6 +129,13 @@ class ToliController extends Controller
             $totalSwayamsevaks = $swayamsevaks->count();
             $ganveshCount = $swayamsevaks->where('ganvesh', true)->count();
             $nonGanveshCount = $totalSwayamsevaks - $ganveshCount;
+            $pantCount = $swayamsevaks->where('have_pant', true)->count();
+            $shirtCount = $swayamsevaks->where('have_shirt', true)->count();
+            $topiCount = $swayamsevaks->where('have_topi', true)->count();
+            $dandCount = $swayamsevaks->where('have_dand', true)->count();
+            $beltCount = $swayamsevaks->where('have_belt', true)->count();
+            $mojeCount = $swayamsevaks->where('have_moje', true)->count();
+            $shoesCount = $swayamsevaks->where('have_shoes', true)->count();
 
             $newGanveshSum = (int) Shakha::where(function ($q) use ($shakhaIds) {
                 $q->whereIn('id', $shakhaIds)->orWhereIn('basti_id', $shakhaIds);
@@ -227,9 +257,21 @@ class ToliController extends Controller
             . "📅 *दिनांक:* " . $nowIst->format('d/m/Y') . " | समय: " . $nowIst->format('h:i A') . "\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
             . "👥 *कुल स्वयंसेवक सूची:* {$totalSwayamsevaks}\n"
-            . "👕 *गणवेश युक्त सूची:* {$ganveshCount}\n"
+            . "👕 *पूर्ण गणवेश युक्त:* {$ganveshCount}\n"
             . "✨ *नया गणवेश:* {$targetNewGanvesh}\n"
-            . "⚠️ *गणवेश अपेक्षित (रहित):* {$nonGanveshCount}\n"
+            . "⚠️ *गणवेश अपेक्षित (शेष):* {$nonGanveshCount}\n"
+            . "━━━━━━━━━━━━━━━━━━━━\n"
+            . "🥋 *गणवेश सामग्री विवरण:*\n"
+            . "  • पैंट: {$pantCount} | शर्ट: {$shirtCount} | टोपी: {$topiCount}\n"
+            . "  • दण्ड: {$dandCount} | बेल्ट: {$beltCount} | मोज़े: {$mojeCount} | जूते: {$shoesCount}\n";
+
+        $assignedToliMembers = $swayamsevaks->filter(fn($s) => !empty($s['daayitwa_name']));
+        if ($assignedToliMembers->isNotEmpty()) {
+            $toliLines = $assignedToliMembers->map(fn($s) => "  • {$s['daayitwa_name']}: {$s['name']}" . ($s['mobile'] ? " ({$s['mobile']})" : ""))->implode("\n");
+            $reportText .= "━━━━━━━━━━━━━━━━━━━━\n🚩 *टोली दायित्व सूची:*\n" . $toliLines . "\n";
+        }
+
+        $reportText .= "━━━━━━━━━━━━━━━━━━━━\n"
             . "📦 *वितरित गणवेश ऑर्डर्स:* {$orderStats['total']} (पूर्ण: {$orderStats['completed']}, बाकी भुगतान: {$orderStats['payment_due']})\n"
             . "━━━━━━━━━━━━━━━━━━━━\n"
             . "जय श्री राम | भारत माता की जय 🚩";
@@ -258,6 +300,7 @@ class ToliController extends Controller
                 'basti_id' => $bastiId,
                 'shakha_id' => $shakhaId,
                 'new_ganvesh' => $targetNewGanvesh,
+                'toli' => $hierarchy['target']->toli,
                 'url' => ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $bastiId),
                 'full_url' => url(ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $bastiId)),
             ],
@@ -268,6 +311,13 @@ class ToliController extends Controller
                 'ganvesh' => $ganveshCount,
                 'non_ganvesh' => $nonGanveshCount,
                 'new_ganvesh' => $targetNewGanvesh,
+                'pant' => $pantCount,
+                'shirt' => $shirtCount,
+                'topi' => $topiCount,
+                'dand' => $dandCount,
+                'belt' => $beltCount,
+                'moje' => $mojeCount,
+                'shoes' => $shoesCount,
             ],
             'availableBastis' => $availableBastis,
             'availableShakhas' => $availableBastis,
@@ -275,6 +325,7 @@ class ToliController extends Controller
             'orders' => $orders,
             'orderStats' => $orderStats,
             'reportText' => $reportText,
+            'daayitwas' => Daayitwa::orderBy('name')->get(),
             'shikshanOptions' => Swayamsevak::SHIKSHAN_OPTIONS,
             'flash' => [
                 'success' => session('success'),
@@ -987,7 +1038,15 @@ class ToliController extends Controller
             'address' => 'nullable|string|max:1000',
             'basti_id' => 'nullable',
             'shakha_id' => 'nullable',
+            'daayitwa_id' => 'nullable|exists:daayitwa,id',
             'ganvesh' => 'nullable|boolean',
+            'have_pant' => 'nullable|boolean',
+            'have_shirt' => 'nullable|boolean',
+            'have_topi' => 'nullable|boolean',
+            'have_dand' => 'nullable|boolean',
+            'have_belt' => 'nullable|boolean',
+            'have_moje' => 'nullable|boolean',
+            'have_shoes' => 'nullable|boolean',
             'shikshan' => 'nullable|string|max:100',
         ]);
 
@@ -1007,12 +1066,42 @@ class ToliController extends Controller
             return back()->withErrors(['basti_id' => 'बस्ती अथवा शाखा चुनना आवश्यक है।']);
         }
 
+        $havePant = $request->boolean('have_pant');
+        $haveShirt = $request->boolean('have_shirt');
+        $haveTopi = $request->boolean('have_topi');
+        $haveDand = $request->boolean('have_dand');
+        $haveBelt = $request->boolean('have_belt');
+        $haveMoje = $request->boolean('have_moje');
+        $haveShoes = $request->boolean('have_shoes');
+        $ganvesh = $request->boolean('ganvesh');
+
+        if ($ganvesh && (!$havePant || !$haveShirt || !$haveTopi || !$haveDand || !$haveBelt || !$haveMoje || !$haveShoes)) {
+            $havePant = true;
+            $haveShirt = true;
+            $haveTopi = true;
+            $haveDand = true;
+            $haveBelt = true;
+            $haveMoje = true;
+            $haveShoes = true;
+        } else {
+            $ganvesh = ($havePant && $haveShirt && $haveTopi && $haveDand && $haveBelt && $haveMoje && $haveShoes);
+        }
+
         $validated['basti_id'] = $basti?->id ?: $shakha?->basti_id;
         $validated['shakha_id'] = $shakha?->id;
-        $validated['ganvesh'] = $request->boolean('ganvesh', false);
+        $validated['daayitwa_id'] = $request->input('daayitwa_id') ? (int) $request->input('daayitwa_id') : null;
+        $validated['ganvesh'] = $ganvesh;
+        $validated['have_pant'] = $havePant;
+        $validated['have_shirt'] = $haveShirt;
+        $validated['have_topi'] = $haveTopi;
+        $validated['have_dand'] = $haveDand;
+        $validated['have_belt'] = $haveBelt;
+        $validated['have_moje'] = $haveMoje;
+        $validated['have_shoes'] = $haveShoes;
         $validated['shikshan'] = !empty($validated['shikshan']) ? $validated['shikshan'] : 'प्रारंभिक';
 
         $swayamsevak = Swayamsevak::create($validated);
+        $swayamsevak->load('daayitwa');
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
@@ -1036,7 +1125,15 @@ class ToliController extends Controller
             'address' => 'nullable|string|max:1000',
             'basti_id' => 'nullable',
             'shakha_id' => 'nullable',
-            'ganvesh' => 'required|boolean',
+            'daayitwa_id' => 'nullable|exists:daayitwa,id',
+            'ganvesh' => 'nullable|boolean',
+            'have_pant' => 'nullable|boolean',
+            'have_shirt' => 'nullable|boolean',
+            'have_topi' => 'nullable|boolean',
+            'have_dand' => 'nullable|boolean',
+            'have_belt' => 'nullable|boolean',
+            'have_moje' => 'nullable|boolean',
+            'have_shoes' => 'nullable|boolean',
             'shikshan' => 'nullable|string|max:100',
         ]);
 
@@ -1056,6 +1153,37 @@ class ToliController extends Controller
             $validated['basti_id'] = $basti?->id ?: $shakha?->basti_id;
             $validated['shakha_id'] = $shakha?->id;
         }
+
+        $havePant = $request->boolean('have_pant');
+        $haveShirt = $request->boolean('have_shirt');
+        $haveTopi = $request->boolean('have_topi');
+        $haveDand = $request->boolean('have_dand');
+        $haveBelt = $request->boolean('have_belt');
+        $haveMoje = $request->boolean('have_moje');
+        $haveShoes = $request->boolean('have_shoes');
+        $ganvesh = $request->boolean('ganvesh');
+
+        if ($ganvesh && (!$havePant || !$haveShirt || !$haveTopi || !$haveDand || !$haveBelt || !$haveMoje || !$haveShoes)) {
+            $havePant = true;
+            $haveShirt = true;
+            $haveTopi = true;
+            $haveDand = true;
+            $haveBelt = true;
+            $haveMoje = true;
+            $haveShoes = true;
+        } else {
+            $ganvesh = ($havePant && $haveShirt && $haveTopi && $haveDand && $haveBelt && $haveMoje && $haveShoes);
+        }
+
+        $validated['daayitwa_id'] = $request->input('daayitwa_id') ? (int) $request->input('daayitwa_id') : null;
+        $validated['ganvesh'] = $ganvesh;
+        $validated['have_pant'] = $havePant;
+        $validated['have_shirt'] = $haveShirt;
+        $validated['have_topi'] = $haveTopi;
+        $validated['have_dand'] = $haveDand;
+        $validated['have_belt'] = $haveBelt;
+        $validated['have_moje'] = $haveMoje;
+        $validated['have_shoes'] = $haveShoes;
 
         $swayamsevak->update($validated);
 
@@ -1240,6 +1368,13 @@ class ToliController extends Controller
                     'basti_id' => $bastiId,
                     'shakha_id' => $shakhaId,
                     'ganvesh' => $ganvesh,
+                    'have_pant' => $ganvesh,
+                    'have_shirt' => $ganvesh,
+                    'have_topi' => $ganvesh,
+                    'have_dand' => $ganvesh,
+                    'have_belt' => $ganvesh,
+                    'have_moje' => $ganvesh,
+                    'have_shoes' => $ganvesh,
                     'shikshan' => $shikshan,
                 ]);
 

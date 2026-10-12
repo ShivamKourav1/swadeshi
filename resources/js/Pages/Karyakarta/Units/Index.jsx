@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
@@ -48,6 +48,148 @@ export const toKeyName = (str) => {
         .replace(/[^a-z0-9_]/g, '');
 };
 
+/**
+ * Reusable searchable dropdown for Daayitwas and Swayamsevaks.
+ */
+function SearchableSelect({
+    label,
+    placeholder,
+    options = [],
+    value,
+    onSelect,
+    displayKey = 'name',
+    subKey = null,
+    badgeKey = null,
+    allowClear = true,
+}) {
+    const [search, setSearch] = useState('');
+    const [isOpen, setIsOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    const selectedOption = options.find((opt) => String(opt.id) === String(value));
+
+    const filteredOptions = useMemo(() => {
+        if (!search.trim()) return options;
+        const q = search.toLowerCase();
+        return options.filter((opt) => {
+            const nameMatch = String(opt[displayKey] || '').toLowerCase().includes(q);
+            const subMatch = subKey && String(opt[subKey] || '').toLowerCase().includes(q);
+            return nameMatch || subMatch;
+        });
+    }, [options, search, displayKey, subKey]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (containerRef.current && !containerRef.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div ref={containerRef} className="relative w-full">
+            {label && (
+                <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-amber-950 uppercase tracking-wider">
+                        {label}
+                    </label>
+                    {selectedOption && allowClear && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSelect(null);
+                                setSearch('');
+                            }}
+                            className="text-rose-600 hover:text-rose-800 text-[10px] font-semibold cursor-pointer"
+                        >
+                            हटाएं (Clear)
+                        </button>
+                    )}
+                </div>
+            )}
+
+            <div
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full min-h-[36px] p-2 bg-white border rounded-xl text-xs flex items-center justify-between cursor-pointer transition ${
+                    isOpen ? 'border-amber-500 ring-2 ring-amber-400/30' : 'border-gray-300 hover:border-amber-400'
+                }`}
+            >
+                {selectedOption ? (
+                    <div className="flex items-center space-x-1.5 truncate">
+                        <span className="font-bold text-gray-900 truncate">{selectedOption[displayKey]}</span>
+                        {subKey && selectedOption[subKey] && (
+                            <span className="text-gray-500 text-[11px] font-mono">({selectedOption[subKey]})</span>
+                        )}
+                        {badgeKey && selectedOption[badgeKey] && (
+                            <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded">
+                                {selectedOption[badgeKey]}
+                            </span>
+                        )}
+                    </div>
+                ) : (
+                    <span className="text-gray-400 font-medium truncate">{placeholder}</span>
+                )}
+                <span className="text-gray-400 text-[10px] ml-1 shrink-0">{isOpen ? '▲' : '▼'}</span>
+            </div>
+
+            {isOpen && (
+                <div className="absolute left-0 right-0 z-50 mt-1 bg-white border border-amber-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                    <div className="p-2 border-b border-gray-100 sticky top-0 bg-white">
+                        <input
+                            type="text"
+                            autoFocus
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="खोजें (Search)..."
+                            className="w-full p-1.5 bg-amber-50/40 border border-amber-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+
+                    <div className="p-1 divide-y divide-gray-50">
+                        {filteredOptions.length === 0 ? (
+                            <div className="p-3 text-center text-xs text-gray-400 italic">
+                                कोई परिणाम नहीं मिला
+                            </div>
+                        ) : (
+                            filteredOptions.map((opt) => (
+                                <div
+                                    key={opt.id}
+                                    onClick={() => {
+                                        onSelect(opt);
+                                        setIsOpen(false);
+                                        setSearch('');
+                                    }}
+                                    className={`p-2 rounded-lg text-xs cursor-pointer flex items-center justify-between transition ${
+                                        String(opt.id) === String(value)
+                                            ? 'bg-amber-100 text-amber-950 font-bold'
+                                            : 'hover:bg-amber-50 text-gray-800'
+                                    }`}
+                                >
+                                    <div className="truncate mr-2">
+                                        <div className="font-bold truncate">{opt[displayKey]}</div>
+                                        {subKey && opt[subKey] && (
+                                            <div className="text-[11px] text-gray-500 font-mono">{opt[subKey]}</div>
+                                        )}
+                                    </div>
+                                    {badgeKey && opt[badgeKey] && (
+                                        <span className="shrink-0 bg-orange-100 text-orange-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded border border-orange-200">
+                                            {opt[badgeKey]}
+                                        </span>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function Index({
     activeTab: initialTab,
     kshetras = [],
@@ -57,6 +199,8 @@ export default function Index({
     nagars = [],
     bastis = [],
     shakhas = [],
+    daayitwas = [],
+    swayamsevaks = [],
     scope,
     permissions = {},
     is_admin = false,
@@ -129,12 +273,16 @@ export default function Index({
             return parsed.map((item, idx) => {
                 if (typeof item === 'object' && item !== null) {
                     return {
+                        daayitwa_id: item.daayitwa_id ? String(item.daayitwa_id) : '',
+                        swayamsevak_id: item.swayamsevak_id ? String(item.swayamsevak_id) : '',
                         role: item.role || item.role_key || `Member ${idx + 1}`,
                         name: item.name || '',
                         contact: item.contact || item.phone || '',
                     };
                 }
                 return {
+                    daayitwa_id: '',
+                    swayamsevak_id: '',
                     role: `Member ${idx + 1}`,
                     name: String(item),
                     contact: '',
@@ -145,12 +293,16 @@ export default function Index({
             return Object.entries(parsed).map(([role, val]) => {
                 if (typeof val === 'object' && val !== null) {
                     return {
-                        role: role,
+                        daayitwa_id: val.daayitwa_id ? String(val.daayitwa_id) : '',
+                        swayamsevak_id: val.swayamsevak_id ? String(val.swayamsevak_id) : '',
+                        role: val.role || role,
                         name: val.name || '',
                         contact: val.contact || val.phone || '',
                     };
                 }
                 return {
+                    daayitwa_id: '',
+                    swayamsevak_id: '',
                     role: role,
                     name: String(val || ''),
                     contact: '',
@@ -168,40 +320,40 @@ export default function Index({
             case 'bastis':
             case 'shakhas':
                 return [
-                    { role: 'Mukhya Shikshak', name: '', contact: '' },
-                    { role: 'Karyavah', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Mukhya Shikshak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Karyavah', name: '', contact: '' },
                 ];
             case 'nagars':
                 return [
-                    { role: 'Nagar Sanghchalak', name: '', contact: '' },
-                    { role: 'Nagar Karyavah', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Nagar Sanghchalak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Nagar Karyavah', name: '', contact: '' },
                 ];
             case 'jilas':
                 return [
-                    { role: 'Jila Sanghchalak', name: '', contact: '' },
-                    { role: 'Jila Karyavah', name: '', contact: '' },
-                    { role: 'Jila Pracharak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Jila Sanghchalak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Jila Karyavah', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Jila Pracharak', name: '', contact: '' },
                 ];
             case 'vibhags':
                 return [
-                    { role: 'Vibhag Sanghchalak', name: '', contact: '' },
-                    { role: 'Vibhag Karyavah', name: '', contact: '' },
-                    { role: 'Vibhag Pracharak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Vibhag Sanghchalak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Vibhag Karyavah', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Vibhag Pracharak', name: '', contact: '' },
                 ];
             case 'prants':
                 return [
-                    { role: 'Prant Sanghchalak', name: '', contact: '' },
-                    { role: 'Prant Karyavah', name: '', contact: '' },
-                    { role: 'Prant Pracharak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Prant Sanghchalak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Prant Karyavah', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Prant Pracharak', name: '', contact: '' },
                 ];
             case 'kshetras':
                 return [
-                    { role: 'Kshetra Sanghchalak', name: '', contact: '' },
-                    { role: 'Kshetra Karyavah', name: '', contact: '' },
-                    { role: 'Kshetra Pracharak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Kshetra Sanghchalak', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Kshetra Karyavah', name: '', contact: '' },
+                    { daayitwa_id: '', swayamsevak_id: '', role: 'Kshetra Pracharak', name: '', contact: '' },
                 ];
             default:
-                return [{ role: 'Member 1', name: '', contact: '' }];
+                return [{ daayitwa_id: '', swayamsevak_id: '', role: 'Member 1', name: '', contact: '' }];
         }
     };
 
@@ -233,7 +385,20 @@ export default function Index({
         clearErrors();
         reset();
 
-        const defaultToli = getDefaultToliForTab(currentTab);
+        // Level-matched Daayitwas if available
+        const levelDaayitwas = daayitwas.filter((d) => d.unit_level === currentTabConfig.singular);
+        let defaultToli = [];
+        if (levelDaayitwas.length > 0) {
+            defaultToli = levelDaayitwas.slice(0, 2).map((d) => ({
+                daayitwa_id: String(d.id),
+                swayamsevak_id: '',
+                role: d.name,
+                name: '',
+                contact: '',
+            }));
+        } else {
+            defaultToli = getDefaultToliForTab(currentTab);
+        }
 
         setData({
             kshetra_name: '',
@@ -270,6 +435,8 @@ export default function Index({
 
         // Convert role keys to clean Title Case for display in edit form
         const formattedMembers = toliList.map((m) => ({
+            daayitwa_id: m.daayitwa_id ? String(m.daayitwa_id) : '',
+            swayamsevak_id: m.swayamsevak_id ? String(m.swayamsevak_id) : '',
             role: toTitleCase(m.role || ''),
             name: m.name || '',
             contact: m.contact || '',
@@ -293,7 +460,7 @@ export default function Index({
             type: unit.type || 'Vyavsai',
             new_ganvesh: unit.new_ganvesh ?? 0,
             status: unit.status || 'Active',
-            toli_members: formattedMembers.length > 0 ? formattedMembers : [{ role: '', name: '', contact: '' }],
+            toli_members: formattedMembers.length > 0 ? formattedMembers : [{ daayitwa_id: '', swayamsevak_id: '', role: '', name: '', contact: '' }],
         });
 
         setIsModalOpen(true);
@@ -306,12 +473,18 @@ export default function Index({
         clearErrors();
     };
 
-    const addToliRow = (suggestedRoleTitle = '') => {
+    const addToliRow = (suggestedRoleTitle = '', daayitwaId = '') => {
         setData((prev) => ({
             ...prev,
             toli_members: [
                 ...prev.toli_members,
-                { role: toTitleCase(suggestedRoleTitle), name: '', contact: '' },
+                {
+                    daayitwa_id: daayitwaId ? String(daayitwaId) : '',
+                    swayamsevak_id: '',
+                    role: toTitleCase(suggestedRoleTitle),
+                    name: '',
+                    contact: '',
+                },
             ],
         }));
     };
@@ -347,8 +520,11 @@ export default function Index({
         (data.toli_members || []).forEach((m, idx) => {
             const rawRole = m.role ? m.role.trim() : '';
             const key = rawRole ? toKeyName(rawRole) : `member_${idx + 1}`;
-            if (m.name || m.contact || m.role) {
+            if (m.name || m.contact || m.role || m.daayitwa_id || m.swayamsevak_id) {
                 formattedToli[key] = {
+                    daayitwa_id: m.daayitwa_id ? Number(m.daayitwa_id) : null,
+                    swayamsevak_id: m.swayamsevak_id ? Number(m.swayamsevak_id) : null,
+                    role: rawRole,
                     name: m.name || '',
                     contact: m.contact || '',
                 };
@@ -439,6 +615,16 @@ export default function Index({
                                 <span>टोली पृष्ठ (Toli Page)</span>
                                 <ExternalLink className="w-3.5 h-3.5" />
                             </a>
+                        )}
+                        {is_admin && (
+                            <Link
+                                href={route('karyakarta.daayitwa.index')}
+                                className="px-4 py-3 bg-amber-100/90 hover:bg-amber-200 text-amber-950 font-bold rounded-2xl text-xs transition flex items-center space-x-1 cursor-pointer border border-amber-300"
+                                title="दायित्व प्रबंधन (Manage Daayitwa)"
+                            >
+                                <span>🚩</span>
+                                <span>दायित्व प्रबंधन</span>
+                            </Link>
                         )}
                         <Link
                             href={route('karyakarta.dashboard')}
@@ -1582,9 +1768,14 @@ export default function Index({
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-2 text-amber-900">
                                             <Users className="w-4 h-4 text-amber-700" />
-                                            <span className="font-extrabold text-xs">
-                                                Toli Members & Contacts (टोली सदस्य व संपर्क सूत्र)
-                                            </span>
+                                            <div>
+                                                <span className="font-extrabold text-xs block">
+                                                    टोली दायित्व एवं दायित्वधारी (Toli Responsibilities & Members)
+                                                </span>
+                                                <span className="text-[10px] text-amber-800/80 font-medium">
+                                                    प्रत्येक दायित्व हेतु दायित्व व स्वयंसेवक ड्रॉपडाउन चुनें
+                                                </span>
+                                            </div>
                                         </div>
                                         <button
                                             type="button"
@@ -1592,85 +1783,145 @@ export default function Index({
                                             className="text-[11px] font-bold text-amber-700 hover:text-amber-900 bg-white px-2.5 py-1 rounded-lg border border-amber-300 transition cursor-pointer flex items-center space-x-1 shadow-2xs"
                                         >
                                             <Plus className="w-3 h-3" />
-                                            <span>Add Member</span>
+                                            <span>दायित्व जोड़ें (Add)</span>
                                         </button>
                                     </div>
 
-                                    {/* Role suggestions chips */}
-                                    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-                                        <span className="text-gray-500 font-bold">Quick Add Role:</span>
-                                        {getRoleSuggestionsForTab(currentTab).map((roleTitle) => (
-                                            <button
-                                                key={roleTitle}
-                                                type="button"
-                                                onClick={() => addToliRow(roleTitle)}
-                                                className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md font-bold transition cursor-pointer shadow-2xs"
-                                            >
-                                                +{roleTitle}
-                                            </button>
-                                        ))}
-                                    </div>
-
-                                    {/* Column Labels for desktop */}
-                                    <div className="hidden sm:grid grid-cols-12 gap-2 px-1 text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">
-                                        <div className="col-span-4">Role Title / Designation</div>
-                                        <div className="col-span-4">Member Name</div>
-                                        <div className="col-span-3">Contact / Phone</div>
-                                        <div className="col-span-1 text-right">Action</div>
-                                    </div>
+                                    {/* Filtered Daayitwas for this unit level */}
+                                    {(() => {
+                                        const levelDaayitwas = daayitwas.filter(
+                                            (d) => d.unit_level === currentTabConfig.singular
+                                        );
+                                        return levelDaayitwas.length > 0 ? (
+                                            <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                                                <span className="text-gray-500 font-bold">त्वरित दायित्व जोड़ें:</span>
+                                                {levelDaayitwas.map((d) => (
+                                                    <button
+                                                        key={d.id}
+                                                        type="button"
+                                                        onClick={() => addToliRow(d.name, d.id)}
+                                                        className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 px-2 py-0.5 rounded-md font-bold transition cursor-pointer shadow-2xs"
+                                                    >
+                                                        +{d.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ) : null;
+                                    })()}
 
                                     {/* Members dynamic list */}
-                                    <div className="space-y-2.5 pt-1">
-                                        {data.toli_members.map((member, index) => (
-                                            <div key={index} className="grid grid-cols-1 sm:grid-cols-12 gap-2 bg-white p-2.5 rounded-xl border border-amber-200/80 shadow-2xs items-center">
-                                                <div className="sm:col-span-4">
-                                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5 sm:hidden">
-                                                        Designation / Title
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={member.role}
-                                                        onChange={(e) => updateToliMember(index, 'role', e.target.value)}
-                                                        placeholder="e.g. Mukhya Shikshak"
-                                                        className="w-full p-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-800 bg-amber-50/30 focus:bg-white focus:ring-2 focus:ring-amber-500"
-                                                    />
+                                    <div className="space-y-3 pt-1">
+                                        {data.toli_members.map((member, index) => {
+                                            const levelDaayitwas = daayitwas.filter(
+                                                (d) => d.unit_level === currentTabConfig.singular
+                                            );
+                                            const availableDaayitwas = levelDaayitwas.length > 0 ? levelDaayitwas : daayitwas;
+
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    className="bg-white p-3.5 rounded-2xl border border-amber-200/90 shadow-2xs space-y-2.5 transition hover:border-amber-300"
+                                                >
+                                                    <div className="flex items-center justify-between pb-1.5 border-b border-amber-100">
+                                                        <span className="text-[11px] font-extrabold text-amber-900 flex items-center space-x-1">
+                                                            <span>🚩</span>
+                                                            <span>दायित्व विवरण #{index + 1}</span>
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeToliMember(index)}
+                                                            className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-lg transition cursor-pointer text-xs flex items-center space-x-1"
+                                                            title="दायित्व हटाएं"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                            <span className="text-[10px] font-bold">हटाएं</span>
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                        {/* 1. Searchable dropdown of daayitwa (Display Name: दायित्व) */}
+                                                        <div>
+                                                            <SearchableSelect
+                                                                label="दायित्व (Daayitwa) *"
+                                                                placeholder="दायित्व चुनें..."
+                                                                options={availableDaayitwas}
+                                                                value={member.daayitwa_id}
+                                                                displayKey="name"
+                                                                badgeKey="unit_level"
+                                                                onSelect={(d) => {
+                                                                    if (d) {
+                                                                        updateToliMember(index, 'daayitwa_id', String(d.id));
+                                                                        updateToliMember(index, 'role', d.name);
+                                                                    } else {
+                                                                        updateToliMember(index, 'daayitwa_id', '');
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+
+                                                        {/* 2. Searchable dropdown of swayamsevaks */}
+                                                        <div>
+                                                            <SearchableSelect
+                                                                label="स्वयंसेवक (Swayamsevak)"
+                                                                placeholder="स्वयंसेवक चुनें..."
+                                                                options={swayamsevaks}
+                                                                value={member.swayamsevak_id}
+                                                                displayKey="name"
+                                                                subKey="mobile"
+                                                                onSelect={(s) => {
+                                                                    if (s) {
+                                                                        updateToliMember(index, 'swayamsevak_id', String(s.id));
+                                                                        updateToliMember(index, 'name', s.name);
+                                                                        updateToliMember(index, 'contact', s.mobile || '');
+                                                                    } else {
+                                                                        updateToliMember(index, 'swayamsevak_id', '');
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1.5 border-t border-gray-100 bg-amber-50/20 p-2 rounded-xl">
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
+                                                                पदनाम / दायित्व नाम
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={member.role}
+                                                                onChange={(e) => updateToliMember(index, 'role', e.target.value)}
+                                                                placeholder="उदा. मुख्य शिक्षक"
+                                                                className="w-full p-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-amber-500"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
+                                                                दायित्वधारी नाम
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={member.name}
+                                                                onChange={(e) => updateToliMember(index, 'name', e.target.value)}
+                                                                placeholder="पूरा नाम"
+                                                                className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-amber-500"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
+                                                                संपर्क (मोबाइल)
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={member.contact}
+                                                                onChange={(e) => updateToliMember(index, 'contact', e.target.value)}
+                                                                placeholder="10 अंकों का मोबाइल"
+                                                                className="w-full p-2 border border-gray-300 rounded-lg text-xs font-mono bg-white focus:ring-2 focus:ring-amber-500"
+                                                            />
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="sm:col-span-4">
-                                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5 sm:hidden">
-                                                        Member Name
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={member.name}
-                                                        onChange={(e) => updateToliMember(index, 'name', e.target.value)}
-                                                        placeholder="Full Name (e.g. Ramesh Verma)"
-                                                        className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-amber-500"
-                                                    />
-                                                </div>
-                                                <div className="sm:col-span-3">
-                                                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-0.5 sm:hidden">
-                                                        Contact / Phone
-                                                    </label>
-                                                    <input
-                                                        type="text"
-                                                        value={member.contact}
-                                                        onChange={(e) => updateToliMember(index, 'contact', e.target.value)}
-                                                        placeholder="Phone (e.g. +91 98260XXXXX)"
-                                                        className="w-full p-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-amber-500"
-                                                    />
-                                                </div>
-                                                <div className="sm:col-span-1 text-right">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => removeToliMember(index)}
-                                                        className="text-gray-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition cursor-pointer"
-                                                        title="Remove Member"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
 

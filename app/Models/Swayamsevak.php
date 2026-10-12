@@ -19,12 +19,27 @@ class Swayamsevak extends Model
         'address',
         'basti_id',
         'shakha_id',
+        'daayitwa_id',
         'ganvesh',
+        'have_pant',
+        'have_shirt',
+        'have_topi',
+        'have_dand',
+        'have_belt',
+        'have_moje',
+        'have_shoes',
         'shikshan',
     ];
 
     protected $casts = [
         'ganvesh' => 'boolean',
+        'have_pant' => 'boolean',
+        'have_shirt' => 'boolean',
+        'have_topi' => 'boolean',
+        'have_dand' => 'boolean',
+        'have_belt' => 'boolean',
+        'have_moje' => 'boolean',
+        'have_shoes' => 'boolean',
     ];
 
     public const SHIKSHAN_OPTIONS = [
@@ -35,6 +50,11 @@ class Swayamsevak extends Model
         'कार्यकर्ता विकास वर्ग - २',
         'अन्य / कोई नहीं',
     ];
+
+    public function daayitwa(): BelongsTo
+    {
+        return $this->belongsTo(Daayitwa::class, 'daayitwa_id');
+    }
 
     public function basti(): BelongsTo
     {

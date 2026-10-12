@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
 import {
@@ -39,6 +39,131 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
+/**
+ * Searchable dropdown for assigning Daayitwa (Responsibility) to Swayamsevak.
+ */
+function SearchableDaayitwaDropdown({
+    daayitwas = [],
+    value,
+    onChange,
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const ref = useRef(null);
+
+    const selectedDaayitwa = daayitwas.find((d) => String(d.id) === String(value));
+
+    const filtered = useMemo(() => {
+        if (!search.trim()) return daayitwas;
+        const q = search.toLowerCase();
+        return daayitwas.filter((d) =>
+            d.name.toLowerCase().includes(q) ||
+            d.unit_level?.toLowerCase().includes(q)
+        );
+    }, [daayitwas, search]);
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (ref.current && !ref.current.contains(e.target)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    return (
+        <div ref={ref} className="relative w-full">
+            <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-stone-700">
+                    दायित्व (Responsibility)
+                </label>
+                {selectedDaayitwa && (
+                    <button
+                        type="button"
+                        onClick={() => {
+                            onChange('');
+                            setSearch('');
+                        }}
+                        className="text-rose-600 hover:text-rose-800 text-[10px] font-semibold cursor-pointer"
+                    >
+                        हटाएं (Clear)
+                    </button>
+                )}
+            </div>
+
+            <div
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full min-h-[38px] p-2 bg-stone-50 border rounded-lg text-xs flex items-center justify-between cursor-pointer transition ${
+                    isOpen ? 'border-amber-500 ring-2 ring-amber-400/30 bg-white' : 'border-stone-300 hover:border-amber-400'
+                }`}
+            >
+                {selectedDaayitwa ? (
+                    <div className="flex items-center space-x-1.5 truncate">
+                        <span className="font-bold text-stone-900 truncate">🚩 {selectedDaayitwa.name}</span>
+                        <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded border border-amber-200">
+                            {selectedDaayitwa.unit_level}
+                        </span>
+                    </div>
+                ) : (
+                    <span className="text-stone-400 font-medium truncate">-- दायित्व चुनें (वैकल्पिक) --</span>
+                )}
+                <span className="text-stone-400 text-[10px] ml-1 shrink-0">{isOpen ? '▲' : '▼'}</span>
+            </div>
+
+            {isOpen && (
+                <div className="absolute left-0 right-0 z-50 mt-1 bg-white border border-amber-200 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+                    <div className="p-2 border-b border-stone-100 sticky top-0 bg-white">
+                        <input
+                            type="text"
+                            autoFocus
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="दायित्व खोजें..."
+                            className="w-full p-1.5 bg-stone-50 border border-stone-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 font-medium"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    <div className="p-1 divide-y divide-stone-50">
+                        <div
+                            onClick={() => {
+                                onChange('');
+                                setIsOpen(false);
+                                setSearch('');
+                            }}
+                            className={`p-2 rounded-lg text-xs cursor-pointer italic text-stone-500 hover:bg-stone-50 ${
+                                !value ? 'bg-amber-50 font-bold text-amber-900' : ''
+                            }`}
+                        >
+                            -- कोई दायित्व नहीं (No Daayitwa) --
+                        </div>
+                        {filtered.map((d) => (
+                            <div
+                                key={d.id}
+                                onClick={() => {
+                                    onChange(String(d.id));
+                                    setIsOpen(false);
+                                    setSearch('');
+                                }}
+                                className={`p-2 rounded-lg text-xs cursor-pointer flex items-center justify-between transition ${
+                                    String(d.id) === String(value)
+                                        ? 'bg-amber-100 text-amber-950 font-bold'
+                                        : 'hover:bg-amber-50 text-stone-800'
+                                }`}
+                            >
+                                <span className="font-bold truncate mr-2">🚩 {d.name}</span>
+                                <span className="bg-amber-100 text-amber-800 text-[9px] font-extrabold px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                                    {d.unit_level}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function ToliIndex({
     isAuthenticated = false,
     authUser = null,
@@ -53,6 +178,7 @@ export default function ToliIndex({
     orders = [],
     orderStats = { total: 0, paid: 0, payment_due: 0, delivered: 0, completed: 0, cancelled: 0 },
     reportText = '',
+    daayitwas = [],
     shikshanOptions = [],
     flash = {}
 }) {
@@ -96,10 +222,26 @@ export default function ToliIndex({
         address: '',
         basti_id: currentBastiId || (bastisList[0]?.id ?? ''),
         shakha_id: currentBastiId || (bastisList[0]?.id ?? ''),
+        daayitwa_id: '',
         ganvesh: false,
+        have_pant: false,
+        have_shirt: false,
+        have_topi: false,
+        have_dand: false,
+        have_belt: false,
+        have_moje: false,
+        have_shoes: false,
         shikshan: 'प्रारंभिक'
     });
     const [memberFormSubmitting, setMemberFormSubmitting] = useState(false);
+
+    // Toli Responsibilities (दायित्व) Modal state
+    const [showToliModal, setShowToliModal] = useState(false);
+    const [toliModalSearch, setToliModalSearch] = useState('');
+    const [copiedToliReport, setCopiedToliReport] = useState(false);
+
+    // Expandable Ganvesh breakdown per member in list (for ganvesh shesh)
+    const [expandedGanveshIds, setExpandedGanveshIds] = useState({});
 
     // CSV Bulk Import Modal
     const [showImportModal, setShowImportModal] = useState(false);
@@ -362,7 +504,15 @@ export default function ToliIndex({
             address: '',
             basti_id: currentBastiId || (bastisList[0]?.id ?? ''),
             shakha_id: currentBastiId || (bastisList[0]?.id ?? ''),
+            daayitwa_id: '',
             ganvesh: false,
+            have_pant: false,
+            have_shirt: false,
+            have_topi: false,
+            have_dand: false,
+            have_belt: false,
+            have_moje: false,
+            have_shoes: false,
             shikshan: 'प्रारंभिक'
         });
         setShowMemberModal(true);
@@ -377,10 +527,229 @@ export default function ToliIndex({
             address: m.address || '',
             basti_id: m.basti_id || m.shakha_id,
             shakha_id: m.basti_id || m.shakha_id,
-            ganvesh: m.ganvesh,
+            daayitwa_id: m.daayitwa_id ? String(m.daayitwa_id) : '',
+            ganvesh: Boolean(m.ganvesh),
+            have_pant: Boolean(m.have_pant),
+            have_shirt: Boolean(m.have_shirt),
+            have_topi: Boolean(m.have_topi),
+            have_dand: Boolean(m.have_dand),
+            have_belt: Boolean(m.have_belt),
+            have_moje: Boolean(m.have_moje),
+            have_shoes: Boolean(m.have_shoes),
             shikshan: m.shikshan || 'प्रारंभिक'
         });
         setShowMemberModal(true);
+    };
+
+    // Ganvesh auto-sync: Full Ganvesh toggled
+    const handleToggleFullGanvesh = (isFull) => {
+        setMemberForm((prev) => ({
+            ...prev,
+            ganvesh: isFull,
+            have_pant: isFull,
+            have_shirt: isFull,
+            have_topi: isFull,
+            have_dand: isFull,
+            have_belt: isFull,
+            have_moje: isFull,
+            have_shoes: isFull,
+        }));
+    };
+
+    // Ganvesh auto-sync: Individual component toggled
+    const handleToggleComponent = (compKey, value) => {
+        setMemberForm((prev) => {
+            const updated = { ...prev, [compKey]: value };
+            const allChecked = Boolean(
+                (compKey === 'have_pant' ? value : updated.have_pant) &&
+                (compKey === 'have_shirt' ? value : updated.have_shirt) &&
+                (compKey === 'have_topi' ? value : updated.have_topi) &&
+                (compKey === 'have_dand' ? value : updated.have_dand) &&
+                (compKey === 'have_belt' ? value : updated.have_belt) &&
+                (compKey === 'have_moje' ? value : updated.have_moje) &&
+                (compKey === 'have_shoes' ? value : updated.have_shoes)
+            );
+            updated.ganvesh = allChecked;
+            return updated;
+        });
+    };
+
+    // Expand/collapse individual member's ganvesh items in listing
+    const toggleExpandGanvesh = (memberId) => {
+        setExpandedGanveshIds((prev) => ({
+            ...prev,
+            [memberId]: !prev[memberId]
+        }));
+    };
+
+    // Parse unit toli array
+    const unitToliMembers = useMemo(() => {
+        if (!unit?.toli) return [];
+        let parsed = unit.toli;
+        if (typeof parsed === 'string') {
+            try { parsed = JSON.parse(parsed); } catch (e) { return []; }
+        }
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
+        if (typeof parsed === 'object' && parsed !== null) {
+            return Object.entries(parsed).map(([key, val]) => {
+                if (typeof val === 'object' && val !== null) {
+                    return { role_key: key, ...val };
+                }
+                return { role_key: key, name: String(val) };
+            });
+        }
+        return [];
+    }, [unit?.toli]);
+
+    // Build complete list of daayitwa items with their holder details for Toli modal
+    const toliResponsibilityRows = useMemo(() => {
+        const relevantDaayitwas = daayitwas && daayitwas.length > 0
+            ? (daayitwas.filter(d => d.unit_level === unit?.level).length > 0
+                ? daayitwas.filter(d => d.unit_level === unit?.level)
+                : daayitwas)
+            : [];
+
+        const rows = [];
+        const seenDaayitwaIds = new Set();
+        const seenMemberIds = new Set();
+
+        relevantDaayitwas.forEach((d) => {
+            seenDaayitwaIds.add(d.id);
+            const assignedSwayamsevaks = (localSwayamsevaks || []).filter(
+                (s) => Number(s.daayitwa_id) === Number(d.id) || (s.daayitwa_name && s.daayitwa_name.trim().toLowerCase() === d.name.trim().toLowerCase())
+            );
+
+            const assignedToliMembers = unitToliMembers.filter(
+                (m) => Number(m.daayitwa_id) === Number(d.id) || (m.role && m.role.trim().toLowerCase() === d.name.trim().toLowerCase())
+            );
+
+            if (assignedSwayamsevaks.length > 0) {
+                assignedSwayamsevaks.forEach((s) => {
+                    seenMemberIds.add(s.id);
+                    rows.push({
+                        daayitwa_id: d.id,
+                        daayitwa_name: d.name,
+                        unit_level: d.unit_level,
+                        holder_type: 'swayamsevak',
+                        holder_id: s.id,
+                        holder_name: s.name,
+                        holder_mobile: s.mobile,
+                        holder_address: s.address,
+                        ganvesh: s.ganvesh,
+                        shikshan: s.shikshan,
+                        is_vacant: false,
+                    });
+                });
+            } else if (assignedToliMembers.length > 0) {
+                assignedToliMembers.forEach((m) => {
+                    rows.push({
+                        daayitwa_id: d.id,
+                        daayitwa_name: d.name,
+                        unit_level: d.unit_level,
+                        holder_type: 'toli_member',
+                        holder_id: m.swayamsevak_id || null,
+                        holder_name: m.name || 'अज्ञात',
+                        holder_mobile: m.contact || m.phone || '',
+                        holder_address: '',
+                        ganvesh: null,
+                        shikshan: null,
+                        is_vacant: false,
+                    });
+                });
+            } else {
+                rows.push({
+                    daayitwa_id: d.id,
+                    daayitwa_name: d.name,
+                    unit_level: d.unit_level,
+                    holder_type: null,
+                    holder_id: null,
+                    holder_name: null,
+                    holder_mobile: null,
+                    holder_address: null,
+                    ganvesh: null,
+                    shikshan: null,
+                    is_vacant: true,
+                });
+            }
+        });
+
+        // Add any remaining swayamsevaks who have a daayitwa not yet included
+        (localSwayamsevaks || []).forEach((s) => {
+            if (s.daayitwa_name && !seenMemberIds.has(s.id)) {
+                rows.push({
+                    daayitwa_id: s.daayitwa_id,
+                    daayitwa_name: s.daayitwa_name,
+                    unit_level: s.daayitwa?.unit_level || unit?.level,
+                    holder_type: 'swayamsevak',
+                    holder_id: s.id,
+                    holder_name: s.name,
+                    holder_mobile: s.mobile,
+                    holder_address: s.address,
+                    ganvesh: s.ganvesh,
+                    shikshan: s.shikshan,
+                    is_vacant: false,
+                });
+            }
+        });
+
+        // Add any remaining unit toli members
+        unitToliMembers.forEach((m) => {
+            if (m.role && !rows.some(r => r.holder_name === m.name && r.daayitwa_name === m.role)) {
+                rows.push({
+                    daayitwa_id: m.daayitwa_id || null,
+                    daayitwa_name: m.role,
+                    unit_level: unit?.level,
+                    holder_type: 'toli_member',
+                    holder_id: m.swayamsevak_id || null,
+                    holder_name: m.name || '',
+                    holder_mobile: m.contact || m.phone || '',
+                    holder_address: '',
+                    ganvesh: null,
+                    shikshan: null,
+                    is_vacant: !m.name,
+                });
+            }
+        });
+
+        return rows;
+    }, [daayitwas, localSwayamsevaks, unitToliMembers, unit?.level]);
+
+    const filteredToliRows = useMemo(() => {
+        if (!toliModalSearch.trim()) return toliResponsibilityRows;
+        const q = toliModalSearch.toLowerCase();
+        return toliResponsibilityRows.filter((r) =>
+            r.daayitwa_name?.toLowerCase().includes(q) ||
+            r.holder_name?.toLowerCase().includes(q) ||
+            r.holder_mobile?.toLowerCase().includes(q)
+        );
+    }, [toliResponsibilityRows, toliModalSearch]);
+
+    const formattedToliShareText = useMemo(() => {
+        let text = `🚩 *राष्ट्रीय स्वयंसेवक संघ - टोली दायित्व सूची* 🚩\n`;
+        text += `📌 *इकाई:* ${unit?.name || ''} (${unit?.level_hindi || ''})\n`;
+        text += `━━━━━━━━━━━━━━━━━━━━\n`;
+        toliResponsibilityRows.forEach((r) => {
+            if (r.is_vacant) {
+                text += `• ${r.daayitwa_name}: [दायित्व रिक्त]\n`;
+            } else {
+                text += `• ${r.daayitwa_name}: ${r.holder_name}${r.holder_mobile ? ` (${r.holder_mobile})` : ''}\n`;
+            }
+        });
+        text += `━━━━━━━━━━━━━━━━━━━━\nजय श्री राम | भारत माता की जय 🚩`;
+        return text;
+    }, [toliResponsibilityRows, unit?.name, unit?.level_hindi]);
+
+    const handleCopyToliReport = () => {
+        navigator.clipboard.writeText(formattedToliShareText);
+        setCopiedToliReport(true);
+        setTimeout(() => setCopiedToliReport(false), 2000);
+        showToast('टोली दायित्व विवरण कॉपी हो गया!', 'success');
+    };
+
+    const handleShareToliWhatsApp = () => {
+        shareToWhatsApp(formattedToliShareText);
     };
 
     // Save Member (Add or Edit)
@@ -860,10 +1229,20 @@ export default function ToliIndex({
 
                     {/* Header Action Buttons */}
                     <div className="flex items-center space-x-2 shrink-0">
+                        {/* Toli Responsibilities Modal Button */}
+                        <button
+                            onClick={() => setShowToliModal(true)}
+                            className="bg-amber-800/80 hover:bg-amber-900 text-amber-100 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-1.5 transition border border-amber-500/40 shadow-sm cursor-pointer"
+                            title="टोली दायित्व व दायित्वधारी विवरण देखें"
+                        >
+                            <Users className="w-4 h-4 text-amber-300" />
+                            <span>टोली</span>
+                        </button>
+
                         {/* Report Button */}
                         <button
                             onClick={() => setShowReportModal(true)}
-                            className="bg-amber-800/80 hover:bg-amber-900 text-amber-100 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-1 transition border border-amber-500/40 shadow-sm"
+                            className="bg-amber-800/80 hover:bg-amber-900 text-amber-100 px-3 py-1.5 rounded-lg text-xs md:text-sm font-medium flex items-center space-x-1 transition border border-amber-500/40 shadow-sm cursor-pointer"
                             title="वृत्त रिपोर्ट देखें व शेयर करें"
                         >
                             <FileText className="w-4 h-4 text-amber-300" />
@@ -1106,18 +1485,32 @@ export default function ToliIndex({
                                     >
                                         {/* Member Info */}
                                         <div className="space-y-1 min-w-0">
-                                            <div className="flex items-center space-x-2">
+                                            <div className="flex flex-wrap items-center gap-1.5">
                                                 <h3 className="font-bold text-stone-900 text-base">{m.name}</h3>
+                                                {(m.daayitwa_name || m.daayitwa?.name) && (
+                                                    <span className="bg-amber-100 text-amber-950 border border-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center space-x-1 shadow-2xs">
+                                                        <span>🚩</span>
+                                                        <span>दायित्व: {m.daayitwa_name || m.daayitwa?.name}</span>
+                                                    </span>
+                                                )}
                                                 {m.ganvesh ? (
                                                     <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-0.5">
                                                         <span>🟢</span>
-                                                        <span>गणवेश युक्त</span>
+                                                        <span>पूर्ण गणवेश</span>
                                                     </span>
                                                 ) : (
-                                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-medium px-2 py-0.5 rounded-full flex items-center space-x-0.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleExpandGanvesh(m.id)}
+                                                        className="bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center space-x-1 transition cursor-pointer shadow-2xs"
+                                                        title="गणवेश सामग्री विस्तार देखने के लिए क्लिक करें"
+                                                    >
                                                         <span>⚪</span>
                                                         <span>गणवेश शेष</span>
-                                                    </span>
+                                                        <span className="text-[9px] text-amber-700 font-extrabold">
+                                                            {expandedGanveshIds[m.id] ? '▲' : '▼ विवरण'}
+                                                        </span>
+                                                    </button>
                                                 )}
                                                 {m.shikshan && (
                                                     <span className="bg-stone-100 text-stone-700 text-[10px] font-medium px-1.5 py-0.5 rounded">
@@ -1125,6 +1518,46 @@ export default function ToliIndex({
                                                     </span>
                                                 )}
                                             </div>
+
+                                            {!m.ganvesh && expandedGanveshIds[m.id] && (
+                                                <div className="mt-2 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1.5 text-xs">
+                                                    <div className="text-[11px] font-bold text-amber-950 flex items-center justify-between">
+                                                        <span className="flex items-center space-x-1">
+                                                            <span>🥋</span>
+                                                            <span>उपलब्ध गणवेश सामग्री घटक:</span>
+                                                        </span>
+                                                        <span className="text-[10px] text-stone-500 font-semibold">
+                                                            ({[m.have_pant, m.have_shirt, m.have_topi, m.have_dand, m.have_belt, m.have_moje, m.have_shoes].filter(Boolean).length}/7 उपलब्ध)
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1.5 text-[11px]">
+                                                        {[
+                                                            { key: 'have_pant', label: 'पैंट' },
+                                                            { key: 'have_shirt', label: 'शर्ट' },
+                                                            { key: 'have_topi', label: 'टोपी' },
+                                                            { key: 'have_dand', label: 'दण्ड' },
+                                                            { key: 'have_belt', label: 'बेल्ट' },
+                                                            { key: 'have_moje', label: 'मोज़े' },
+                                                            { key: 'have_shoes', label: 'जूते' },
+                                                        ].map((comp) => {
+                                                            const has = Boolean(m[comp.key]);
+                                                            return (
+                                                                <span
+                                                                    key={comp.key}
+                                                                    className={`px-2 py-0.5 rounded-md font-semibold text-[11px] flex items-center space-x-1 border ${
+                                                                        has
+                                                                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
+                                                                            : 'bg-stone-100 text-stone-400 border-stone-200 line-through'
+                                                                    }`}
+                                                                >
+                                                                    <span>{has ? '✓' : '✗'}</span>
+                                                                    <span>{comp.label}</span>
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
                                                 {m.mobile && (
@@ -2479,34 +2912,87 @@ export default function ToliIndex({
                                 </div>
                             )}
 
+                            {/* Daayitwa Dropdown */}
+                            <div>
+                                <SearchableDaayitwaDropdown
+                                    daayitwas={daayitwas}
+                                    value={memberForm.daayitwa_id}
+                                    onChange={(val) => setMemberForm({ ...memberForm, daayitwa_id: val })}
+                                />
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                                    गणवेश उपलब्धता
+                                    पूर्ण गणवेश स्थिति
                                 </label>
-                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                                     <button
                                         type="button"
-                                        onClick={() => setMemberForm({ ...memberForm, ganvesh: true })}
-                                        className={`p-2 rounded-lg border font-bold transition flex items-center justify-center space-x-1 ${
+                                        onClick={() => handleToggleFullGanvesh(true)}
+                                        className={`p-2.5 rounded-xl border font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
                                             memberForm.ganvesh
                                                 ? 'bg-emerald-100 text-emerald-800 border-emerald-400 ring-2 ring-emerald-300'
-                                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                                                : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
                                         }`}
                                     >
-                                        <span>🟢 हाँ (गणवेश युक्त)</span>
+                                        <span>🟢 हाँ (पूर्ण गणवेश युक्त)</span>
                                     </button>
 
                                     <button
                                         type="button"
-                                        onClick={() => setMemberForm({ ...memberForm, ganvesh: false })}
-                                        className={`p-2 rounded-lg border font-bold transition flex items-center justify-center space-x-1 ${
+                                        onClick={() => handleToggleFullGanvesh(false)}
+                                        className={`p-2.5 rounded-xl border font-bold transition flex items-center justify-center space-x-1 cursor-pointer ${
                                             !memberForm.ganvesh
                                                 ? 'bg-amber-100 text-amber-800 border-amber-400 ring-2 ring-amber-300'
-                                                : 'bg-stone-50 text-stone-600 border-stone-200'
+                                                : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
                                         }`}
                                     >
-                                        <span>⚪ नहीं (गणवेश शेष)</span>
+                                        <span>⚪ नहीं (गणवेश शेष / आंशिक)</span>
                                     </button>
+                                </div>
+
+                                {/* Separate Components Breakdown Checkboxes */}
+                                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <span className="font-bold text-amber-950 flex items-center space-x-1">
+                                            <span>🥋</span>
+                                            <span>गणवेश सामग्री घटक (Components):</span>
+                                        </span>
+                                        <span className="text-[11px] text-stone-500 font-semibold">
+                                            ({[memberForm.have_pant, memberForm.have_shirt, memberForm.have_topi, memberForm.have_dand, memberForm.have_belt, memberForm.have_moje, memberForm.have_shoes].filter(Boolean).length}/7 चयनित)
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                                        {[
+                                            { key: 'have_pant', label: 'पैंट' },
+                                            { key: 'have_shirt', label: 'शर्ट' },
+                                            { key: 'have_topi', label: 'टोपी' },
+                                            { key: 'have_dand', label: 'दण्ड' },
+                                            { key: 'have_belt', label: 'बेल्ट' },
+                                            { key: 'have_moje', label: 'मोज़े' },
+                                            { key: 'have_shoes', label: 'जूते' },
+                                        ].map((comp) => (
+                                            <label
+                                                key={comp.key}
+                                                className={`flex items-center space-x-2 p-2 rounded-lg border cursor-pointer select-none transition ${
+                                                    memberForm[comp.key]
+                                                        ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold'
+                                                        : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={Boolean(memberForm[comp.key])}
+                                                    onChange={(e) => handleToggleComponent(comp.key, e.target.checked)}
+                                                    className="w-4 h-4 text-emerald-600 rounded border-stone-300 focus:ring-emerald-500 cursor-pointer"
+                                                />
+                                                <span className="text-xs">{comp.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] text-stone-500 italic">
+                                        * पूर्ण गणवेश चुनने पर सभी 7 घटक स्वतः टिक हो जाएंगे। सभी 7 घटक टिक होने पर स्वतः पूर्ण गणवेश चुना जाएगा।
+                                    </p>
                                 </div>
                             </div>
 
@@ -2918,6 +3404,210 @@ export default function ToliIndex({
                                 type="button"
                                 onClick={() => setSelectedQrUnit(null)}
                                 className="w-full py-2 text-xs font-semibold text-stone-500 hover:text-stone-700 cursor-pointer"
+                            >
+                                बंद करें
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 12. TOLI RESPONSIBILITIES & HOLDERS MODAL */}
+            {showToliModal && (
+                <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-3 animate-fade-in">
+                    <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-amber-300 overflow-hidden animate-scale-in max-h-[90vh] flex flex-col">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-4 text-white flex items-center justify-between shrink-0 shadow-sm">
+                            <div className="flex items-center space-x-2.5">
+                                <span className="text-2xl">🚩</span>
+                                <div>
+                                    <h2 className="text-base md:text-lg font-black tracking-tight">
+                                        टोली दायित्व एवं दायित्वधारी विवरण
+                                    </h2>
+                                    <p className="text-xs text-amber-100 font-medium">
+                                        {unit?.name} ({unit?.level_hindi || 'इकाई'}) • आधिकारिक टोली संरचना
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowToliModal(false)}
+                                className="text-white/80 hover:text-white p-1 rounded-lg cursor-pointer"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-4 space-y-3.5 overflow-y-auto flex-1">
+                            {/* Search bar */}
+                            <div className="relative">
+                                <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <input
+                                    type="text"
+                                    value={toliModalSearch}
+                                    onChange={(e) => setToliModalSearch(e.target.value)}
+                                    placeholder="दायित्व या दायित्वधारी नाम से खोजें..."
+                                    className="w-full pl-9 pr-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white"
+                                />
+                                {toliModalSearch && (
+                                    <button
+                                        onClick={() => setToliModalSearch('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs cursor-pointer"
+                                    >
+                                        हटाएं
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Stats banner */}
+                            <div className="bg-amber-50/70 border border-amber-200 rounded-xl p-3 flex items-center justify-between text-xs">
+                                <div>
+                                    <span className="text-stone-600 font-medium">कुल दायित्व: </span>
+                                    <span className="font-extrabold text-amber-950">{toliResponsibilityRows.length}</span>
+                                </div>
+                                <div>
+                                    <span className="text-stone-600 font-medium">दायित्वधारी नियुक्त: </span>
+                                    <span className="font-extrabold text-emerald-800">
+                                        {toliResponsibilityRows.filter((r) => !r.is_vacant).length}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-stone-600 font-medium">रिक्त: </span>
+                                    <span className="font-extrabold text-rose-700">
+                                        {toliResponsibilityRows.filter((r) => r.is_vacant).length}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Responsibilities List */}
+                            <div className="space-y-2">
+                                {filteredToliRows.length === 0 ? (
+                                    <div className="p-8 text-center text-stone-500 text-xs bg-stone-50 rounded-xl border border-dashed border-stone-200">
+                                        कोई दायित्व अथवा दायित्वधारी नहीं मिला।
+                                    </div>
+                                ) : (
+                                    filteredToliRows.map((r, idx) => (
+                                        <div
+                                            key={idx}
+                                            className={`p-3 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                                                r.is_vacant
+                                                    ? 'bg-stone-50/60 border-stone-200 hover:border-amber-300'
+                                                    : 'bg-white border-amber-200/90 shadow-2xs hover:border-amber-400'
+                                            }`}
+                                        >
+                                            <div className="space-y-1 min-w-0">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="text-sm">🚩</span>
+                                                    <span className="font-extrabold text-stone-900 text-sm">
+                                                        {r.daayitwa_name}
+                                                    </span>
+                                                    {r.unit_level && (
+                                                        <span className="bg-amber-100 text-amber-900 text-[9px] font-extrabold px-1.5 py-0.5 rounded border border-amber-200">
+                                                            {r.unit_level}
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {r.is_vacant ? (
+                                                    <div className="text-xs text-rose-600 font-semibold italic pl-6">
+                                                        दायित्व रिक्त (कोई दायित्वधारी नियुक्त नहीं)
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600 pl-6">
+                                                        <span className="font-bold text-stone-900 flex items-center space-x-1">
+                                                            <span>👤</span>
+                                                            <span>{r.holder_name}</span>
+                                                        </span>
+                                                        {r.holder_mobile && (
+                                                            <div className="flex items-center space-x-1 text-amber-800 font-medium font-mono">
+                                                                <Phone className="w-3 h-3 text-stone-400" />
+                                                                <a href={`tel:${r.holder_mobile}`} className="hover:underline">
+                                                                    {r.holder_mobile}
+                                                                </a>
+                                                                <button
+                                                                    onClick={() => shareToWhatsApp(`नमस्ते ${r.holder_name} जी, संघ दायित्व (${r.daayitwa_name}) सूचना।`)}
+                                                                    className="text-emerald-600 hover:text-emerald-700 ml-0.5 cursor-pointer"
+                                                                    title="व्हाट्सएप"
+                                                                >
+                                                                    <MessageCircle className="w-3 h-3" />
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                        {r.holder_address && (
+                                                            <span className="text-stone-400 truncate max-w-xs text-[11px]">
+                                                                📍 {r.holder_address}
+                                                            </span>
+                                                        )}
+                                                        {r.ganvesh !== null && (
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                                                r.ganvesh ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                                            }`}>
+                                                                {r.ganvesh ? '🟢 गणवेश' : '⚪ गणवेश शेष'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Quick action: if vacant, allow adding or editing member */}
+                                            <div className="self-end sm:self-center shrink-0">
+                                                {r.is_vacant ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowToliModal(false);
+                                                            handleOpenAddMember();
+                                                            setMemberForm((prev) => ({
+                                                                ...prev,
+                                                                daayitwa_id: r.daayitwa_id ? String(r.daayitwa_id) : '',
+                                                            }));
+                                                        }}
+                                                        className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer"
+                                                    >
+                                                        <Plus className="w-3 h-3" />
+                                                        <span>नियुक्त करें</span>
+                                                    </button>
+                                                ) : r.holder_id ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            setShowToliModal(false);
+                                                            const m = (localSwayamsevaks || []).find((s) => s.id === r.holder_id);
+                                                            if (m) handleOpenEditMember(m);
+                                                        }}
+                                                        className="bg-stone-50 hover:bg-amber-50 text-stone-700 hover:text-amber-800 p-1.5 rounded-lg border border-stone-200 transition text-xs flex items-center space-x-1 cursor-pointer"
+                                                        title="संपादित करें"
+                                                    >
+                                                        <Edit3 className="w-3.5 h-3.5" />
+                                                        <span className="text-[11px] font-semibold">बदलें</span>
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-3 bg-stone-50 border-t border-stone-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={handleCopyToliReport}
+                                    className="bg-white hover:bg-stone-100 text-stone-800 text-xs font-bold px-3 py-2 rounded-xl flex items-center space-x-1 border border-stone-300 transition cursor-pointer shadow-2xs"
+                                >
+                                    <Copy className="w-3.5 h-3.5 text-stone-600" />
+                                    <span>{copiedToliReport ? 'कॉपी हो गया!' : 'सूची कॉपी करें'}</span>
+                                </button>
+                                <button
+                                    onClick={handleShareToliWhatsApp}
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2 rounded-xl flex items-center space-x-1 transition cursor-pointer shadow-xs"
+                                >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    <span>व्हाट्सएप पर शेयर</span>
+                                </button>
+                            </div>
+                            <button
+                                onClick={() => setShowToliModal(false)}
+                                className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
                             >
                                 बंद करें
                             </button>

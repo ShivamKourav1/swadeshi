@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import {
     Award,
@@ -20,7 +20,9 @@ import {
     Boxes,
 } from 'lucide-react';
 
-export default function Dashboard({ scope, metrics, orders, filters, filterOptions, toli_url, can_manage_inventory_scope }) {
+export default function Dashboard({ auth, scope, metrics, orders, filters, filterOptions, toli_url, can_manage_inventory_scope }) {
+    const pageAuth = usePage()?.props?.auth;
+    const currentUser = auth?.user || pageAuth?.user;
     const [searchTerm, setSearchTerm] = useState(filters?.search || '');
     const [selectedStatus, setSelectedStatus] = useState(filters?.delivery_status || '');
     const [selectedJila, setSelectedJila] = useState(filters?.jila_id || '');
@@ -150,6 +152,15 @@ export default function Dashboard({ scope, metrics, orders, filters, filterOptio
                                 >
                                     <Boxes className="w-3.5 h-3.5" />
                                     <span>टोली स्तरीय वस्तु भंडार इकाई प्रबंधन</span>
+                                </Link>
+                            )}
+                            {currentUser?.is_superadmin && (
+                                <Link
+                                    href={route('karyakarta.daayitwa.index')}
+                                    className="inline-flex items-center space-x-1.5 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white text-xs font-black px-3.5 py-1.5 rounded-xl shadow-xs transition border border-orange-300/40"
+                                >
+                                    <Award className="w-3.5 h-3.5" />
+                                    <span>दायित्व प्रबंधन (Daayitwa)</span>
                                 </Link>
                             )}
                             <Link

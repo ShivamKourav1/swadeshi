@@ -9,6 +9,7 @@ use App\Http\Controllers\DealerDemandController;
 use App\Http\Controllers\DealerOrderController;
 use App\Http\Controllers\DeliveryLocationController;
 use App\Http\Controllers\DeliveryPartnerController;
+use App\Http\Controllers\Karyakarta\DaayitwaController;
 use App\Http\Controllers\Karyakarta\KaryakartaDashboardController;
 use App\Http\Controllers\Karyakarta\OrganizationUnitController;
 use App\Http\Controllers\Karyakarta\ToliInventoryScopeController;
@@ -117,6 +118,12 @@ Route::middleware('auth')->group(function () {
         // Toli Level Inventory Scope Management
         Route::get('/inventory-scope', [ToliInventoryScopeController::class, 'index'])->name('karyakarta.inventory-scope.index');
         Route::post('/inventory-scope', [ToliInventoryScopeController::class, 'update'])->name('karyakarta.inventory-scope.update');
+
+        // Daayitwa (Responsibility) Management CRUD (Superadmin only)
+        Route::get('/daayitwa', [DaayitwaController::class, 'index'])->name('karyakarta.daayitwa.index');
+        Route::post('/daayitwa', [DaayitwaController::class, 'store'])->name('karyakarta.daayitwa.store');
+        Route::put('/daayitwa/{daayitwa}', [DaayitwaController::class, 'update'])->name('karyakarta.daayitwa.update');
+        Route::delete('/daayitwa/{daayitwa}', [DaayitwaController::class, 'destroy'])->name('karyakarta.daayitwa.destroy');
     });
 
     // Admin Routes

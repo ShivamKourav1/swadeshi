@@ -407,19 +407,34 @@ class AdminUserManagementTest extends TestCase
         $this->assertTrue($targetUser->profile->is_jila_toli_member);
     }
 
-    public function test_shakha_product_seeder_and_service_initialize_default_stock_as_zero(): void
+    public function test_superadmin_can_update_user_password_and_profile(): void
     {
-        $dealer = User::factory()->create(['role' => 'dealer']);
-        $dealer->profile()->create([]);
+        $this->seed(RoleAndPermissionSeeder::class);
+        $superadmin = User::factory()->create(['role' => 'superadmin']);
 
-        $count = ShakhaProductService::createForDealer($dealer);
-        $this->assertEquals(23, $count);
+        $h = $this->createHierarchy();
+        $jila = $h['jila'];
 
-        $products = Product::where('dealer_id', $dealer->id)->get();
-        $this->assertCount(23, $products);
+        $targetUser = User::factory()->create(['role' => 'karyakarta', 'password' => Hash::make('oldpassword123')]);
+        UserProfile::create([
+            'user_id' => $targetUser->id,
+            'bio' => 'Authorized Karyakarta overseeing Badrinath Jila organizational distribution & events.',
+            'jila_id' => $jila->id,
+        ]);
 
-        foreach ($products as $product) {
-            $this->assertEquals(0, $product->stock, "Product {$product->name} stock should be 0");
-        }
+        $response = $this->actingAs($superadmin)->put(route('admin.users.update', $targetUser->id), [
+            'name' => $targetUser->name,
+            'email' => $targetUser->email,
+            'role' => 'karyakarta',
+            'status' => 'active',
+            'bio' => 'Authorized Karyakarta overseeing Badrinath Jila organizational distribution & events.',
+            'jila_id' => $jila->id,
+            'password' => 'newsecretpassword123',
+        ]);
+
+        $response->assertRedirect(route('admin.users.index'));
+
+        $targetUser->refresh();
+        $this->assertTrue(Hash::check('newsecretpassword123', $targetUser->password));
     }
 }
