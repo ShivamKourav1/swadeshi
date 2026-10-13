@@ -7,6 +7,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -88,7 +89,7 @@ class RoleController extends Controller
         ];
 
         if (!$role->is_system) {
-            $rules['name'] = ['sometimes', 'required', 'string', 'max:50', 'unique:roles,name,' . $role->id, 'regex:/^[a-z0-9_]+$/'];
+            $rules['name'] = ['sometimes', 'required', 'string', 'max:50', Rule::unique('roles', 'name')->ignore($role->id), 'regex:/^[a-z0-9_]+$/'];
         }
 
         $validated = $request->validate($rules, [

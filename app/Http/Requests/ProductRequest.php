@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class ProductRequest extends FormRequest
 {
@@ -13,7 +15,13 @@ class ProductRequest extends FormRequest
 
     public function rules(): array
     {
-        $productId = $this->product ? $this->product->id : null;
+        $product = $this->route('product');
+        $productId = $product instanceof Product ? $product->id : ($product ?: ($this->product instanceof Product ? $this->product->id : null));
+
+        $skuRule = Rule::unique('products', 'sku');
+        if (!empty($productId)) {
+            $skuRule->ignore($productId);
+        }
 
         return [
             'name' => ['required', 'string', 'max:255', 'regex:/^[^<>]*$/'],
@@ -21,7 +29,7 @@ class ProductRequest extends FormRequest
             'price' => ['required', 'numeric', 'min:0.01'],
             'stock' => ['required', 'integer', 'min:0'],
             'description' => ['nullable', 'string', 'regex:/^[^<>]*$/'],
-            'sku' => ['required', 'string', 'max:100', 'regex:/^[^<>]*$/', 'unique:products,sku,' . $productId],
+            'sku' => ['required', 'string', 'max:100', 'regex:/^[^<>]*$/', $skuRule],
             'image_url' => ['nullable', 'string', 'url'],
             'status' => ['required', 'in:active,inactive'],
         ];
