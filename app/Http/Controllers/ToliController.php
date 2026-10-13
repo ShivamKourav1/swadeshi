@@ -18,6 +18,8 @@ use App\Models\Shakha;
 use App\Models\Swayamsevak;
 use App\Models\ToliInventoryScope;
 use App\Models\User;
+use App\Models\UserProfile;
+use App\Models\Vibhag;
 use App\Services\ToliEncryptionService;
 use App\Services\UserImportService;
 use Carbon\Carbon;
@@ -102,6 +104,8 @@ class ToliController extends Controller
                         'name' => $s->name,
                         'mobile' => $s->mobile,
                         'address' => $s->address,
+                        'user_id' => $s->user_id,
+                        'has_user' => (bool) $s->user_id,
                         'basti_id' => $s->basti_id ?: $s->shakha_id,
                         'shakha_id' => $s->basti_id ?: $s->shakha_id,
                         'basti_name' => $bastiName,
@@ -977,11 +981,13 @@ class ToliController extends Controller
         ]);
 
         $login = trim($request->input('login'));
+        $cleanLogin = preg_replace('/\s+/', '', $login);
         $password = $request->input('password');
 
-        // Standard credential login (by email or phone)
+        // Standard credential login (by email or phone, with space tolerance)
         $user = User::where('email', $login)
             ->orWhere('phone', $login)
+            ->orWhere('phone', $cleanLogin)
             ->first();
 
         if (!$user || !Hash::check($password, $user->password)) {
@@ -1050,6 +1056,9 @@ class ToliController extends Controller
             'shikshan' => 'nullable|string|max:100',
         ]);
 
+        $cleanMobile = $request->filled('mobile') ? preg_replace('/\s+/', '', (string) $request->input('mobile')) : null;
+        $validated['mobile'] = $cleanMobile;
+
         $rawBastiId = $request->input('basti_id');
         $rawShakhaId = $request->input('shakha_id');
 
@@ -1103,7 +1112,11 @@ class ToliController extends Controller
         $swayamsevak = Swayamsevak::create($validated);
         $swayamsevak->load('daayitwa');
 
-        if ($request->wantsJson() || $request->ajax()) {
+        if ($request->boolean('create_user') && !empty($cleanMobile)) {
+            $this->syncUserForSwayamsevak($swayamsevak, $cleanMobile);
+        }
+
+        if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
             return response()->json([
                 'success' => true,
                 'swayamsevak' => $swayamsevak,
@@ -1117,7 +1130,7 @@ class ToliController extends Controller
     /**
      * Update Swayamsevak (Member).
      */
-    public function updateMember(Request $request, Swayamsevak $swayamsevak): RedirectResponse
+    public function updateMember(Request $request, Swayamsevak $swayamsevak)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -1136,6 +1149,9 @@ class ToliController extends Controller
             'have_shoes' => 'nullable|boolean',
             'shikshan' => 'nullable|string|max:100',
         ]);
+
+        $cleanMobile = $request->filled('mobile') ? preg_replace('/\s+/', '', (string) $request->input('mobile')) : null;
+        $validated['mobile'] = $cleanMobile;
 
         $rawBastiId = $request->input('basti_id');
         $rawShakhaId = $request->input('shakha_id');
@@ -1187,17 +1203,115 @@ class ToliController extends Controller
 
         $swayamsevak->update($validated);
 
+        if ($request->boolean('create_user') && !empty($cleanMobile)) {
+            $this->syncUserForSwayamsevak($swayamsevak, $cleanMobile);
+        }
+
+        if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
+            return response()->json([
+                'success' => true,
+                'swayamsevak' => $swayamsevak,
+                'message' => 'स्वयंसेवक विवरण सफलतापूर्वक अपडेट किया गया।'
+            ]);
+        }
+
         return back()->with('success', 'स्वयंसेवक विवरण सफलतापूर्वक अपडेट किया गया।');
     }
 
     /**
      * Delete Swayamsevak (Member).
      */
-    public function destroyMember(Swayamsevak $swayamsevak): RedirectResponse
+    public function destroyMember(Request $request, Swayamsevak $swayamsevak)
     {
         $swayamsevak->delete();
 
+        if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
+            return response()->json([
+                'success' => true,
+                'message' => 'स्वयंसेवक को सूची से हटा दिया गया।'
+            ]);
+        }
+
         return back()->with('success', 'स्वयंसेवक को सूची से हटा दिया गया।');
+    }
+
+    /**
+     * Change user password from Toli page.
+     */
+    public function changePassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string|min:6|confirmed',
+        ]);
+
+        $user = $request->user();
+        if (!$user) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'लॉगिन आवश्यक है।'], 401);
+            }
+            return back()->withErrors(['password' => 'लॉगिन आवश्यक है।']);
+        }
+
+        $user->update([
+            'password' => Hash::make($request->input('password')),
+        ]);
+
+        if (!$request->header('X-Inertia') && ($request->wantsJson() || $request->ajax())) {
+            return response()->json([
+                'success' => true,
+                'message' => 'पासवर्ड सफलतापूर्वक बदल दिया गया।'
+            ]);
+        }
+
+        return back()->with('success', 'पासवर्ड सफलतापूर्वक बदल दिया गया।');
+    }
+
+    /**
+     * Helper to create or sync User account for Swayamsevak.
+     */
+    private function syncUserForSwayamsevak(Swayamsevak $swayamsevak, string $cleanMobile): ?User
+    {
+        if (empty($cleanMobile)) {
+            return null;
+        }
+
+        $user = User::where('phone', $cleanMobile)->first();
+        if (!$user) {
+            $user = User::create([
+                'name' => $swayamsevak->name,
+                'phone' => $cleanMobile,
+                'email' => null,
+                'password' => Hash::make($cleanMobile),
+                'role' => 'karyakarta',
+                'status' => 'active',
+            ]);
+        } else {
+            $user->update([
+                'name' => $swayamsevak->name,
+                'password' => Hash::make($cleanMobile),
+                'status' => 'active',
+            ]);
+        }
+
+        $basti = $swayamsevak->basti_id ? Basti::with('nagar.jila.vibhag.prant.kshetra')->find($swayamsevak->basti_id) : null;
+        $shakha = $swayamsevak->shakha_id ? Shakha::with('basti.nagar.jila.vibhag.prant.kshetra')->find($swayamsevak->shakha_id) : null;
+
+        $profileData = [
+            'user_id' => $user->id,
+            'basti_id' => $swayamsevak->basti_id,
+            'shakha_id' => $swayamsevak->shakha_id,
+            'nagar_id' => $shakha?->nagar_id ?: ($shakha?->basti?->nagar_id ?: $basti?->nagar_id),
+            'jila_id' => $shakha?->jila_id ?: ($shakha?->basti?->nagar?->jila_id ?: $basti?->nagar?->jila_id),
+            'vibhag_id' => $basti?->nagar?->jila?->vibhag_id ?: ($shakha?->nagar?->jila?->vibhag_id ?: $shakha?->basti?->nagar?->jila?->vibhag_id),
+            'prant_id' => $basti?->nagar?->jila?->vibhag?->prant_id ?: ($shakha?->nagar?->jila?->vibhag?->prant_id ?: $shakha?->basti?->nagar?->jila?->vibhag?->prant_id),
+            'kshetra_id' => $basti?->nagar?->jila?->vibhag?->prant?->kshetra_id ?: ($shakha?->nagar?->jila?->vibhag?->prant?->kshetra_id ?: $shakha?->basti?->nagar?->jila?->vibhag?->prant?->kshetra_id),
+            'is_basti_toli_member' => true,
+        ];
+        UserProfile::updateOrCreate(['user_id' => $user->id], $profileData);
+
+        $swayamsevak->update(['user_id' => $user->id]);
+
+        return $user;
     }
 
     /**

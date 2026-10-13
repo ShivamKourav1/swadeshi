@@ -69,6 +69,11 @@ class User extends Authenticatable
         return $this->hasMany(ProductDemand::class, 'customer_id');
     }
 
+    public function swayamsevak(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Swayamsevak::class);
+    }
+
     public function roles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'role_user');

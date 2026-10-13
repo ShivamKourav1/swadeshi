@@ -32,7 +32,7 @@ class AdminUserCreateRequest extends FormRequest
             'jila_id' => ['nullable', 'integer', 'exists:jilas,id'],
             'nagar_id' => ['nullable', 'integer', 'exists:nagars,id'],
             'basti_id' => ['nullable', 'integer', 'exists:bastis,id'],
-            'shakha_id' => ['nullable', 'integer', 'exists:bastis,id'],
+            'shakha_id' => ['nullable', 'integer'],
             'is_basti_toli_member' => ['nullable', 'boolean'],
             'is_shakha_toli_member' => ['nullable', 'boolean'],
             'is_nagar_toli_member' => ['nullable', 'boolean'],

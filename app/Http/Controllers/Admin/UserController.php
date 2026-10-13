@@ -286,7 +286,7 @@ class UserController extends Controller
             'jila_id' => $validated['jila_id'] ?? null,
             'nagar_id' => $validated['nagar_id'] ?? null,
             'basti_id' => $bastiId,
-            'shakha_id' => $bastiId,
+            'shakha_id' => !empty($validated['shakha_id']) && Shakha::where('id', $validated['shakha_id'])->exists() ? $validated['shakha_id'] : null,
             'is_basti_toli_member' => $isBastiToli,
             'is_shakha_toli_member' => $isBastiToli,
             'is_nagar_toli_member' => !empty($validated['is_nagar_toli_member']) || in_array(Role::where('name', 'nagar_karyakarta')->value('id'), $roleIds),
@@ -483,7 +483,7 @@ class UserController extends Controller
             'jila_id' => $validated['jila_id'] ?? null,
             'nagar_id' => $validated['nagar_id'] ?? null,
             'basti_id' => $bastiId,
-            'shakha_id' => $bastiId,
+            'shakha_id' => !empty($validated['shakha_id']) && Shakha::where('id', $validated['shakha_id'])->exists() ? $validated['shakha_id'] : null,
             'is_basti_toli_member' => $isBastiToli,
             'is_shakha_toli_member' => $isBastiToli,
             'is_nagar_toli_member' => !empty($validated['is_nagar_toli_member']) || in_array(Role::where('name', 'nagar_karyakarta')->value('id'), $roleIds),
@@ -554,12 +554,22 @@ class UserController extends Controller
      */
     private function resolveJurisdictionHierarchy(array $profileData): array
     {
-        $bastiId = $profileData['basti_id'] ?? $profileData['shakha_id'] ?? null;
+        if (!empty($profileData['shakha_id'])) {
+            $shakha = Shakha::with('basti.nagar.jila.vibhag.prant')->find($profileData['shakha_id']);
+            if ($shakha) {
+                $profileData['basti_id'] = $profileData['basti_id'] ?: $shakha->basti_id;
+                $profileData['nagar_id'] = $profileData['nagar_id'] ?: $shakha->nagar_id ?: $shakha->basti?->nagar_id;
+                $profileData['jila_id'] = $profileData['jila_id'] ?: $shakha->jila_id ?: $shakha->basti?->nagar?->jila_id;
+            } else {
+                $profileData['shakha_id'] = null;
+            }
+        }
+
+        $bastiId = $profileData['basti_id'] ?? null;
         if (!empty($bastiId)) {
             $basti = Basti::with('nagar.jila.vibhag.prant')->find($bastiId);
             if ($basti) {
                 $profileData['basti_id'] = $basti->id;
-                $profileData['shakha_id'] = $basti->id;
                 $profileData['nagar_id'] = $profileData['nagar_id'] ?: $basti->nagar_id;
                 $profileData['jila_id'] = $profileData['jila_id'] ?: $basti->nagar?->jila_id;
                 $profileData['vibhag_id'] = $profileData['vibhag_id'] ?: $basti->nagar?->jila?->vibhag_id;

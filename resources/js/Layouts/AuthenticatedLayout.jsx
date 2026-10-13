@@ -134,9 +134,9 @@ export default function AuthenticatedLayout({ children, title }) {
     const roleBadge = getRoleBadge();
 
     return (
-        <div className="min-h-screen bg-orange-50/30 flex flex-col font-sans overflow-x-hidden">
+        <div className="min-h-screen bg-orange-50/30 flex flex-col font-sans overflow-x-clip">
             {/* Top Navigation Bar */}
-            <header className="bg-white border-b border-amber-100 sticky top-0 z-40 shadow-xs">
+            <header className="bg-white/95 backdrop-blur-md border-b border-amber-100 sticky top-0 z-40 shadow-xs transition-shadow">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16 items-center gap-2">
                         {/* Left: Mobile Menu Toggle Button & Brand Logo */}

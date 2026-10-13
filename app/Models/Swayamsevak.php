@@ -14,6 +14,7 @@ class Swayamsevak extends Model
     protected $table = 'swayamsevaks';
 
     protected $fillable = [
+        'user_id',
         'name',
         'mobile',
         'address',
@@ -50,6 +51,11 @@ class Swayamsevak extends Model
         'कार्यकर्ता विकास वर्ग - २',
         'अन्य / कोई नहीं',
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function daayitwa(): BelongsTo
     {

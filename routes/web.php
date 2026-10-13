@@ -165,6 +165,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/toli/orders/{order}/cancel', [ToliController::class, 'cancelOrder'])->name('toli.orders.cancel');
     Route::post('/toli/orders/{order}/return', [ToliController::class, 'returnOrder'])->name('toli.orders.return');
     Route::post('/toli/demands', [ToliController::class, 'storeDemand'])->name('toli.demands.store');
+    Route::post('/toli/change-password', [ToliController::class, 'changePassword'])->name('toli.change-password');
 });
 
 // Toli Hierarchy SPA Route (Matches /{kshetra}/{vibhag?}/{jila?}/{nagar?}/{basti?})

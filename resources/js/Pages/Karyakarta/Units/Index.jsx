@@ -1881,44 +1881,28 @@ export default function Index({
                                                         </div>
                                                     </div>
 
-                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1.5 border-t border-gray-100 bg-amber-50/20 p-2 rounded-xl">
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
-                                                                पदनाम / दायित्व नाम
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                value={member.role}
-                                                                onChange={(e) => updateToliMember(index, 'role', e.target.value)}
-                                                                placeholder="उदा. मुख्य शिक्षक"
-                                                                className="w-full p-2 border border-gray-300 rounded-lg text-xs font-bold text-gray-800 bg-white focus:ring-2 focus:ring-amber-500"
-                                                            />
+                                                    {(member.role || member.name || member.contact) && (
+                                                        <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-amber-100/70 text-xs text-amber-900 bg-amber-50/40 px-3 py-1.5 rounded-xl">
+                                                            {member.role && (
+                                                                <span className="font-extrabold flex items-center space-x-1 text-amber-950">
+                                                                    <span>🚩</span>
+                                                                    <span>{member.role}</span>
+                                                                </span>
+                                                            )}
+                                                            {member.name && (
+                                                                <span className="font-semibold text-stone-700 flex items-center space-x-1">
+                                                                    <span>👤</span>
+                                                                    <span>{member.name}</span>
+                                                                </span>
+                                                            )}
+                                                            {member.contact && (
+                                                                <span className="text-stone-500 font-mono text-[11px] flex items-center space-x-1">
+                                                                    <span>📞</span>
+                                                                    <span>{member.contact}</span>
+                                                                </span>
+                                                            )}
                                                         </div>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
-                                                                दायित्वधारी नाम
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                value={member.name}
-                                                                onChange={(e) => updateToliMember(index, 'name', e.target.value)}
-                                                                placeholder="पूरा नाम"
-                                                                className="w-full p-2 border border-gray-300 rounded-lg text-xs font-semibold bg-white focus:ring-2 focus:ring-amber-500"
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-[10px] font-bold text-gray-600 uppercase mb-0.5">
-                                                                संपर्क (मोबाइल)
-                                                            </label>
-                                                            <input
-                                                                type="text"
-                                                                value={member.contact}
-                                                                onChange={(e) => updateToliMember(index, 'contact', e.target.value)}
-                                                                placeholder="10 अंकों का मोबाइल"
-                                                                className="w-full p-2 border border-gray-300 rounded-lg text-xs font-mono bg-white focus:ring-2 focus:ring-amber-500"
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                    )}
                                                 </div>
                                             );
                                         })}
