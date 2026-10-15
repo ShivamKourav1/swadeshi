@@ -166,6 +166,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/toli/orders/{order}/return', [ToliController::class, 'returnOrder'])->name('toli.orders.return');
     Route::post('/toli/demands', [ToliController::class, 'storeDemand'])->name('toli.demands.store');
     Route::post('/toli/change-password', [ToliController::class, 'changePassword'])->name('toli.change-password');
+
+    // Baithak (Meetings) API routes
+    Route::get('/toli/baithaks/guests/search', [ToliController::class, 'searchGuests'])->name('toli.baithaks.guests.search');
+    Route::get('/toli/baithaks/units', [ToliController::class, 'getUnitsByLevel'])->name('toli.baithaks.units');
+    Route::post('/toli/baithaks', [ToliController::class, 'storeBaithak'])->name('toli.baithaks.store');
+    Route::put('/toli/baithaks/{baithak}', [ToliController::class, 'updateBaithak'])->name('toli.baithaks.update');
+    Route::put('/toli/baithaks/{baithak}/attendance', [ToliController::class, 'updateBaithakAttendance'])->name('toli.baithaks.attendance');
+    Route::delete('/toli/baithaks/{baithak}', [ToliController::class, 'destroyBaithak'])->name('toli.baithaks.destroy');
 });
 
 // Toli Hierarchy SPA Route (Matches /{kshetra}/{vibhag?}/{jila?}/{nagar?}/{basti?})

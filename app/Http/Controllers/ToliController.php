@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Baithak;
+use App\Models\BaithakAttendee;
 use App\Models\Daayitwa;
 use App\Models\DeliveryLog;
 use App\Models\Jila;
@@ -280,6 +282,17 @@ class ToliController extends Controller
             . "━━━━━━━━━━━━━━━━━━━━\n"
             . "जय श्री राम | भारत माता की जय 🚩";
 
+        // Baithaks for this unit
+        $baithaks = Baithak::where('unit_level', $hierarchy['level'])
+            ->where('unit_id', $hierarchy['target']->id)
+            ->with(['attendees' => function ($q) {
+                $q->orderBy('attendee_type', 'desc')->orderBy('is_expected', 'desc')->orderBy('name', 'asc');
+            }])
+            ->latest('baithak_date')
+            ->latest('id')
+            ->get()
+            ->map(fn($b) => $this->formatBaithak($b));
+
         return Inertia::render('Toli/Index', [
             'isAuthenticated' => $isAuth,
             'authUser' => $user ? [
@@ -310,6 +323,7 @@ class ToliController extends Controller
             ],
             'subUnits' => $hierarchy['sub_units'],
             'swayamsevaks' => $swayamsevaks,
+            'baithaks' => $baithaks,
             'swayamsevakStats' => [
                 'total' => $totalSwayamsevaks,
                 'ganvesh' => $ganveshCount,
@@ -1893,5 +1907,535 @@ class ToliController extends Controller
             'message' => 'मांग सफलतापूर्वक दर्ज की गई! जब डीलर द्वारा स्टॉक बढ़ाया जाएगा, आपकी मांग के अनुपात में पूर्ति की जाएगी।',
             'demand' => $demand->load('product', 'swayamsevak'),
         ]);
+    }
+
+    /**
+     * Store newly scheduled Baithak.
+     */
+    public function storeBaithak(Request $request)
+    {
+        $validated = $request->validate([
+            'unit_level' => 'required|string|max:50',
+            'unit_id' => 'required|integer',
+            'title' => 'required|string|max:255',
+            'baithak_type' => 'nullable|string|max:100',
+            'baithak_date' => 'required|date',
+            'baithak_time' => 'nullable|string|max:50',
+            'venue' => 'nullable|string|max:255',
+            'agenda' => 'nullable|string',
+            'expected_daayitwas' => 'nullable|array',
+            'expected_daayitwas.*' => 'string|max:255',
+            'custom_expected' => 'nullable|array',
+            'custom_expected.*' => 'string|max:255',
+            'comments_scheduling' => 'nullable|string',
+            'guests' => 'nullable|array',
+            'guests.*.name' => 'required|string|max:255',
+            'guests.*.mobile' => 'nullable|string|max:50',
+            'guests.*.daayitwa_name' => 'nullable|string|max:255',
+            'guests.*.unit_name' => 'nullable|string|max:255',
+            'guests.*.unit_level' => 'nullable|string|max:50',
+            'guests.*.swayamsevak_id' => 'nullable|integer',
+            'guests.*.is_expected' => 'nullable|boolean',
+        ]);
+
+        $baithak = Baithak::create([
+            'unit_level' => $validated['unit_level'],
+            'unit_id' => $validated['unit_id'],
+            'title' => $validated['title'],
+            'baithak_type' => $validated['baithak_type'] ?? 'बैठक',
+            'baithak_date' => $validated['baithak_date'],
+            'baithak_time' => $validated['baithak_time'] ?? null,
+            'venue' => $validated['venue'] ?? null,
+            'agenda' => $validated['agenda'] ?? null,
+            'status' => 'scheduled',
+            'expected_daayitwas' => $validated['expected_daayitwas'] ?? [],
+            'custom_expected' => $validated['custom_expected'] ?? [],
+            'comments_scheduling' => $validated['comments_scheduling'] ?? null,
+            'attended_count' => 0,
+            'total_expected_count' => 0,
+            'created_by_user_id' => Auth::id(),
+        ]);
+
+        // Expected designations list (lowercase trimmed for matching)
+        $expectedNames = array_map('mb_strtolower', array_map('trim', array_merge(
+            $validated['expected_daayitwas'] ?? [],
+            $validated['custom_expected'] ?? []
+        )));
+
+        // 1. Fetch unit swayamsevaks
+        $bastiIds = $this->getSubordinateBastiIds($validated['unit_level'], (int) $validated['unit_id']);
+        $swayamsevaks = Swayamsevak::where(function ($q) use ($bastiIds) {
+                $q->whereIn('basti_id', $bastiIds)->orWhereIn('shakha_id', $bastiIds);
+            })
+            ->with(['daayitwa:id,name', 'basti:id,basti_name', 'shakha:id,basti_name'])
+            ->get();
+
+        foreach ($swayamsevaks as $s) {
+            $daayitwaName = $s->daayitwa?->name;
+            $isExpected = false;
+            if ($daayitwaName) {
+                $cleanDaayitwa = mb_strtolower(trim($daayitwaName));
+                if (in_array($cleanDaayitwa, $expectedNames, true)) {
+                    $isExpected = true;
+                }
+            }
+
+            BaithakAttendee::create([
+                'baithak_id' => $baithak->id,
+                'swayamsevak_id' => $s->id,
+                'attendee_type' => 'swayamsevak',
+                'name' => $s->name,
+                'mobile' => $s->mobile,
+                'daayitwa_name' => $daayitwaName,
+                'unit_name' => $s->basti?->basti_name ?? $s->shakha?->basti_name ?? '',
+                'unit_level' => 'basti',
+                'is_expected' => $isExpected,
+                'is_present' => false,
+            ]);
+        }
+
+        // 2. Add guests
+        if (!empty($validated['guests'])) {
+            foreach ($validated['guests'] as $g) {
+                BaithakAttendee::create([
+                    'baithak_id' => $baithak->id,
+                    'swayamsevak_id' => !empty($g['swayamsevak_id']) ? (int) $g['swayamsevak_id'] : null,
+                    'attendee_type' => 'guest',
+                    'name' => $g['name'],
+                    'mobile' => $g['mobile'] ?? null,
+                    'daayitwa_name' => $g['daayitwa_name'] ?? null,
+                    'unit_name' => $g['unit_name'] ?? null,
+                    'unit_level' => $g['unit_level'] ?? null,
+                    'is_expected' => !empty($g['is_expected']),
+                    'is_present' => false,
+                ]);
+            }
+        }
+
+        $baithak->recalculateAttendance();
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'बैठक सफलतापूर्वक निर्धारित की गई।',
+                'baithak' => $this->formatBaithak($baithak->fresh()->load(['attendees' => fn($q) => $q->orderBy('attendee_type', 'desc')->orderBy('is_expected', 'desc')->orderBy('name', 'asc')])),
+            ]);
+        }
+
+        return back()->with('success', 'बैठक सफलतापूर्वक निर्धारित की गई।');
+    }
+
+    /**
+     * Update Baithak details & expected list.
+     */
+    public function updateBaithak(Request $request, Baithak $baithak)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'baithak_type' => 'nullable|string|max:100',
+            'baithak_date' => 'required|date',
+            'baithak_time' => 'nullable|string|max:50',
+            'venue' => 'nullable|string|max:255',
+            'agenda' => 'nullable|string',
+            'status' => 'nullable|string|max:50',
+            'expected_daayitwas' => 'nullable|array',
+            'expected_daayitwas.*' => 'string|max:255',
+            'custom_expected' => 'nullable|array',
+            'custom_expected.*' => 'string|max:255',
+            'comments_scheduling' => 'nullable|string',
+            'minutes' => 'nullable|string',
+            'comments_minutes' => 'nullable|string',
+            'guests' => 'nullable|array',
+            'guests.*.name' => 'required|string|max:255',
+            'guests.*.mobile' => 'nullable|string|max:50',
+            'guests.*.daayitwa_name' => 'nullable|string|max:255',
+            'guests.*.unit_name' => 'nullable|string|max:255',
+            'guests.*.unit_level' => 'nullable|string|max:50',
+            'guests.*.swayamsevak_id' => 'nullable|integer',
+            'guests.*.is_expected' => 'nullable|boolean',
+            'guests.*.is_present' => 'nullable|boolean',
+        ]);
+
+        $baithak->update([
+            'title' => $validated['title'],
+            'baithak_type' => $validated['baithak_type'] ?? $baithak->baithak_type,
+            'baithak_date' => $validated['baithak_date'],
+            'baithak_time' => $validated['baithak_time'] ?? null,
+            'venue' => $validated['venue'] ?? null,
+            'agenda' => $validated['agenda'] ?? null,
+            'status' => $validated['status'] ?? $baithak->status,
+            'expected_daayitwas' => $validated['expected_daayitwas'] ?? [],
+            'custom_expected' => $validated['custom_expected'] ?? [],
+            'comments_scheduling' => $validated['comments_scheduling'] ?? $baithak->comments_scheduling,
+            'minutes' => $validated['minutes'] ?? $baithak->minutes,
+            'comments_minutes' => $validated['comments_minutes'] ?? $baithak->comments_minutes,
+        ]);
+
+        // Re-sync is_expected for swayamsevaks based on updated expected lists
+        $expectedNames = array_map('mb_strtolower', array_map('trim', array_merge(
+            $validated['expected_daayitwas'] ?? [],
+            $validated['custom_expected'] ?? []
+        )));
+
+        $swayamsevakAttendees = $baithak->attendees()->where('attendee_type', 'swayamsevak')->get();
+        foreach ($swayamsevakAttendees as $att) {
+            $isExp = false;
+            if ($att->daayitwa_name) {
+                $clean = mb_strtolower(trim($att->daayitwa_name));
+                $isExp = in_array($clean, $expectedNames, true);
+            }
+            if ($att->is_expected !== $isExp) {
+                $att->update(['is_expected' => $isExp]);
+            }
+        }
+
+        // Add new guests if any provided
+        if (!empty($validated['guests'])) {
+            foreach ($validated['guests'] as $g) {
+                $existing = null;
+                if (!empty($g['swayamsevak_id'])) {
+                    $existing = $baithak->attendees()->where('swayamsevak_id', $g['swayamsevak_id'])->first();
+                } elseif (!empty($g['name'])) {
+                    $existing = $baithak->attendees()->where('name', $g['name'])->where('attendee_type', 'guest')->first();
+                }
+
+                if (!$existing) {
+                    BaithakAttendee::create([
+                        'baithak_id' => $baithak->id,
+                        'swayamsevak_id' => !empty($g['swayamsevak_id']) ? (int) $g['swayamsevak_id'] : null,
+                        'attendee_type' => 'guest',
+                        'name' => $g['name'],
+                        'mobile' => $g['mobile'] ?? null,
+                        'daayitwa_name' => $g['daayitwa_name'] ?? null,
+                        'unit_name' => $g['unit_name'] ?? null,
+                        'unit_level' => $g['unit_level'] ?? null,
+                        'is_expected' => !empty($g['is_expected']),
+                        'is_present' => !empty($g['is_present']),
+                    ]);
+                }
+            }
+        }
+
+        $baithak->recalculateAttendance();
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'बैठक विवरण सफलतापूर्वक अद्यतन किया गया।',
+                'baithak' => $this->formatBaithak($baithak->fresh()->load(['attendees' => fn($q) => $q->orderBy('attendee_type', 'desc')->orderBy('is_expected', 'desc')->orderBy('name', 'asc')])),
+            ]);
+        }
+
+        return back()->with('success', 'बैठक विवरण सफलतापूर्वक अद्यतन किया गया।');
+    }
+
+    /**
+     * Update Baithak Attendance and Minutes.
+     */
+    public function updateBaithakAttendance(Request $request, Baithak $baithak)
+    {
+        $validated = $request->validate([
+            'attendees' => 'nullable|array',
+            'attendees.*.id' => 'required|integer',
+            'attendees.*.is_present' => 'required|boolean',
+            'attendees.*.remarks' => 'nullable|string|max:500',
+            'minutes' => 'nullable|string',
+            'comments_minutes' => 'nullable|string',
+            'status' => 'nullable|string|max:50',
+            'new_guests' => 'nullable|array',
+            'new_guests.*.name' => 'required|string|max:255',
+            'new_guests.*.mobile' => 'nullable|string|max:50',
+            'new_guests.*.daayitwa_name' => 'nullable|string|max:255',
+            'new_guests.*.unit_name' => 'nullable|string|max:255',
+            'new_guests.*.unit_level' => 'nullable|string|max:50',
+            'new_guests.*.swayamsevak_id' => 'nullable|integer',
+            'new_guests.*.is_expected' => 'nullable|boolean',
+            'new_guests.*.is_present' => 'nullable|boolean',
+            'new_guests.*.remarks' => 'nullable|string|max:500',
+        ]);
+
+        if (!empty($validated['attendees'])) {
+            foreach ($validated['attendees'] as $item) {
+                BaithakAttendee::where('id', $item['id'])
+                    ->where('baithak_id', $baithak->id)
+                    ->update([
+                        'is_present' => (bool) $item['is_present'],
+                        'remarks' => $item['remarks'] ?? null,
+                    ]);
+            }
+        }
+
+        if (!empty($validated['new_guests'])) {
+            foreach ($validated['new_guests'] as $g) {
+                BaithakAttendee::create([
+                    'baithak_id' => $baithak->id,
+                    'swayamsevak_id' => !empty($g['swayamsevak_id']) ? (int) $g['swayamsevak_id'] : null,
+                    'attendee_type' => 'guest',
+                    'name' => $g['name'],
+                    'mobile' => $g['mobile'] ?? null,
+                    'daayitwa_name' => $g['daayitwa_name'] ?? null,
+                    'unit_name' => $g['unit_name'] ?? null,
+                    'unit_level' => $g['unit_level'] ?? null,
+                    'is_expected' => !empty($g['is_expected']),
+                    'is_present' => !empty($g['is_present']),
+                    'remarks' => $g['remarks'] ?? null,
+                ]);
+            }
+        }
+
+        $updates = [];
+        if (array_key_exists('minutes', $validated)) {
+            $updates['minutes'] = $validated['minutes'];
+        }
+        if (array_key_exists('comments_minutes', $validated)) {
+            $updates['comments_minutes'] = $validated['comments_minutes'];
+        }
+        if (!empty($validated['status'])) {
+            $updates['status'] = $validated['status'];
+        } elseif (!empty($validated['minutes'])) {
+            // Auto-mark completed if minutes are saved and status was scheduled
+            if ($baithak->status === 'scheduled') {
+                $updates['status'] = 'completed';
+            }
+        }
+
+        if (!empty($updates)) {
+            $baithak->update($updates);
+        }
+
+        $baithak->recalculateAttendance();
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'बैठक उपस्थिति एवं कार्यवृत्त सफलतापूर्वक सहेजा गया।',
+                'baithak' => $this->formatBaithak($baithak->fresh()->load(['attendees' => fn($q) => $q->orderBy('attendee_type', 'desc')->orderBy('is_expected', 'desc')->orderBy('name', 'asc')])),
+            ]);
+        }
+
+        return back()->with('success', 'बैठक उपस्थिति एवं कार्यवृत्त सफलतापूर्वक सहेजा गया।');
+    }
+
+    /**
+     * Delete Baithak.
+     */
+    public function destroyBaithak(Request $request, Baithak $baithak)
+    {
+        $baithak->delete();
+
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json([
+                'success' => true,
+                'message' => 'बैठक सफलतापूर्वक हटा दी गई।',
+            ]);
+        }
+
+        return back()->with('success', 'बैठक सफलतापूर्वक हटा दी गई।');
+    }
+
+    /**
+     * Search swayamsevaks to invite as guests across units.
+     */
+    public function searchGuests(Request $request): JsonResponse
+    {
+        $query = Swayamsevak::query()->with([
+            'daayitwa:id,name',
+            'basti.nagar.jila',
+            'shakha.nagar.jila',
+        ]);
+
+        $unitLevel = $request->input('unit_level');
+        $unitId = $request->input('unit_id');
+        $search = trim($request->input('q', ''));
+
+        if (!empty($unitLevel) && !empty($unitId)) {
+            $bastiIds = $this->getSubordinateBastiIds($unitLevel, (int) $unitId);
+            $query->where(function ($q) use ($bastiIds) {
+                $q->whereIn('basti_id', $bastiIds)->orWhereIn('shakha_id', $bastiIds);
+            });
+        }
+
+        if (!empty($search)) {
+            $like = DB::getDriverName() === 'pgsql' ? 'ilike' : 'like';
+            $query->where(function ($q) use ($search, $like) {
+                $q->where('name', $like, "%{$search}%")
+                  ->orWhere('mobile', $like, "%{$search}%");
+            });
+        }
+
+        $swayamsevaks = $query->latest('id')->limit(50)->get()->map(function ($s) use ($unitLevel) {
+            $basti = $s->basti;
+            $shakha = $s->shakha;
+            $nagar = $basti?->nagar ?? $shakha?->nagar;
+            $jila = $nagar?->jila ?? $shakha?->jila;
+
+            $unitDisplay = '';
+            if ($jila) {
+                $unitDisplay = 'जिला ' . $jila->jila_name;
+            } elseif ($nagar) {
+                $unitDisplay = 'नगर ' . $nagar->nagar_name;
+            } elseif ($basti) {
+                $unitDisplay = 'बस्ती ' . $basti->basti_name;
+            } elseif ($shakha) {
+                $unitDisplay = 'शाखा ' . $shakha->shakha_name;
+            }
+
+            return [
+                'id' => $s->id,
+                'name' => $s->name,
+                'mobile' => $s->mobile,
+                'daayitwa_name' => $s->daayitwa?->name,
+                'unit_name' => $unitDisplay,
+                'basti_name' => $basti?->basti_name ?? $shakha?->basti_name,
+                'nagar_name' => $nagar?->nagar_name,
+                'jila_name' => $jila?->jila_name,
+                'unit_level' => $unitLevel ?: 'basti',
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'swayamsevaks' => $swayamsevaks,
+        ]);
+    }
+
+    /**
+     * Get units list by level for guest filtering.
+     */
+    public function getUnitsByLevel(Request $request): JsonResponse
+    {
+        $level = $request->input('level');
+        $units = collect([]);
+
+        switch ($level) {
+            case 'kshetra':
+                $units = Kshetra::select('id', 'kshetra_name as name')->orderBy('kshetra_name')->get();
+                break;
+            case 'prant':
+                $units = Prant::select('id', 'prant_name as name')->orderBy('prant_name')->get();
+                break;
+            case 'vibhag':
+                $units = Vibhag::select('id', 'vibhag_name as name')->orderBy('vibhag_name')->get();
+                break;
+            case 'jila':
+                $units = Jila::select('id', 'jila_name as name')->orderBy('jila_name')->get();
+                break;
+            case 'nagar':
+                $units = Nagar::select('id', 'nagar_name as name')->orderBy('nagar_name')->get();
+                break;
+            case 'basti':
+                $units = Basti::select('id', 'basti_name as name')->orderBy('basti_name')->get();
+                break;
+            case 'shakha':
+                $units = Shakha::select('id', 'shakha_name as name')->orderBy('shakha_name')->get();
+                break;
+        }
+
+        return response()->json([
+            'success' => true,
+            'units' => $units,
+        ]);
+    }
+
+    /**
+     * Get all subordinate basti/shakha IDs for a given unit level and ID.
+     */
+    protected function getSubordinateBastiIds(string $unitLevel, int $unitId): array
+    {
+        if ($unitLevel === 'basti') {
+            $shakhaIds = Shakha::where('basti_id', $unitId)->pluck('id')->toArray();
+            return array_values(array_unique(array_merge([$unitId], $shakhaIds)));
+        }
+
+        if ($unitLevel === 'shakha') {
+            $shakha = Shakha::find($unitId);
+            $bastiId = $shakha?->basti_id;
+            return array_values(array_unique(array_filter([$unitId, $bastiId])));
+        }
+
+        if ($unitLevel === 'nagar') {
+            $bastiIds = Basti::where('nagar_id', $unitId)->pluck('id')->toArray();
+            $shakhaIds = Shakha::where('nagar_id', $unitId)->pluck('id')->toArray();
+            return array_values(array_unique(array_merge($bastiIds, $shakhaIds, [$unitId])));
+        }
+
+        if ($unitLevel === 'jila') {
+            $nagarIds = Nagar::where('jila_id', $unitId)->pluck('id')->toArray();
+            $bastiIds = Basti::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            $shakhaIds = Shakha::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            return array_values(array_unique(array_merge($bastiIds, $shakhaIds)));
+        }
+
+        if ($unitLevel === 'vibhag') {
+            $jilaIds = Jila::where('vibhag_id', $unitId)->pluck('id')->toArray();
+            $nagarIds = Nagar::whereIn('jila_id', $jilaIds)->pluck('id')->toArray();
+            $bastiIds = Basti::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            $shakhaIds = Shakha::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            return array_values(array_unique(array_merge($bastiIds, $shakhaIds)));
+        }
+
+        if ($unitLevel === 'prant') {
+            $vibhagIds = Vibhag::where('prant_id', $unitId)->pluck('id')->toArray();
+            $jilaIds = Jila::whereIn('vibhag_id', $vibhagIds)->pluck('id')->toArray();
+            $nagarIds = Nagar::whereIn('jila_id', $jilaIds)->pluck('id')->toArray();
+            $bastiIds = Basti::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            $shakhaIds = Shakha::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            return array_values(array_unique(array_merge($bastiIds, $shakhaIds)));
+        }
+
+        if ($unitLevel === 'kshetra') {
+            $prantIds = Prant::where('kshetra_id', $unitId)->pluck('id')->toArray();
+            $vibhagIds = Vibhag::whereIn('prant_id', $prantIds)->pluck('id')->toArray();
+            $jilaIds = Jila::whereIn('vibhag_id', $vibhagIds)->pluck('id')->toArray();
+            $nagarIds = Nagar::whereIn('jila_id', $jilaIds)->pluck('id')->toArray();
+            $bastiIds = Basti::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            $shakhaIds = Shakha::whereIn('nagar_id', $nagarIds)->pluck('id')->toArray();
+            return array_values(array_unique(array_merge($bastiIds, $shakhaIds)));
+        }
+
+        return [$unitId];
+    }
+
+    /**
+     * Format a Baithak model into standard array for frontend consumption.
+     */
+    protected function formatBaithak(Baithak $b): array
+    {
+        return [
+            'id' => $b->id,
+            'unit_level' => $b->unit_level,
+            'unit_id' => $b->unit_id,
+            'title' => $b->title,
+            'baithak_type' => $b->baithak_type,
+            'baithak_date' => $b->baithak_date ? $b->baithak_date->format('Y-m-d') : null,
+            'baithak_date_formatted' => $b->baithak_date ? $b->baithak_date->format('d/m/Y') : null,
+            'baithak_time' => $b->baithak_time,
+            'venue' => $b->venue,
+            'agenda' => $b->agenda,
+            'status' => $b->status,
+            'expected_daayitwas' => $b->expected_daayitwas ?: [],
+            'custom_expected' => $b->custom_expected ?: [],
+            'comments_scheduling' => $b->comments_scheduling,
+            'minutes' => $b->minutes,
+            'comments_minutes' => $b->comments_minutes,
+            'attended_count' => (int) $b->attended_count,
+            'total_expected_count' => (int) $b->total_expected_count,
+            'photos' => $b->photos ?: [],
+            'attendees' => $b->attendees->map(function ($a) {
+                return [
+                    'id' => $a->id,
+                    'swayamsevak_id' => $a->swayamsevak_id,
+                    'attendee_type' => $a->attendee_type,
+                    'name' => $a->name,
+                    'mobile' => $a->mobile,
+                    'daayitwa_name' => $a->daayitwa_name,
+                    'unit_name' => $a->unit_name,
+                    'unit_level' => $a->unit_level,
+                    'is_expected' => (bool) $a->is_expected,
+                    'is_present' => (bool) $a->is_present,
+                    'remarks' => $a->remarks,
+                ];
+            })->values()->toArray(),
+        ];
     }
 }

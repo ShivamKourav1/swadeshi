@@ -38,8 +38,10 @@ import {
     User,
     UserPlus,
     Lock,
+    Calendar,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import BaithakSection from './BaithakSection';
 
 /**
  * Searchable dropdown for assigning Daayitwa (Responsibility) to Swayamsevak.
@@ -182,6 +184,7 @@ export default function ToliIndex({
     reportText = '',
     daayitwas = [],
     shikshanOptions = [],
+    baithaks = [],
     flash = {}
 }) {
     const bastisList = (availableBastis && availableBastis.length > 0) ? availableBastis : (availableShakhas || []);
@@ -189,7 +192,7 @@ export default function ToliIndex({
     const currentBastiId = unit?.basti_id || unit?.shakha_id || (isBasti ? unit?.id : null);
 
     // Current active navigation tab
-    const [activeTab, setActiveTab] = useState('members'); // 'members', 'distribution', 'orders', 'subunits'
+    const [activeTab, setActiveTab] = useState('members'); // 'members', 'distribution', 'orders', 'subunits', 'baithaks'
 
     // Notification toast state
     const [toastMessage, setToastMessage] = useState(flash?.success || flash?.error || null);
@@ -1498,6 +1501,18 @@ export default function ToliIndex({
                             <Share2 className="w-4 h-4" />
                             <span>उप-इकाई लिंक ({subUnits.length})</span>
                         </button>
+
+                        <button
+                            onClick={() => setActiveTab('baithaks')}
+                            className={`px-3 py-2.5 text-xs md:text-sm font-semibold rounded-t-lg transition flex items-center space-x-1.5 whitespace-nowrap shrink-0 ${
+                                activeTab === 'baithaks'
+                                    ? 'bg-orange-50/90 text-orange-900 shadow-sm font-bold'
+                                    : 'text-amber-100 hover:bg-amber-600/40'
+                            }`}
+                        >
+                            <Calendar className="w-4 h-4" />
+                            <span>बैठक ({baithaks?.length || 0})</span>
+                        </button>
                     </div>
                 </div>
             </header>
@@ -2265,6 +2280,19 @@ export default function ToliIndex({
                             )}
                         </div>
                     </div>
+                )}
+
+                {/* TAB 5: बैठक प्रबंधन (BAITHAK / MEETINGS MANAGEMENT) */}
+                {activeTab === 'baithaks' && (
+                    <BaithakSection
+                        unit={unit}
+                        baithaks={baithaks}
+                        daayitwas={daayitwas}
+                        swayamsevaks={swayamsevaks}
+                        isAuthenticated={isAuthenticated}
+                        onRequireLogin={() => setShowLoginModal(true)}
+                        showToast={showToast}
+                    />
                 )}
             </main>
 
