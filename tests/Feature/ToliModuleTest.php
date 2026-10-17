@@ -162,6 +162,52 @@ class ToliModuleTest extends TestCase
         $response->assertStatus(404);
     }
 
+    public function test_basti_toli_page_only_shows_sub_units_and_never_parallel_sibling_bastis(): void
+    {
+        // Create a sibling Basti in the same Nagar
+        $siblingBasti = Basti::create([
+            'nagar_id' => $this->nagar->id,
+            'basti_name' => 'Sibling Basti 2',
+            'status' => 'Active',
+        ]);
+
+        // Access the primary basti page (which has 1 child shakha: $this->shakha)
+        $primaryBastiUrl = ToliEncryptionService::buildToliUrl(
+            $this->kshetra->id,
+            $this->vibhag->id,
+            $this->jila->id,
+            $this->nagar->id,
+            $this->basti->id
+        );
+
+        $responsePrimary = $this->actingAs($this->toliMember)->get($primaryBastiUrl);
+        $responsePrimary->assertStatus(200);
+        $responsePrimary->assertInertia(fn ($page) =>
+            $page->component('Toli/Index')
+                ->where('unit.name', 'Keshav Shakha')
+                ->has('subUnits', 1)
+                ->where('subUnits.0.name', 'Keshav Shakha')
+                ->where('subUnits.0.type', 'shakha')
+        );
+
+        // Access the sibling basti page (which has NO child shakhas)
+        $siblingBastiUrl = ToliEncryptionService::buildToliUrl(
+            $this->kshetra->id,
+            $this->vibhag->id,
+            $this->jila->id,
+            $this->nagar->id,
+            $siblingBasti->id
+        );
+
+        $responseSibling = $this->actingAs($this->toliMember)->get($siblingBastiUrl);
+        $responseSibling->assertStatus(200);
+        $responseSibling->assertInertia(fn ($page) =>
+            $page->component('Toli/Index')
+                ->where('unit.name', 'Sibling Basti 2')
+                ->has('subUnits', 0) // Strictly 0: sibling bastis are NOT shown
+        );
+    }
+
     public function test_karyakarta_dashboard_provides_toli_navigation_option_when_scope_is_assigned(): void
     {
         $karyakartaWithScope = User::factory()->create([

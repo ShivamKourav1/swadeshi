@@ -442,47 +442,26 @@ class ToliController extends Controller
                 $ancestors[] = ['level' => 'kshetra', 'id' => $kshetra->id];
             }
 
-            // Sub-units: sibling bastis/shakhas in the same nagar
+            // Sub-units: only child shakhas under this basti (if any exist)
+            // Parallel/sibling bastis are NOT sub-units and must never be shown here.
             $subUnits = [];
-            if ($nagar) {
-                $siblings = Basti::where('nagar_id', $nagar->id)->get();
-                foreach ($siblings as $sibling) {
-                    $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $sibling->id);
+            if ($basti) {
+                $childShakhas = Shakha::where('basti_id', $basti->id)->get();
+                foreach ($childShakhas as $cShakha) {
+                    $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $cShakha->id);
                     $subUnits[] = [
-                        'id' => $sibling->id,
-                        'name' => $sibling->basti_name,
-                        'basti_name' => $sibling->basti_name,
-                        'shakha_name' => $sibling->basti_name,
-                        'type' => 'basti',
-                        'type_hindi' => 'बस्ती',
-                        'url' => $url,
-                        'full_url' => url($url),
-                        'is_current' => (int) $sibling->id === (int) $shakhaId && $basti !== null,
-                        'members_count' => Swayamsevak::where(function($q) use ($sibling) {
-                            $q->where('basti_id', $sibling->id)->orWhere('shakha_id', $sibling->id);
-                        })->count(),
-                        'ganvesh_count' => Swayamsevak::where(function($q) use ($sibling) {
-                            $q->where('basti_id', $sibling->id)->orWhere('shakha_id', $sibling->id);
-                        })->where('ganvesh', true)->count(),
-                        'new_ganvesh' => (int) Shakha::where('basti_id', $sibling->id)->sum('new_ganvesh'),
-                    ];
-                }
-                $shakhaSiblings = Shakha::where('nagar_id', $nagar->id)->whereNull('basti_id')->get();
-                foreach ($shakhaSiblings as $sSibling) {
-                    $url = ToliEncryptionService::buildToliUrl($kshetraId, $vibhagId, $jilaId, $nagarId, $sSibling->id);
-                    $subUnits[] = [
-                        'id' => $sSibling->id,
-                        'name' => $sSibling->shakha_name,
-                        'basti_name' => $sSibling->shakha_name,
-                        'shakha_name' => $sSibling->shakha_name,
+                        'id' => $cShakha->id,
+                        'name' => $cShakha->shakha_name,
+                        'basti_name' => $cShakha->shakha_name,
+                        'shakha_name' => $cShakha->shakha_name,
                         'type' => 'shakha',
                         'type_hindi' => 'शाखा',
                         'url' => $url,
                         'full_url' => url($url),
-                        'is_current' => (int) $sSibling->id === (int) $shakhaId && $shakha !== null,
-                        'members_count' => Swayamsevak::where('shakha_id', $sSibling->id)->count(),
-                        'ganvesh_count' => Swayamsevak::where('shakha_id', $sSibling->id)->where('ganvesh', true)->count(),
-                        'new_ganvesh' => (int) $sSibling->new_ganvesh,
+                        'is_current' => false,
+                        'members_count' => Swayamsevak::where('shakha_id', $cShakha->id)->count(),
+                        'ganvesh_count' => Swayamsevak::where('shakha_id', $cShakha->id)->where('ganvesh', true)->count(),
+                        'new_ganvesh' => (int) $cShakha->new_ganvesh,
                     ];
                 }
             }
